@@ -57,6 +57,24 @@ struct DocumentRepositoryTests {
         }
     }
 
+    @Test func duplicateHashInsertKeepsExistingRow() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = DocumentRepository(database: db)
+        let idA = "10000000-0000-0000-0000-0000000000a1"
+        let idB = "10000000-0000-0000-0000-0000000000a2"
+        let original = TestData.document(id: idA, title: "Quantum", fileHash: "same")
+        let duplicate = TestData.document(id: idB, title: "Biology", fileHash: "same")
+        try await repo.insert(original)
+
+        await #expect(throws: DatabaseError.self) {
+            try await repo.insert(duplicate)
+        }
+
+        #expect(try await repo.fetch(id: idA) == original)
+        #expect(try await repo.fetch(id: idB) == nil)
+        #expect(try await repo.fetchAll().count == 1)
+    }
+
     @Test(.timeLimit(.minutes(1)))
     func observeAllEmitsAfterInsert() async throws {
         let db = try AppDatabase.makeInMemory()

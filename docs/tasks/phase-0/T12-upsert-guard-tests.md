@@ -65,3 +65,4 @@ If your toolchain's `#expect(throws:)` doesn't return the error, use `do/catch` 
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 93/93; tests guard H1 (duplicate fileHash/tag name throw, original row unchanged); no upsert elsewhere. Note: scripts/test.sh filters need struct names, not @Suite display names.
