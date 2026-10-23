@@ -135,3 +135,4 @@ All FileStore tests use `TestFileStore.make()`; none may touch the real Applicat
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-23, Sonnet (effort medium): APPROVED. Tests 13/13, spec met, delete guard holds. Minor: unreachable branch FileStore.swift:79; url(forRelativePath:) does no '..' sanitizing, callers must pass DB values only.

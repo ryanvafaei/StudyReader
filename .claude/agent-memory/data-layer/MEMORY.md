@@ -1,0 +1,1 @@
+- [Swift Testing and FileStore notes](swift-testing-and-filestore-notes.md) — FileStore/Now/Log API pitfalls and test helper locations
