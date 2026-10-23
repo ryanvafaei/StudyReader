@@ -28,7 +28,12 @@ Read first: ADR-0012, ARCHITECTURE §4 (tables `category` … `documentNote`). T
 // StudyRecord.swift
 import GRDB
 /// Shared conformance for every GRDB record (ADR-0012). Dates are stored as REAL Unix seconds.
-protocol StudyRecord: Codable, Sendable, FetchableRecord, PersistableRecord {}
+protocol StudyRecord: Codable, Sendable, FetchableRecord, PersistableRecord {
+    // Declared as requirements: GRDB 7.11 calls these through its own protocol requirements,
+    // so an extension-only method would be ignored and dates would be stored as strings.
+    static func databaseDateEncodingStrategy(for column: String) -> DatabaseDateEncodingStrategy
+    static func databaseDateDecodingStrategy(for column: String) -> DatabaseDateDecodingStrategy
+}
 extension StudyRecord {
     static func databaseDateEncodingStrategy(for column: String) -> DatabaseDateEncodingStrategy { .timeIntervalSince1970 }
     static func databaseDateDecodingStrategy(for column: String) -> DatabaseDateDecodingStrategy { .timeIntervalSince1970 }
@@ -180,3 +185,4 @@ All tests use `AppDatabase.makeInMemory()` and `TestData`.
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-23, Sonnet (effort medium): APPROVED. Tests 49/49, columns match §4. Date strategies declared as protocol requirements (GRDB 7.11 ignores extension-only); spec text updated.
