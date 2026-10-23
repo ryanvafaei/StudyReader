@@ -50,6 +50,8 @@ targets:
       path: StudyReader/Resources/Info.plist
       properties:
         CFBundleDisplayName: StudyReader
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSApplicationCategoryType: public.app-category.education
         GIDClientID: "$(GOOGLE_CLIENT_ID)"
         CFBundleURLTypes:
