@@ -3,3 +3,4 @@
 - [Database schema v1 notes](database-schema-v1-notes.md) — AppDatabase/SchemaV1 layout, GRDB FTS5 usage, Row/#expect test pitfalls
 - [Record types notes](record-types-notes.md) — GRDB record structs, StudyRecord date-strategy requirement form, capture pitfalls (T05)
 - [Repository pattern notes](repository-pattern-notes.md) — CategoryRepository/DocumentRepository pattern, GRDB ValueObservation and #expect(throws) usage (T07)
+- [PDF fixture builder notes](pdf-fixture-builder-notes.md) — T09 PDFFixtureBuilder file locations, PDFKit font-trait API pitfalls

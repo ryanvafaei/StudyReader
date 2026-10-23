@@ -137,3 +137,4 @@ Tests open the data with `PDFDocument(data:)` (`import PDFKit`) and normalize `p
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 80/80, all fixture presets match spec, PDFKit font fallback not needed. Deviation: SymbolicTraits.monoSpace (SDK spelling).
