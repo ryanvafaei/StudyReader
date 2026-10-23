@@ -1,0 +1,33 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Secrets (Google OAuth client config etc.)
+Secrets/
+.env
+.env.*
+
+# Claude Code personal files
+.claude/settings.local.json
+CLAUDE.local.md
+.claude/agent-memory-local/
+
+# Generated Xcode project (XcodeGen; project.yml is the source of truth)
+*.xcodeproj/
+*.xcworkspace/
+.xcodegen-cache/
+
+# Reference repos and local-only files
+.references/
+_to_delete/
+StudyReaderTests/Fixtures/private/

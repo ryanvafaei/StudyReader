@@ -1,0 +1,4 @@
+// Copy to Secrets/Google.xcconfig and fill in (see docs/DEPENDENCIES.md §4).
+// Secrets/ is git-ignored. Without this file the app builds and Google export shows "not configured".
+GOOGLE_CLIENT_ID = REPLACE_ME.apps.googleusercontent.com
+GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.REPLACE_ME
