@@ -1,0 +1,2 @@
+- [Project conventions](project_conventions.md) — record names, ADR-0011/0012 rules, DI, test layout, fixture interfaces for later specs
+- [Phase status](project_phase_status.md) — phases planned so far, deferred items, open user questions

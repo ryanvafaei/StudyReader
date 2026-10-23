@@ -52,3 +52,7 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - All 10 tasks are approved and committed (`TNN: <title>`).
 - Full test suite passes via test-runner; the app launches and creates its database in the sandbox container.
 - bug-hunter has run and its critical/high findings are fixed.
+
+## Queued fixes
+
+- Bundle version: add `CFBundleShortVersionString: "$(MARKETING_VERSION)"` and `CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"` to `info.properties` in `project.yml` (XcodeGen hardcodes 1.0 / 1). Fold into the next task that touches `project.yml`, or run as its own small ui-builder task before the phase ends.

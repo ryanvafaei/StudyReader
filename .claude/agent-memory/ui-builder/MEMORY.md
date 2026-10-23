@@ -1,0 +1,1 @@
+- [XcodeGen and FSRS pitfalls](xcodegen_and_fsrs_pitfalls.md) — empty Fixtures folder breaks build; FSRSDefaults has no defaultWv6 in 5.0.0
