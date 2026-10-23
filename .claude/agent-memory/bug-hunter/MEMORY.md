@@ -1,0 +1,2 @@
+- [Bug patterns](bug-patterns.md) — recurring hazards from phase 0 (untargeted upsert, frozen v1, FTS desync, Persian tokenizing, FK indexes)
+- [Verification techniques](verification-techniques.md) — reproduce without editing code: GRDB sources, scratchpad sqlite3/swiftc, read-only real library
