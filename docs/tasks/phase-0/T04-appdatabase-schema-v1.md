@@ -115,3 +115,4 @@ No other tables, columns, triggers, or seed rows.
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-23, Sonnet (effort medium): APPROVED. Tests 36/36, schema identical to ARCHITECTURE §4, FTS triggers and seeds verified. Minor: categoryDeleteRestricted should assert SQLITE_CONSTRAINT; cascade test doesn't cover document_fts.

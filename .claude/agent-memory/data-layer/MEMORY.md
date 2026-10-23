@@ -1,2 +1,3 @@
 - [Swift Testing and FileStore notes](swift-testing-and-filestore-notes.md) — FileStore/Now/Log API pitfalls and test helper locations
 - [Model value types notes](model-value-types-notes.md) — column enums, Anchor, JSON column value types: files and Codable pitfalls
+- [Database schema v1 notes](database-schema-v1-notes.md) — AppDatabase/SchemaV1 layout, GRDB FTS5 usage, Row/#expect test pitfalls
