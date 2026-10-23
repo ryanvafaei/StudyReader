@@ -2,7 +2,11 @@ import SwiftUI
 
 /// Main window content: sidebar of sections and a placeholder detail pane.
 struct RootView: View {
-    @State private var model = RootModel()
+    @State private var model: RootModel
+
+    init(environment: AppEnvironment) {
+        _model = State(initialValue: RootModel(environment: environment))
+    }
 
     var body: some View {
         NavigationSplitView {
@@ -24,8 +28,4 @@ struct RootView: View {
         }
         .frame(minWidth: 900, minHeight: 600)
     }
-}
-
-#Preview {
-    RootView()
 }

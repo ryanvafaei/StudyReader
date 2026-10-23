@@ -1,9 +1,12 @@
 import Observation
 
-/// Holds the main window's navigation state.
+/// Holds the main window's navigation state and the app's long-lived dependencies.
 @MainActor @Observable
 final class RootModel {
+    let environment: AppEnvironment
     var selection: SidebarItem? = .library
 
-    init() {}
+    init(environment: AppEnvironment) {
+        self.environment = environment
+    }
 }

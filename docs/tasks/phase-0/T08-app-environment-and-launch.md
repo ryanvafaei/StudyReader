@@ -131,3 +131,4 @@ Tests never call `AppEnvironment.live()`.
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-23, Sonnet (effort medium): APPROVED. Tests 69/69, test-host uses in-memory DB, failure path not re-runnable. Minor: two tests leave temp dirs; DB opens on main thread (revisit if migrations get slow). Visual check pending.
