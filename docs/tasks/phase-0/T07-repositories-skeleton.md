@@ -88,3 +88,4 @@ Observation tests: get `var iterator = repo.observeAll().makeAsyncIterator()`, `
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-23, Sonnet (effort medium): APPROVED. Tests 63/63, repository pattern sound (Sendable struct, AsyncValueObservation, ordering, observe tests assert post-change emission). Minor: no same-addedAt tie-break test.
