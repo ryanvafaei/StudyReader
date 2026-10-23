@@ -20,6 +20,8 @@ Run in this order, one at a time (CLAUDE.md workflow).
 | 8 | [T08 AppEnvironment and launch wiring](T08-app-environment-and-launch.md) | ui-builder | T01, T07 | yes |
 | 9 | [T09 PDFFixtureBuilder](T09-pdf-fixture-builder.md) | data-layer | T01 | no |
 | 10 | [T10 Markdown fixtures and loader](T10-markdown-fixtures.md) | data-layer | T01 | no |
+| 11 | [T11 Bundle version from build settings](T11-bundle-version.md) | ui-builder | T01 | no |
+| 12 | [T12 Guard tests for primary-key-only upsert](T12-upsert-guard-tests.md) (bug hunt H1) | data-layer | T05, T07 | no |
 
 T09 and T10 only need T01; they're last so the database chain isn't interrupted, but they may run any time after T01 if a database task is blocked.
 
@@ -49,10 +51,12 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - Phase 0 has no SPEC feature ACs of its own. It prepares fixtures and types named by F-02, F-03, F-05, F-06, F-07, F-08, F-11, F-12 ACs in Phase 1.
 
 ## Phase done when
-- All 10 tasks are approved and committed (`TNN: <title>`).
+- All 12 tasks are approved and committed (`TNN: <title>`).
 - Full test suite passes via test-runner; the app launches and creates its database in the sandbox container.
 - bug-hunter has run and its critical/high findings are fixed.
 
 ## Queued fixes
 
-None. The bundle version fix shipped as T11.
+- T11 (bundle version) shipped.
+- T12 fixes bug hunt H1 (`docs/bugs/phase-0.md`). ADR-0012 was amended first, so T12 has tests only.
+- The medium and low findings (M1–M5, L1–L7) aren't scheduled yet. Several of them (M2, M3, L5) need a `v2` migration, and the user hasn't decided on that yet.

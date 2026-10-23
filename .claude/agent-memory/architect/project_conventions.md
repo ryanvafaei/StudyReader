@@ -13,6 +13,8 @@ Decided 2026-10-23 while planning Phase 0. Authoritative text: docs/decisions/00
 - `reviewCard.fsrsCard` / `reviewLog.fsrsLog` are String JSON in records; review-engine owns FSRS conversion (Phase 2). `exportTarget.lastStatus` is a String; E1.8 defines values.
 - Built-in category IDs fixed `00000000-0000-0000-0000-00000000000{1..5}` via `BuiltinCategory` (lectureSlides…other). "Other" is the reassignment target on category delete.
 - AppDatabase wraps `any DatabaseWriter` (pool on disk, queue in memory). Never REPLACE on FTS-synced tables; never VACUUM without FTS rebuild.
+- Upsert rule (ADR-0012 amended 2026-10-24, bug H1): never bare `upsert(db)`; only `upsertAndFetch(db, onConflict: [PK cols])`. Dedupe by fileHash/tag name/category name = explicit lookup then insert. Phase 1 import/tag-create specs must say this. Guard: UpsertConventionTests (T12).
+- v1 migration has shipped to the user's real library (2026-10-24): any schema change needs `v2`, never edit SchemaV1.
 - DI: `AppEnvironment` (Sendable struct) passed through initializers (RootModel(environment:)), no EnvironmentValues entry. Add new services/repos to it.
 - Hosted tests: app uses in-memory env when XCTest env vars present; tests never call `AppEnvironment.live()`.
 - Build: ad-hoc signing, no team in Phase 0–1; keychain-access-groups + DEVELOPMENT_TEAM must be added by the E1.8 Google sign-in task. Debug DEAD_CODE_STRIPPING=NO; packages only on app target. Default actor isolation nonisolated.
