@@ -64,4 +64,44 @@ enum TestData {
     static func tag(name: String, id: String = UUID().uuidString, createdAt: Date = referenceDate) -> LibraryTag {
         LibraryTag(id: id, name: name, createdAt: createdAt)
     }
+
+    static func reviewCard(
+        highlightId: String,
+        id: String = UUID().uuidString,
+        cardType: CardType = .passive,
+        dueAt: Date = referenceDate,
+        state: CardState = .new,
+        createdAt: Date = referenceDate
+    ) -> ReviewCard {
+        ReviewCard(
+            id: id,
+            highlightId: highlightId,
+            cardType: cardType,
+            fsrsCard: "{}",
+            dueAt: dueAt,
+            state: state,
+            createdAt: createdAt
+        )
+    }
+
+    static func themedReview(
+        name: String = "Exam week",
+        id: String = UUID().uuidString,
+        createdAt: Date = referenceDate
+    ) -> ThemedReview {
+        ThemedReview(id: id, name: name, createdAt: createdAt)
+    }
+
+    static func exportTarget(
+        scope: ExportScope = .all,
+        id: String = UUID().uuidString,
+        createdAt: Date = referenceDate
+    ) -> ExportTarget {
+        ExportTarget(
+            id: id,
+            title: "StudyReader – All highlights",
+            scope: scope,
+            createdAt: createdAt
+        )
+    }
 }

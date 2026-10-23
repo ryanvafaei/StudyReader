@@ -127,3 +127,4 @@ All tests use `AppDatabase.makeInMemory()` and `TestData`.
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-23, Sonnet (effort medium): APPROVED. Tests 56/56, columns/defaults match §4, cascade and SET NULL verified. Minor: JSON column storage type not asserted in two tests.
