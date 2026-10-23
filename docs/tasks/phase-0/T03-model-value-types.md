@@ -188,3 +188,4 @@ Optional properties use the synthesized `encodeIfPresent` behaviour (nil keys ar
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-23, Sonnet (effort medium): APPROVED. Tests 22/22, enums match schema CHECKs, Anchor shape per spec. Minor: roundTripAllCases could cover multi-page PDFAnchor.
