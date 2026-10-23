@@ -126,7 +126,7 @@ Entitlements:
 - `com.apple.security.app-sandbox` = true
 - `com.apple.security.files.user-selected.read-only` = true
 - `com.apple.security.network.client` = true
-- `keychain-access-groups` = [`$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)`] (first item; required by GoogleSignIn on macOS)
+- `keychain-access-groups` = [`$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)`] (first item; required by GoogleSignIn on macOS). Added in Phase 1 E1.8 together with `DEVELOPMENT_TEAM`, not in Phase 0 (ADR-0011).
 
 Info.plist additions:
 - `GIDClientID` = `$(GOOGLE_CLIENT_ID)`
@@ -151,7 +151,23 @@ Info.plist additions:
 
 ## 4. Data model (SQLite via GRDB, migration `v1`)
 
-IDs are `TEXT` UUIDs. Dates are `REAL` (Unix seconds). JSON columns hold `Codable` structs.
+IDs are `TEXT` UUIDs. Dates are `REAL` (Unix seconds). JSON columns hold `Codable` structs. Coding rules: ADR-0012. SQL table names below stay as written; only the Swift record types are renamed, to avoid clashes with Markdown, ObjectiveC, Testing and FSRS.
+
+| SQL table | Swift record type |
+|---|---|
+| `category` | `DocumentCategory` |
+| `document` | `LibraryDocument` |
+| `documentText` | `DocumentText` |
+| `highlight` | `Highlight` |
+| `tag` | `LibraryTag` |
+| `highlightTag` | `HighlightTag` |
+| `documentTag` | `DocumentTag` |
+| `documentNote` | `DocumentNote` |
+| `reviewCard` | `ReviewCard` |
+| `reviewLog` | `ReviewLogEntry` |
+| `themedReview` | `ThemedReview` |
+| `exportTarget` | `ExportTarget` |
+| `highlightEmbedding` | `HighlightEmbedding` |
 
 ```sql
 CREATE TABLE category (
