@@ -249,7 +249,7 @@ import FSRS
     @Test func grdbOpensInMemoryDatabase()   // DatabaseQueue(); SELECT 1 == 1
     @Test func fts5Available()               // CREATE VIRTUAL TABLE t USING fts5(x) succeeds; INSERT + MATCH returns 1 row
     @Test func markdownParses()              // Document(parsing: "# Title\n\nBody").childCount == 2
-    @Test func fsrsWeightsAvailable()        // FSRSDefaults.defaultWv6.count == 21
+    @Test func fsrsRatingsAvailable()        // Rating.allCases.contains(.good); defaultWv6 does not exist in swift-fsrs 5.0.0
 }
 ```
 If `FSRSDefaults.defaultWv6` isn't public, assert on `Rating.good` existing instead (`#expect(Rating.allCases.contains(.good))` or similar) and say so in your report. If the test target fails to link package symbols ("Undefined symbols"), don't add packages to the test target: report BLOCKED with the linker error.
@@ -258,7 +258,7 @@ If `FSRSDefaults.defaultWv6` isn't public, assert on `Rating.good` existing inst
 1. `xcodegen generate --use-cache --quiet` succeeds and writes `StudyReader/Resources/Info.plist` (contains `GIDClientID`, `CFBundleURLTypes`, both `CFBundleDocumentTypes`, `UTImportedTypeDeclarations`) and `StudyReader.entitlements` (exactly the three keys above). → reviewer reads both files
 2. The build command in CLAUDE.md prints `BUILD SUCCEEDED` with no Swift concurrency warnings. → test-runner
 3. Sidebar order and titles match SPEC F-01. → test `SidebarItemTests/allCasesInSpecOrder`
-4. Hosted tests can import GRDB (with FTS5), Markdown, and FSRS. → tests `PackageLinkTests/grdbOpensInMemoryDatabase`, `PackageLinkTests/fts5Available`, `PackageLinkTests/markdownParses`, `PackageLinkTests/fsrsWeightsAvailable`
+4. Hosted tests can import GRDB (with FTS5), Markdown, and FSRS. → tests `PackageLinkTests/grdbOpensInMemoryDatabase`, `PackageLinkTests/fts5Available`, `PackageLinkTests/markdownParses`, `PackageLinkTests/fsrsRatingsAvailable`
 5. After a build, `git status --porcelain` lists `StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` as untracked and no other file under `StudyReader.xcodeproj/`. → reviewer runs `git status`
 6. Visual check: run the app (`open` the built `StudyReader.app` or run the scheme in Xcode). A window titled StudyReader opens at about 1100×720 with a sidebar listing Library, Highlights, Review, Themed Reviews, Tags, Categories (with icons). Library is selected; clicking each item shows a placeholder with that item's title and icon. Check in light and dark mode.
 
@@ -269,3 +269,4 @@ If `FSRSDefaults.defaultWv6` isn't public, assert on `Rating.good` existing inst
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-23, Sonnet (effort medium): APPROVED. Tests 5/5, spec met; fsrs test renamed (defaultWv6 absent), Fixtures/.gitkeep added for fresh clones. Visual check pending.

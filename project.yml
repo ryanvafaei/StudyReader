@@ -1,0 +1,117 @@
+name: StudyReader
+options:
+  bundleIdPrefix: com.ryanvafaei
+  deploymentTarget:
+    macOS: "27.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+  configs:
+    Debug:
+      DEAD_CODE_STRIPPING: NO
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: 7.11.1
+  swift-markdown:
+    url: https://github.com/swiftlang/swift-markdown
+    from: 0.9.0
+  FSRS:
+    url: https://github.com/open-spaced-repetition/swift-fsrs
+    from: 5.0.0
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: 10.1.0
+targets:
+  StudyReader:
+    type: application
+    platform: macOS
+    sources:
+      - path: StudyReader
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ryanvafaei.StudyReader
+        PRODUCT_NAME: StudyReader
+    info:
+      path: StudyReader/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: StudyReader
+        LSApplicationCategoryType: public.app-category.education
+        GIDClientID: "$(GOOGLE_CLIENT_ID)"
+        CFBundleURLTypes:
+          - CFBundleURLName: GoogleSignIn
+            CFBundleURLSchemes:
+              - "$(GOOGLE_REVERSED_CLIENT_ID)"
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: PDF Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.adobe.pdf]
+          - CFBundleTypeName: Markdown Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [net.daringfireball.markdown]
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeDescription: Markdown Document
+            UTTypeConformsTo: [public.plain-text]
+            UTTypeTagSpecification:
+              public.filename-extension: [md, markdown]
+              public.mime-type: [text/markdown]
+    entitlements:
+      path: StudyReader/Resources/StudyReader.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-only: true
+        com.apple.security.network.client: true
+    dependencies:
+      - package: GRDB
+      - package: swift-markdown
+        product: Markdown
+      - package: FSRS
+      - package: GoogleSignIn
+  StudyReaderTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: StudyReaderTests
+        excludes:
+          - "Fixtures/**"
+      - path: StudyReaderTests/Fixtures
+        type: folder
+        buildPhase: resources
+        optional: true
+    dependencies:
+      - target: StudyReader
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ryanvafaei.StudyReaderTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/StudyReader.app/Contents/MacOS/StudyReader"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+schemes:
+  StudyReader:
+    build:
+      targets:
+        StudyReader: all
+        StudyReaderTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - StudyReaderTests

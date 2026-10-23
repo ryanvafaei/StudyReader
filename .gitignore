@@ -23,8 +23,16 @@ CLAUDE.local.md
 .claude/agent-memory-local/
 
 # Generated Xcode project (XcodeGen; project.yml is the source of truth)
-*.xcodeproj/
+# Everything generated inside the project is ignored except Package.resolved (ADR-0011).
 *.xcworkspace/
+StudyReader.xcodeproj/*
+!StudyReader.xcodeproj/project.xcworkspace/
+StudyReader.xcodeproj/project.xcworkspace/*
+!StudyReader.xcodeproj/project.xcworkspace/xcshareddata/
+StudyReader.xcodeproj/project.xcworkspace/xcshareddata/*
+!StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 .xcodegen-cache/
 
 # Reference repos and local-only files

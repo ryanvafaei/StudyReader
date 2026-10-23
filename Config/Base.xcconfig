@@ -1,0 +1,6 @@
+// Shared build settings for all configurations.
+// Google OAuth values: defaults below are overridden by ../Secrets/Google.xcconfig when it exists
+// (see docs/DEPENDENCIES.md §4). Without it the app builds and Google export reports "not configured".
+GOOGLE_CLIENT_ID =
+GOOGLE_REVERSED_CLIENT_ID = com.ryanvafaei.studyreader.google-not-configured
+#include? "../Secrets/Google.xcconfig"
