@@ -137,3 +137,4 @@ private final class BundleToken {}
 
 ## Review log
 <!-- Main session appends one line per review: date, model used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 86/86, fixtures match spec, U+200C present, no binaries. Deviation: do/catch instead of #expect(throws:) (enum not Equatable).
