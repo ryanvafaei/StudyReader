@@ -399,7 +399,7 @@ Settings window (⌘,), tabs:
 | Reliability | SQLite in WAL mode; all multi-row changes in transactions. Crash during import leaves no half-imported document (cleanup on next launch). |
 | Privacy | No analytics, no network calls except Google export after explicit sign-in. Tokens only in Keychain. Remote Markdown images never fetched. |
 | Accessibility | All controls have labels; full keyboard use for reading, highlighting (1–5/H), and review (1–4, Space to reveal); respects Reduce Motion and Increase Contrast. |
-| Localization | English UI only; strings in a String Catalog so translation is possible later. Content in any script (incl. Persian) must render and highlight correctly. |
+| Localization | English UI only; strings in a String Catalog so translation is possible later. English content only. Other scripts are not supported or tested. |
 | Data location | `~/Library/Containers/<bundle-id>/Data/Library/Application Support/StudyReader/` (database `StudyReader.sqlite`, `Documents/`). |
 | Security | App Sandbox: user-selected read-only files, network client, keychain sharing group required by GoogleSignIn. No hardened-runtime exceptions. |
 

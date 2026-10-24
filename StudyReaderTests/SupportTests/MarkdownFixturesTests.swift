@@ -11,7 +11,7 @@ import Testing
     }
 
     @Test func fixturesLoadFromBundle() throws {
-        for name in ["all-elements", "front-matter", "rich-inline", "persian"] {
+        for name in ["all-elements", "front-matter", "rich-inline"] {
             let url = try MarkdownFixtures.url(name)
             #expect(url.pathExtension == "md")
             let text = try MarkdownFixtures.string(name)
@@ -71,12 +71,6 @@ import Testing
     @Test func richInlineExact() throws {
         let text = try MarkdownFixtures.string("rich-inline")
         #expect(text == "a **bold** and *italic* word with `code`\n")
-    }
-
-    @Test func persianContainsZWNJ() throws {
-        let text = try MarkdownFixtures.string("persian")
-        #expect(text.unicodeScalars.contains("\u{200C}"))
-        #expect(text.contains("gradient"))
     }
 
     @Test func folderWithImages() throws {

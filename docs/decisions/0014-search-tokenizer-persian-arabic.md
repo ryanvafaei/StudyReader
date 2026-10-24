@@ -1,7 +1,7 @@
 # ADR-0014: Search tokenizer `studyreader` (English text: ligatures, soft hyphens, case, diacritics)
 
 - Status: Accepted
-- Date: 2026-10-24 (from bug hunt `docs/bugs/phase-0.md` M3). Amended 2026-10-24: scope narrowed to English-only by the user. Amended 2026-10-24 (T22): schema read before tokenizer registration.
+- Date: 2026-10-24 (from bug hunt `docs/bugs/phase-0.md` M3). Amended 2026-10-24: scope narrowed to English-only by the user. Amended 2026-10-24 (T22): schema read before tokenizer registration. Amended 2026-10-24 (T28): English only; Persian/Arabic folding and rendering requirements dropped by the user, with their fixtures and tests removed.
 - The file name still says "persian-arabic" for link stability; the decision is English-only.
 
 ## Context
@@ -24,9 +24,9 @@ The v1 tokenizer `unicode61 remove_diacritics 2` lowercases and removes Latin di
 - A contentless FTS table holding normalized text: no `snippet()`, so Phase 1 would have to build snippets in Swift.
 - `tokenchars` without a wrapper: soft-hyphenated words stop splitting but still don't match the typed word, and ligatures still don't fold.
 - The `trigram` tokenizer: bigger index, no folding, substring semantics, and a 3-character minimum.
-- Persian/Arabic folding (ZWNJ, Arabic marks, tatweel, Arabic yeh/kaf → Persian letters): planned first, then **deliberately dropped** by the user because app content is English-only for now. It can be added later as a new tokenizer version: change `SearchTokenNormalizer` and the joiner list, and ship a new migration that rebuilds all four FTS tables.
+- Folding for other scripts: planned first, then **dropped** by the user. The app supports English content only. If that changes, it needs a new tokenizer version: change `SearchTokenNormalizer` and the joiner list, and ship a new migration that rebuilds all four FTS tables.
 
 ## Consequences
 - Tools without the tokenizer, such as the `sqlite3` CLI, fail with "no such tokenizer: studyreader" when they query FTS tables or write to indexed tables. Reading ordinary tables still works. This is acceptable for a single-user app.
-- Non-Latin text is indexed by plain unicode61 rules. Persian words split at ZWNJ, and Arabic and Persian letter forms don't match each other. Rendering and highlighting of such text are unaffected.
+- Non-English text is indexed by plain unicode61 rules and is not supported or tested.
 - There is a small Swift string cost per token. That's fine at course-material sizes.
