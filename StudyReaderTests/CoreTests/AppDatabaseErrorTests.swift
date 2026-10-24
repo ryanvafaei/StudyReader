@@ -98,12 +98,48 @@ import Testing
         }
     }
 
+    @Test func wrapMapsStorageAndBusyCodes() {
+        #expect(AppDatabaseError.wrap(DatabaseError(resultCode: .SQLITE_FULL), stage: .migrate) == .storageFailure(code: 13))
+        #expect(AppDatabaseError.wrap(DatabaseError(resultCode: .SQLITE_FULL), stage: .open) == .storageFailure(code: 13))
+        #expect(AppDatabaseError.wrap(DatabaseError(resultCode: .SQLITE_IOERR), stage: .open) == .storageFailure(code: 10))
+        #expect(AppDatabaseError.wrap(DatabaseError(resultCode: .SQLITE_IOERR_WRITE), stage: .migrate) == .storageFailure(code: 10))
+        #expect(AppDatabaseError.wrap(DatabaseError(resultCode: .SQLITE_BUSY), stage: .open) == .busy(code: 5))
+        #expect(AppDatabaseError.wrap(DatabaseError(resultCode: .SQLITE_LOCKED), stage: .migrate) == .busy(code: 6))
+    }
+
+    @Test func newerLibraryIsRefused() throws {
+        let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
+        _ = try AppDatabase.makeShared(fileStore: store)
+
+        let path = store.databaseURL.path(percentEncoded: false)
+        let queue = try DatabaseQueue(path: path)
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO grdb_migrations (identifier) VALUES ('v3')")
+        }
+        try queue.close()
+
+        #expect(throws: AppDatabaseError.newerVersion) {
+            _ = try AppDatabase.makeShared(fileStore: store)
+        }
+
+        let reopened = try DatabaseQueue(path: path)
+        let identifiers = try reopened.read { db in
+            try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY identifier")
+        }
+        #expect(identifiers == ["v1", "v2", "v3"])
+        try reopened.close()
+    }
+
     @Test func messagesNeverContainSQL() throws {
         let cases: [AppDatabaseError] = [
             .folderUnavailable,
             .cannotOpen(code: 14),
             .damaged(code: 26),
             .migrationFailed(code: 1),
+            .newerVersion,
+            .storageFailure(code: 13),
+            .busy(code: 5),
         ]
         let banned = ["SQL", "CREATE", "while executing", "/"]
         for error in cases {

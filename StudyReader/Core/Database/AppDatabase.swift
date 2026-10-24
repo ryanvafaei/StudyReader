@@ -7,9 +7,13 @@ struct AppDatabase: Sendable {
     let writer: any DatabaseWriter
     var reader: any DatabaseReader { writer }
 
-    /// Runs `AppDatabase.migrator` on `writer`.
+    /// Runs `AppDatabase.migrator` on `writer`. Throws `.newerVersion` before migrating if the
+    /// library was migrated by a build that knows migrations this build doesn't (L5).
     init(_ writer: any DatabaseWriter) throws {
         self.writer = writer
+        if try writer.read({ db in try Self.migrator.hasBeenSuperseded(db) }) {
+            throw AppDatabaseError.newerVersion
+        }
         try Self.migrator.migrate(writer)
     }
 

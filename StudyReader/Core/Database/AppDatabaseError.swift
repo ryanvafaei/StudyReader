@@ -11,13 +11,21 @@ enum AppDatabaseError: Error, Equatable, LocalizedError {
     case damaged(code: Int32)
     /// A migration failed for another reason. `code` as above.
     case migrationFailed(code: Int32)
+    /// The library was migrated by a newer StudyReader build (unknown migration identifiers).
+    case newerVersion
+    /// SQLITE_FULL or SQLITE_IOERR at open or migration.
+    case storageFailure(code: Int32)
+    /// SQLITE_BUSY or SQLITE_LOCKED at open or migration.
+    case busy(code: Int32)
 
     enum Stage: String, Sendable { case open, migrate }
 
     /// AppDatabaseError → returned unchanged.
+    /// Any error that isn't a DatabaseError → .cannotOpen(code: -1) for .open, .migrationFailed(code: -1) for .migrate.
     /// DatabaseError with primary resultCode .SQLITE_NOTADB or .SQLITE_CORRUPT → .damaged(code:).
+    /// DatabaseError with primary resultCode .SQLITE_FULL or .SQLITE_IOERR → .storageFailure(code:).
+    /// DatabaseError with primary resultCode .SQLITE_BUSY or .SQLITE_LOCKED → .busy(code:).
     /// Other DatabaseError → .cannotOpen(code:) for .open, .migrationFailed(code:) for .migrate.
-    /// Any other error → the same with code -1.
     static func wrap(_ error: any Error, stage: Stage) -> AppDatabaseError {
         if let appError = error as? AppDatabaseError {
             return appError
@@ -29,6 +37,12 @@ enum AppDatabaseError: Error, Equatable, LocalizedError {
         let code = primary.rawValue
         if primary == .SQLITE_NOTADB || primary == .SQLITE_CORRUPT {
             return .damaged(code: code)
+        }
+        if primary == .SQLITE_FULL || primary == .SQLITE_IOERR {
+            return .storageFailure(code: code)
+        }
+        if primary == .SQLITE_BUSY || primary == .SQLITE_LOCKED {
+            return .busy(code: code)
         }
         return failure(code: code, stage: stage)
     }
@@ -43,6 +57,12 @@ enum AppDatabaseError: Error, Equatable, LocalizedError {
             String(localized: "The library database is damaged.")
         case .migrationFailed:
             String(localized: "StudyReader couldn't update its library to this version.")
+        case .newerVersion:
+            String(localized: "This library was updated by a newer version of StudyReader.")
+        case .storageFailure:
+            String(localized: "StudyReader couldn't write to its library.")
+        case .busy:
+            String(localized: "The library is in use by another copy of StudyReader.")
         }
     }
 
@@ -54,6 +74,12 @@ enum AppDatabaseError: Error, Equatable, LocalizedError {
             String(localized: "Restore the StudyReader folder from a backup, then reopen StudyReader.")
         case .migrationFailed:
             String(localized: "Quit and reopen StudyReader. If this keeps happening, back up the StudyReader folder before trying anything else.")
+        case .newerVersion:
+            String(localized: "Open it with the newer version of StudyReader.")
+        case .storageFailure:
+            String(localized: "Check that your Mac has free disk space, then reopen StudyReader.")
+        case .busy:
+            String(localized: "Quit other copies of StudyReader, then reopen it.")
         }
     }
 

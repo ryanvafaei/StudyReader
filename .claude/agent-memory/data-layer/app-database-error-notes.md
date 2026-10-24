@@ -9,4 +9,5 @@ metadata:
 - `makeConfiguration()`'s `prepareDatabase` must read the schema (`Row.fetchOne(db, sql: "SELECT * FROM sqlite_master LIMIT 1")`) before `db.add(tokenizer:)`. GRDB's registration fatalErrors if `SELECT fts5(?)` can't prepare on a damaged file, so the read must come first to get a thrown NOTADB/CORRUPT.
 - Corrupt-page fixture: plain `DatabaseQueue` with `CREATE TABLE t (x)`, then overwrite bytes 100..<512 via `FileHandle(forUpdating:)`. It reports `.damaged(code: 11)`.
 - `#expect(throws: DatabaseError.self)` returns an optional error; `#expect(error?.resultCode == .SQLITE_NOTADB)` works.
+- T32: `AppDatabase.init` checks `migrator.hasBeenSuperseded(db)` (inside `writer.read`) before migrating and throws `.newerVersion`. Cases: `.newerVersion`, `.storageFailure(code:)` (FULL/IOERR), `.busy(code:)` (BUSY/LOCKED); wrap order is damaged, storage, busy, then cannotOpen/migrationFailed. `hasBeenSuperseded` is safe on a fresh file (no grdb_migrations table).
 - Test runs take ~1 s for this suite but the background notification can arrive before `build/test.log` is complete. Wait for the completion notice, don't tail the log early.

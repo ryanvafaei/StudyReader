@@ -16,7 +16,7 @@ None. All Phase 0 findings (H1, M1–M5, L1–L7 in [`phase-0.md`](phase-0.md)) 
 
 ## Phase 0 second pass
 
-Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, was fixed by T26. By user decision on 2026-10-24, L1 was fixed by T27 and the `DateStorageTests` part of L7 by T26; both are committed and removed here. L4 was fixed by T29 and removed here. T27-F1 was resolved by T31 and removed. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
+Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, was fixed by T26. By user decision on 2026-10-24, L1 was fixed by T27 and the `DateStorageTests` part of L7 by T26; both are committed and removed here. L4 was fixed by T29 and removed here. L5 and L6 were fixed by T32 and removed here. T27-F1 was resolved by T31 and removed. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
 
 - **L2. `inMemory(now:)` uses the injected clock for temp-folder cleanup.** Severity: low. [Report](phase-0-second-pass.md#l2-inmemorynow-uses-the-injected-domain-clock-to-judge-folder-age-so-a-future-fixednow-deletes-the-folders-of-tests-that-are-still-running). A future `FixedNow` makes every existing `StudyReader-InMemory/<UUID>` folder look stale, so parallel tests lose their folders.
   - Suggested fix: compute the one-hour cleanup cutoff from the real wall clock or the folders' file-system dates, independent of the injected `Now`, or clean up only in `defaultFactory`. Add the report's failing test.
@@ -26,14 +26,6 @@ Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its onl
   - Suggested fix: amend ARCHITECTURE §6 rule 5 so a line ending in U+00AD (or U+2010) is joined like `-`. Extraction is versioned, so no migration. Test with `SearchSamples` line-end variants, and check a Word-exported lecture PDF in `Fixtures/private/`.
   - Suggested agent: architect (§6 amendment), then pdf-engine (extraction).
   - Revisit when: PDF text extraction is planned (Phase 1). Put the rule into the extraction task's spec, not a separate fix.
-- **L5. An older build opens a library migrated by a newer build without error.** Severity: low. [Report](phase-0-second-pass.md#l5-a-newer-library-is-opened-silently-by-an-older-build). GRDB skips applied migrations it doesn't know, so an older build writes against a schema it doesn't understand.
-  - Suggested fix: in `AppDatabase.makeShared`, check `migrator.hasBeenSuperseded(db)` and throw a new `AppDatabaseError.newerVersion` with its own user text. Test: insert `'v3'` into `grdb_migrations`, then reopen and expect the throw.
-  - Suggested agent: data-layer.
-  - Revisit when: before first release. Better: together with the first `v3` migration, since from then on an older build (for example an older commit run during bisecting) can meet a newer library.
-- **L6. Disk-full and busy errors get the wrong recovery suggestion.** Severity: low. [Report](phase-0-second-pass.md#l6-disk-full-and-busy-failures-get-the-wrong-recovery-suggestion). SQLITE_FULL/IOERR during migration says "Quit and reopen", and SQLITE_BUSY/LOCKED at open says "check free disk space".
-  - Suggested fix: in `AppDatabaseError.wrap`, map FULL and IOERR to a disk-space case at both stages, and map BUSY and LOCKED to a "close other copies of StudyReader" suggestion. Test each mapping with `DatabaseError(resultCode:)`.
-  - Suggested agent: data-layer.
-  - Revisit when: before first release. If L5 is fixed first, do both in one task, since both add `AppDatabaseError` cases and user texts.
 - **L7. Some tests that write FTS-indexed tables don't end with `FTSIntegrity.check`.** Severity: low. [Report](phase-0-second-pass.md#l7-several-tests-that-write-fts-indexed-tables-dont-end-with-ftsintegritycheck-although-architecture-15-says-every-one-does). `UpsertConventionTests`, `ReviewExportRecordTests` and `RecordCodingTests` break the ARCHITECTURE §15 rule. A manual check found the index consistent. (The `DateStorageTests` part was fixed by [T26](../tasks/phase-0/T26-date-query-arguments.md).)
   - Suggested fix: add `try FTSIntegrity.check(db)` at the end of the write closures in those three suites. Don't narrow the ARCHITECTURE sentence.
   - Suggested agent: data-layer.
