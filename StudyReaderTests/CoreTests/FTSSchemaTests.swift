@@ -82,6 +82,8 @@ struct FTSSchemaTests {
             try Self.matchRowids(db, table: "highlight_fts", query: "beta")
         }
         #expect(afterDelete.isEmpty)
+
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func documentTextIndexed() async throws {
@@ -101,6 +103,7 @@ struct FTSSchemaTests {
             let matches = try Self.matchRowids(db, table: "documentText_fts", query: "chloroplasts")
             #expect(matches == [rowid])
         }
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func documentNoteIndexed() async throws {
@@ -120,6 +123,7 @@ struct FTSSchemaTests {
             let matches = try Self.matchRowids(db, table: "documentNote_fts", query: "mitochondria")
             #expect(matches == [rowid])
         }
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func documentTitleAuthorIndexed() async throws {
@@ -137,6 +141,7 @@ struct FTSSchemaTests {
             #expect(byTitle == [rowid])
             #expect(byAuthor == [rowid])
         }
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func cascadeDeleteClearsIndex() async throws {
@@ -144,7 +149,7 @@ struct FTSSchemaTests {
         let documentId = "10000000-0000-0000-0000-000000000005"
         let highlightId = "20000000-0000-0000-0000-000000000005"
         try await db.writer.write { db in
-            try Self.insertDocument(db, id: documentId)
+            try Self.insertDocument(db, id: documentId, title: "Okapi")
             try Self.insertHighlight(db, id: highlightId, documentId: documentId, text: "zebrafish", note: "xylophone")
             try db.execute(
                 sql: "INSERT INTO documentText (documentId, unitIndex, startOffset, text) VALUES (?, 0, 0, 'quokka')",
@@ -163,6 +168,8 @@ struct FTSSchemaTests {
             #expect(fish.count == 1)
             #expect(quokka.count == 1)
             #expect(narwhal.count == 1)
+            let okapi = try Self.matchRowids(db, table: "document_fts", query: "Okapi")
+            #expect(okapi.count == 1)
         }
 
         try await db.writer.write { db in
@@ -174,11 +181,14 @@ struct FTSSchemaTests {
             let xylophone = try Self.matchRowids(db, table: "highlight_fts", query: "xylophone")
             let quokka = try Self.matchRowids(db, table: "documentText_fts", query: "quokka")
             let narwhal = try Self.matchRowids(db, table: "documentNote_fts", query: "narwhal")
+            let okapi = try Self.matchRowids(db, table: "document_fts", query: "Okapi")
             #expect(fish.isEmpty)
             #expect(xylophone.isEmpty)
             #expect(quokka.isEmpty)
             #expect(narwhal.isEmpty)
+            #expect(okapi.isEmpty)
         }
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func diacriticsRemoved() async throws {
@@ -198,5 +208,6 @@ struct FTSSchemaTests {
             #expect(cafe == [rowid])
             #expect(resume == [rowid])
         }
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 }

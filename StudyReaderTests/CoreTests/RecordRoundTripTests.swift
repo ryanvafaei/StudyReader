@@ -86,6 +86,7 @@ struct RecordRoundTripTests {
             try LibraryDocument.fetchOne(db, key: document.id)
         }
         #expect(fetched == document)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func documentTextRoundTrip() async throws {
@@ -113,6 +114,7 @@ struct RecordRoundTripTests {
             )
         }
         #expect(fetched == text)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func pdfHighlightRoundTrip() async throws {
@@ -153,6 +155,7 @@ struct RecordRoundTripTests {
             try Highlight.fetchOne(db, key: highlight.id)
         }
         #expect(fetched == highlight)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func imageHighlightRoundTrip() async throws {
@@ -179,6 +182,7 @@ struct RecordRoundTripTests {
             try Highlight.fetchOne(db, key: highlight.id)
         }
         #expect(fetched == highlight)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func taggingRoundTrip() async throws {
@@ -206,6 +210,7 @@ struct RecordRoundTripTests {
         #expect(fetched.tag == tag)
         #expect(fetched.highlightTag == [highlightTag])
         #expect(fetched.documentTag == [documentTag])
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func documentNoteRoundTrip() async throws {
@@ -224,6 +229,7 @@ struct RecordRoundTripTests {
             try DocumentNote.fetchOne(db, key: note.documentId)
         }
         #expect(fetched == note)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func updateKeepsRowAndIndex() async throws {
@@ -255,6 +261,7 @@ struct RecordRoundTripTests {
         #expect(result.count == 1)
         #expect(result.noteMatches == 1)
         #expect(result.fetched == updated)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
 
     @Test func tagNameUniqueNoCase() async throws {

@@ -211,6 +211,7 @@ struct DatabaseMigrationTests {
         try await db.writer.write { db in
             try db.execute(sql: "DELETE FROM document WHERE id = ?", arguments: [documentId])
         }
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
 
         let counts = try await db.reader.read { db -> [String: Int] in
             let queries: [(String, String)] = [

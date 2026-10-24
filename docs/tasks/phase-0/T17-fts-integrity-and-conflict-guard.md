@@ -80,3 +80,4 @@ Changes to existing tests (add only; don't change existing expectations):
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 110/110, all 13 record types covered, existing expectations untouched, no app code changed.
