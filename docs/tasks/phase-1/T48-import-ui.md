@@ -24,7 +24,13 @@ final class ImportCoordinator: ImportInteraction {
     struct PasswordRequest: Identifiable, Equatable { let id: UUID; let fileName: String }
     struct LargeFileRequest: Identifiable, Equatable { let id: UUID; let fileName: String; let byteCount: Int64 }
 
-    init(importService: ImportService)
+    /// Shows the folder-access panel; injected so tests never open a real panel.
+    typealias FolderPanel = @MainActor (_ folder: URL, _ markdownFileName: String) async -> URL?
+    init(importService: ImportService, folderPanel: @escaping FolderPanel = ImportCoordinator.showFolderAccessPanel)
+    /// NSOpenPanel: canChooseDirectories true, canChooseFiles false, allowsMultipleSelection false,
+    /// directoryURL = folder, message "Allow access to this folder so StudyReader can copy the images.",
+    /// prompt "Allow". Returns the chosen URL or nil. Presented as a sheet on the main window when possible.
+    static func showFolderAccessPanel(_ folder: URL, _ markdownFileName: String) async -> URL?
     private(set) var isImporting: Bool
     private(set) var passwordRequest: PasswordRequest?
     private(set) var largeFileRequest: LargeFileRequest?
@@ -39,6 +45,8 @@ final class ImportCoordinator: ImportInteraction {
     // ImportInteraction (called by ImportService; suspends on a CheckedContinuation until answered)
     func confirmLargeFile(named name: String, byteCount: Int64) async -> Bool
     func password(forFileNamed name: String) async -> String?
+    /// Calls folderPanel (ADR-0016, user decision Q5). The importer decides when to ask (once per folder per batch).
+    func requestFolderAccess(for folder: URL, markdownFileName: String) async -> URL?
 }
 ```
 - `AppSession` gets `let importCoordinator: ImportCoordinator` (built from `environment.importService`).
@@ -51,6 +59,7 @@ final class ImportCoordinator: ImportInteraction {
 - `importsAndPublishesSummary`: `importURLs([plainMultiPage PDF])`; poll (bounded) until `lastSummary == "Imported 1"`; `isImporting == false`.
 - `passwordRoundTrip`: import `encrypted(password: "secret")`; poll until `passwordRequest != nil` (file name matches); `answerPassword("secret")`; poll until `lastSummary == "Imported 1"`.
 - `largeFileDecline`: build the coordinator over an `ImportService` created with `largeFileThreshold: 10` (construct it from the env's parts); answer `false`; summary contains "larger than 500 MB".
+- `folderAccessUsesInjectedPanel`: coordinator built with a `folderPanel` closure that records its arguments and returns nil; `requestFolderAccess(for: someFolder, markdownFileName: "notes.md")` returns nil and the closure got exactly those arguments (no real panel opens).
 - `batchesRunInOrder`: two `importURLs` calls back to back with different files → both documents exist; two summaries were produced in order (record them with a test hook: `var summaryHistory: [String]` `private(set)`, add it to the interface).
 
 ## Acceptance criteria
@@ -59,7 +68,8 @@ final class ImportCoordinator: ImportInteraction {
 3. Visual check: drag a PDF onto the StudyReader Dock icon (app running) → it imports. Quit the app, drag a PDF onto the Dock icon (app not running) → the app launches and imports it after the library opens.
 4. Visual check: File > Import… (⌘O) opens a picker that allows PDFs, Markdown files and folders, multiple selection; chosen files import.
 5. Visual check: importing a password-protected PDF asks for the password once; the right password imports it, Skip skips it.
-6. Visual check: T47's deferred checks 1–4 (grid/list fields, sorts and filters, delete and Reveal in Finder, failed-extraction badge), now with real documents.
+6. Visual check (SPEC F-03 AC4): drag a single `.md` file whose images sit in a sibling `images/` folder → a folder panel opens on the file's folder with "Allow access to this folder so StudyReader can copy the images."; Allow → the images show in the document; repeat with another file and Cancel → placeholders and the summary line "… couldn't be read and show(s) as placeholder(s)". Dragging the whole folder instead asks nothing.
+7. Visual check: T47's deferred checks 1–4 (grid/list fields, sorts and filters, delete and Reveal in Finder, failed-extraction badge), now with real documents.
 
 ## Out of scope
 - Import logic (T41). Metadata editing (T50). Reader opening after import (not in SPEC).

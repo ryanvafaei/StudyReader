@@ -92,7 +92,7 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: YES
-    DEVELOPMENT_TEAM: ""                # stays "" until E1.8, which sets 597KGSTZWJ (ADR-0011); needed for keychain
+    DEVELOPMENT_TEAM: "597KGSTZWJ"      # set by the user before Phase 1 (ADR-0011); needed for the keychain group
 packages:
   GRDB:          { url: https://github.com/groue/GRDB.swift,                 from: 7.11.1 }
   swift-markdown: { url: https://github.com/swiftlang/swift-markdown,         from: 0.9.0 }
@@ -126,8 +126,8 @@ Entitlements:
 - `com.apple.security.app-sandbox` = true
 - `com.apple.security.files.user-selected.read-only` = true
 - `com.apple.security.network.client` = true
-- `keychain-access-groups` = [`$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)`] (first item; required by GoogleSignIn on macOS). Added in Phase 1 E1.8 together with `DEVELOPMENT_TEAM`, not in Phase 0 (ADR-0011).
-- Signing (ADR-0011): the user's Apple team ID is **`597KGSTZWJ`**. Phases 0–1 stay ad-hoc signed (`CODE_SIGN_IDENTITY = "-"`, `DEVELOPMENT_TEAM = ""`) until E1.8. The E1.8 sign-in task is the first and only task that sets `DEVELOPMENT_TEAM: 597KGSTZWJ` in `project.yml`; no earlier task sets it.
+- `keychain-access-groups` = [`$(AppIdentifierPrefix)com.ryanvafaei.StudyReader`] (required by GoogleSignIn on macOS). Added by the user before Phase 1 (ADR-0011).
+- Signing (ADR-0011, amended 2026-10-24): the user set `DEVELOPMENT_TEAM: "597KGSTZWJ"` with automatic signing (no `CODE_SIGN_IDENTITY` override); the build scripts pass `-allowProvisioningUpdates`. All builds, including tests, are team-signed. No task changes signing.
 
 Info.plist additions:
 - `GIDClientID` = `$(GOOGLE_CLIENT_ID)`
@@ -542,6 +542,7 @@ struct ReviewScheduler: Sendable {
 - Root: `FileManager.default.url(for: .applicationSupportDirectory, …)/StudyReader/` (inside the sandbox container).
 - `StudyReader.sqlite` (+ `-wal`, `-shm`).
 - `Documents/<document-id>/original.<ext>`, `cover.png`, `images/` (Markdown images), `snapshots/<highlight-id>.png`.
+- Markdown images are copied into `images/` at import. If the sandbox blocks reading them (single `.md` import), the import asks once per folder per batch for access to the file's folder (folder picker), copies them on approval and keeps no bookmark; on cancel they render as placeholders (ADR-0016).
 - `FileStore` owns all paths; nothing else builds file paths.
 - `FileStore` path builders throw `FileStoreError` unless document and highlight IDs are canonical uppercase UUID strings and the file extension is 1–10 lowercase letters or digits. `url(forRelativePath:)` returns nil for any path that would leave `Documents/` (absolute paths, `..`, or a first component that isn't a canonical document ID). `documentFolderIds()` lists only canonical IDs, so the orphan sweep never touches other folders.
 - On launch: remove `Documents/<id>` folders with no `document` row (interrupted imports), and documents with `extractionStatus = 'pending'` re-queue extraction.

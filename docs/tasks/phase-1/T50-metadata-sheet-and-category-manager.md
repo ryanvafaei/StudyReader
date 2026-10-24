@@ -56,7 +56,7 @@ final class CategoryManagerModel {
 ```
 - `CoverService` comes from `CoverService(fileStore: environment.fileStore, documents: environment.documentRepository)`.
 - Metadata sheet (fixed width 460): cover preview (`DocumentCoverView`, keyed by `coverVersion`) with buttons "Choose Image…" (`.fileImporter` with `[.image]`), "Use Current Page" (only when `canUseCurrentPage`), "Reset"; fields Title, Author, Category picker, Tags (`TagFieldView` with `TagFieldModel(target: .document(id))`); Cancel / Save (⌘Return). Tag changes save immediately (as the field does); Cancel only discards title/author/category edits.
-- Library: context menu "Edit Metadata…" and ⇧⌘M (via `LibraryActions.editMetadata` for the selected document) present the sheet. T52 adds the same command for reader windows (passing the current page).
+- Library: context menu "Edit Metadata…" and ⇧⌘M (via `LibraryActions.editMetadata` for the selected document) present the sheet. T52 extends the same command for document tabs (passing the current page).
 - Category manager (sidebar "Categories"): list "name — N documents"; built-ins show a lock icon and no rename/delete; "+" button / "New Category…" adds; context menu Rename… / Delete… (confirmation "Delete category "x"? Its N documents move to Other."). `CategoryError` texts shown as alerts.
 
 ## Tests

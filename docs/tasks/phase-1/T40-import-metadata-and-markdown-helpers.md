@@ -66,12 +66,15 @@ enum MarkdownImageCollector {
 
     struct CopyResult: Sendable, Equatable {
         var copied: Int
-        var missing: Int        // relative source whose file doesn't exist
-        var unreadable: Int     // exists (or can't be checked) but couldn't be read/copied, e.g. sandbox denial
+        var missing: Int        // the copy failed with CocoaError .fileReadNoSuchFile or .fileNoSuchFile
+        var unreadable: Int     // the copy failed with any other error (in practice the sandbox denying access)
+        var alreadyPresent: Int // destination existed already (skipped; counts as copied for the caller)
     }
     /// For each source with a storedFileName: resolve `sourceFolder.appending(path: source.removingPercentEncoding ?? source)`,
-    /// copy to imagesFolder/storedFileName (creating imagesFolder when the first copy happens; skip when the
-    /// destination already exists). Remote and invalid sources are skipped and not counted.
+    /// copy to imagesFolder/storedFileName (creating imagesFolder when the first copy happens). If the destination
+    /// already exists, count alreadyPresent and skip (so a second call after folder access only retries the failures).
+    /// Classify failures by the thrown error, never with fileExists (the sandbox can hide existence).
+    /// Remote and invalid sources are skipped and not counted.
     static func copyImages(sources: [String], from sourceFolder: URL, to imagesFolder: URL) -> CopyResult
 }
 ```
@@ -90,13 +93,14 @@ Use `imagesFolderURL(documentId:)` for the folder.
 - `FrontMatterTests/parsesTitleAndAuthor`: `MarkdownFixtures.string("front-matter")` → title "Gradient Descent Notes", author "Ada Lovelace"; body starts with `"\n# Gradient Descent"` (the blank line after the closing `---` stays) and doesn't contain "course:".
 - `FrontMatterTests/variants`: quoted values (`title: "A: B"` → `A: B`), `...` closer, CRLF input, BOM prefix, no closing line (unchanged body, empty front matter), `---` not on the first line (unchanged), empty value → nil.
 - `MarkdownImagesTests/naming`: `"images/diagram.png"` → 16 hex + ".png" and stable across calls; `"IMG/A.JPG"` → ends with ".jpg"; `"https://example.com/remote.png"` → nil and `isRemote` true; `"/abs/x.png"`, `"#frag"`, `"noext"`, `"data:image/png;base64,AAA"` → nil; `"images/a.png?x=1"` → ends ".png".
-- `MarkdownImagesTests/collectsAndCopies`: `MarkdownFixtures.makeFolderWithImages()` (notes.md + images/diagram.png); `imageSources(in:)` of its body == `["images/diagram.png", "images/missing.png", "https://example.com/remote.png"]`; `copyImages` into a temp folder → `CopyResult(copied: 1, missing: 1, unreadable: 0)` and the file `storedFileName(forSource: "images/diagram.png")` exists with the same bytes. Remove temp folders in `defer`.
+- `MarkdownImagesTests/collectsAndCopies`: `MarkdownFixtures.makeFolderWithImages()` (notes.md + images/diagram.png); `imageSources(in:)` of its body == `["images/diagram.png", "images/missing.png", "https://example.com/remote.png"]`; `copyImages` into a temp folder → `CopyResult(copied: 1, missing: 1, unreadable: 0, alreadyPresent: 0)` and the file `storedFileName(forSource: "images/diagram.png")` exists with the same bytes. A second identical call → `copied: 0, missing: 1, alreadyPresent: 1`. Remove temp folders in `defer`.
+- `MarkdownImagesTests/permissionErrorIsUnreadable`: make `images/diagram.png` unreadable (`FileManager.setAttributes([.posixPermissions: 0o000])`, restore 0o644 in `defer` before removal); `copyImages` → `unreadable: 1`, `missing: 1`.
 - `MarkdownImagesTests/fileStoreBuilderValidates`: valid name → URL under `images/`; `"../x.png"`, `"ABCDEF0123456789.png"` (uppercase), `"short.png"` → throw.
 
 ## Acceptance criteria
 1. Title and author defaults follow the rules. → tests `MetadataDefaultsTests/*` (SPEC F-11 AC1)
 2. Front matter is split and title/author extracted. → tests `FrontMatterTests/*`
-3. Relative images are named deterministically and copied; remote ones are never touched. → tests `MarkdownImagesTests/*`
+3. Relative images are named deterministically and copied; failures are classified as missing or unreadable by error; remote ones are never touched. → tests `MarkdownImagesTests/*`
 4. Full suite passes.
 
 ## Out of scope

@@ -3,7 +3,7 @@
 - **Phase:** 1 (E1.1: F-02, F-11)
 - **Agent:** pdf-engine
 - **Depends on:** T34
-- **ADRs:** docs/decisions/0016-import-pipeline-and-stored-files.md (read in full; the encrypted-PDF bullet is pending user answer Q1, implement it as written unless the orchestrator says otherwise), ARCHITECTURE §3 (PDFKit threading), §13
+- **ADRs:** docs/decisions/0016-import-pipeline-and-stored-files.md (read in full; the encrypted-PDF bullet was confirmed by the user, Q1), ARCHITECTURE §3 (PDFKit threading), §13
 - **Visual check needed:** no
 
 ## Goal

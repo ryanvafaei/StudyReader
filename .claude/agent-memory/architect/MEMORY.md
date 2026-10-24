@@ -1,2 +1,2 @@
-- [Project conventions](project_conventions.md) — names, ADR-0011..0014 rules: migrations, English-only studyreader FTS, team ID, backlog policy, tests
-- [Phase status](project_phase_status.md) — phases planned (Phase 0 T01–T27), second-hunt backlog triggers, open user questions
+- [Project conventions](project_conventions.md) — names, ADR-0011..0018 rules: writes, no-v3 Phase 1, settings, reader windows, export seams, tests
+- [Phase status](project_phase_status.md) — Phase 0 done; Phase 1 planned T29–T74; open questions Q1–Q7; Phase 2 carry-overs

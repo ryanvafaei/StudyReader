@@ -54,7 +54,7 @@ Layout and behaviour:
 6. Full suite passes (no new tests; logic is in T46).
 
 ## Out of scope
-- Import UI and drop targets (T48), metadata sheet (T50), reader windows (T52), export (T73).
+- Import UI and drop targets (T48), metadata sheet (T50), document tabs (T52), export (T73).
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->

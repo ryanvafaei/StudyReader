@@ -78,7 +78,7 @@ Build a `ReaderModel` over an in-memory environment with a document whose file i
 1. Position save/restore works through the controller. → test `PDFReaderControllerTests/restoresSavedPosition` (the model half is T51's `ReadingPositionTests/restoresPosition`)
 2. Zoom, actual size and fit width set the expected scale. → test `PDFReaderControllerTests/zoomCommands`
 3. Visual check (user), SPEC F-04 AC2: open a multi-page lecture PDF; scroll is continuous; View > Single Page switches to paged; ⌘+ / ⌘− zoom; ⌘0 actual size; ⌘9 fit width; thumbnails toggle and clicking a thumbnail jumps; the page field jumps to a typed page; for a PDF with a table of contents the outline popover lists it and jumps.
-4. Visual check (user), SPEC F-04 AC1: scroll to the middle of page 7, close the window, reopen the document (and also after quitting the app) → it opens at the same place.
+4. Visual check (user), SPEC F-04 AC1: scroll to the middle of page 7, close the document's tab, reopen the document from the library (and also after quitting the app) → it opens at the same place.
 5. Visual check: resizing the window keeps the current page in view.
 
 ## Out of scope

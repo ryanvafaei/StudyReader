@@ -1,21 +1,17 @@
 ---
 name: phase-status
-description: Which StudyReader phases have been planned by the architect, task ranges, and open questions still awaiting the user
+description: Which StudyReader phases have been planned by the architect, task ranges, backlog triggers, and open questions still awaiting the user
 metadata:
   type: project
 ---
 
-- Phase 0 planned 2026-10-23: T01–T11 in docs/tasks/phase-0/ (ADR-0011, ADR-0012).
-- Phase 0 bug hunt 2026-10-24 (docs/bugs/phase-0.md): H1 -> T12. User decided 2026-10-24: new v2 migration (v1 frozen, real library at v1 with 0 docs), fix all M1–M5/L1–L7 now, do L6 renames. Planned as T13–T23 (ADR-0013 migration policy/v2, ADR-0014 tokenizer; ADR-0011/0012 amended). T19 upgrades the user's real library to v2 on next launch.
-- 2026-10-24: T24 (LaunchView minWidth 700/minHeight 450 on root Group; scene sizing untouched) added from T23 visual check. Backlog got a "T22 review" section: T22-R1 OS SQLite [logging] may print SQL + db path (low, accepted, also in ARCHITECTURE §14).
-- 2026-10-24: T25 from T24 visual check: shared `MainWindowLayout.minWidth/minHeight` (900x600, caseless enum in App/, no actor annotation) used by RootView + LaunchView; 700x450 superseded. Later window/sheet sizing should reuse MainWindowLayout, not literals.
-- 2026-10-24 second Phase 0 hunt (docs/bugs/phase-0-second-pass.md): M1 -> T26 (Date.databaseUnixSeconds + DateStorageTests guards, data-layer, after T25). L1–L7 in backlog.md "Phase 0 second pass" with triggers: L1 before Phase 1/any v3; L3 into Phase 1 extraction spec; L4 first task of import epic; L5 with first v3 (or before release); L6 with L5; L2/L7 opportunistic.
-- 2026-10-24 user decision: L1 -> T27 (ui-builder, after T26; three launch-time test-host signals, ADR-0011 reworded); L7's DateStorageTests part folded into T26; backlog L1 marked planned, L7 narrowed to UpsertConventionTests/ReviewExportRecordTests/RecordCodingTests. Phase 0 = 27 tasks. If T27 guard `xctestLibraryWasLoadedAtLaunch` or `testSchemeSetsInMemoryVariable` fails, implementer reports BLOCKED and architect picks a replacement signal (fallback idea: DYLD_INSERT_LIBRARIES contains XCTest).
-- 2026-10-24: T26 + T27 committed; backlog L1 removed, L7 lost DateStorageTests. New backlog item T27-F1 (low, "T27 follow-up" section): manual Console check that normal launch doesn't log "Using the in-memory library"; Xcode Previews unguarded (unknown if they run live()). Trigger: before Phase 1 import work — put it in the Phase 1 plan.
-- Flagged to user 2026-10-24: `.claude/agents/data-layer.md` still says Anchor + synchronize(withTable:)/unicode61 (agents can't edit it); AppDatabaseError message wording.
-- Answered 2026-10-24: tokenizer English-only (T16/T18/T19 rewritten: SearchSamples, fixture's 2nd doc is English "Lecture notes"); team ID 597KGSTZWJ (set only in E1.8); T18 runs on sonnet/high; backlog policy (docs/bugs/backlog.md).
-- Open: SPEC non-functional row still says Persian content must render and highlight (not search) — fine with English-only search, but confirm. Bundle ID prefix com.ryanvafaei OK?
-- Phase 1 must include: launch cleanup of orphan Documents/<id> folders (use FileStore.documentFolderIds, canonical only) + re-queue pending extraction; DocumentRepository delete and metadataUpdate (column-limited updates); Hashing helper; E1.8 adds keychain-access-groups + DEVELOPMENT_TEAM.
+- Phase 0: T01–T27 (+ T28 English-only cleanup, committed by the orchestrator without a spec). Done 2026-10-24.
+- Phase 1 planned 2026-10-24: T29–T74 in docs/tasks/phase-1/ (46 tasks), ADRs 0015–0018, ADR-0011 amended (preview signal), ARCHITECTURE §6 rule 5 (L3) and §9.1 (image placeholder per SPEC) amended. Backlog items planned: L4→T29, T27-F1→T31, L5+L6→T32, L3→T42. L2/L7 remain (L2 only bites with a future FixedNow, Phase 2).
+- 2026-10-24 revision: T72 became "Google sign-in and session restore" (file T72-google-sign-in-and-session-restore.md; old T72-google-sign-in-and-signing.md is a superseded stub the orchestrator must git rm). T72 no longer changes signing/project.yml/entitlements.
+- Phase 1 sonnet overrides: T41 ImportService, T65 SearchService (data-layer, sonnet/high, treat as escalated).
+- Phase 1 Q1–Q7 answered 2026-10-24 (README "User decisions"): defaults kept for Q1, Q3, Q4, Q6, Q7. Q2 changed → native window tabs (T51/T52, SPEC F-01 AC4). Q5 changed → folder-access NSOpenPanel via `ImportInteraction.requestFolderAccess`, once per folder per batch, no bookmark, cancel = placeholders (T40/T41/T48, SPEC F-03 AC4, ADR-0016). T30 committed; old T72 stub deleted.
+- Older open items: bundle ID prefix com.ryanvafaei unconfirmed; `.claude/agents/data-layer.md` still mentions Anchor/synchronize(withTable:) (user must edit).
+- Phase 2 must consider: L2 before any test passes a future FixedNow to inMemory(now:); FSRS due dates `.storageRounded`; Review/Themed Reviews sidebar items are placeholders; Settings Review tab; Mastery filter in browser; HighlightPopover Mastery…; F-18 editedText edits (ExportHighlight already escapes editedText).
 
 **Why:** later planning sessions start fresh and need to know what's done and what was deferred.
 **How to apply:** read before planning the next phase; verify against docs/tasks/ and git log since tasks may have changed during implementation. Related: [[project-conventions]].

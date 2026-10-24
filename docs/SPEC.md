@@ -72,11 +72,13 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 - Filter: category, tag, file type (PDF/Markdown), "has highlights".
 - Context menu per document: Open, Edit Metadata, Reveal Original in Finder (if still present), Export Highlights…, Delete.
 - Delete asks for confirmation and removes the document, its stored file copy, highlights, notes, review cards, embeddings, and search index entries.
+- Opening a document opens it as a native macOS window tab in the main window (same tab group; the library stays the first tab). Opening a document that is already open switches to its tab. Tabs can be dragged out into their own window, as macOS allows (ADR-0017).
 
 **AC**
 1. Library lists all imported documents with the fields above, after restart. → test `LibraryModelTests/listsPersistedDocuments`
 2. Each sort and filter option returns the correct order/subset. → tests `LibraryModelTests/sort*`, `LibraryModelTests/filter*`
 3. Deleting a document removes all dependent rows and the stored file. → test `DocumentRepositoryTests/deleteCascades`
+4. Documents open as tabs after the library tab; reopening an open document selects its tab; a tab can be dragged out. → visual check
 
 ### F-02 Import: drag-and-drop and file picker
 
@@ -105,7 +107,7 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 **Behavior**
 - Parse with Apple `swift-markdown` (CommonMark + GFM tables, strikethrough, task lists).
 - Render: headings H1–H6, paragraphs, emphasis, strong, inline code, code blocks (monospace, no syntax highlighting required), block quotes, ordered/unordered/task lists, tables, links (open in browser), horizontal rules, images.
-- Images: on import, relative image paths that exist next to the source file are copied into the document folder. Missing images render as a placeholder box with the alt text. Remote image URLs are not fetched (privacy); show the placeholder with the URL.
+- Images: on import, relative image paths that exist next to the source file are copied into the document folder. If the sandbox can't read them (a single `.md` file was imported), the app asks once per import and folder for access to the file's folder (a folder picker preselected on it, "Allow access to this folder so StudyReader can copy the images."); on approval the images are copied and the access isn't kept. If the user cancels, those images become placeholders. Missing images render as a placeholder box with the alt text. Remote image URLs are not fetched (privacy); show the placeholder with the URL.
 - The rendered text is selectable and highlightable exactly like the PDF text view (F-05, F-06).
 - Front matter (YAML between `---` lines at the top) is hidden from the rendered view; `title` and `author` keys, if present, prefill metadata.
 
@@ -113,11 +115,12 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 1. Every element listed above renders with distinct styling. → visual check with `Tests/Fixtures/markdown/all-elements.md`
 2. Relative images are copied at import and shown; missing ones show a placeholder. → test `MarkdownImportTests/copiesRelativeImages`
 3. Front matter `title`/`author` prefill metadata and are hidden. → test `MarkdownImportTests/frontMatter`
+4. Unreadable sibling images trigger one folder-access request per folder and import batch; approval copies them, cancel leaves placeholders. → tests `MarkdownImportTests/folderAccess*` + visual check
 
 ### F-04 Reader, PDF view
 
 **Behavior**
-- PDFKit `PDFView` hosted in SwiftUI.
+- PDFKit `PDFView` hosted in SwiftUI, in the document's tab (F-01).
 - Display: continuous scroll (default) or single page; zoom in/out (⌘+ / ⌘−), actual size (⌘0), fit width.
 - Page thumbnails sidebar (toggle), page number field, outline (table of contents) if the PDF has one.
 - Dark mode: when the app appearance is dark, rendered pages are color-inverted (hue-preserving) so slides are readable. Setting "Invert PDF colors in dark mode" (default on). Image highlights and snapshots always store the *uninverted* rendering.
@@ -446,7 +449,7 @@ Each phase ends with all its AC passing, bug-hunter run, and critical/high bugs 
 | E1.7 Highlights browser | F-13 (without Similar/Mastery) | ui-builder |
 | E1.8 Google export | F-21 | integrations, ui-builder |
 
-E1.8 signing note (ADR-0011): Apple team ID **`597KGSTZWJ`**. Phases 0–1 stay ad-hoc signed and `DEVELOPMENT_TEAM` is not set before E1.8. E1.8's sign-in task sets `DEVELOPMENT_TEAM: 597KGSTZWJ` and adds `keychain-access-groups`.
+E1.8 signing note (ADR-0011, amended 2026-10-24): the user already set `DEVELOPMENT_TEAM: 597KGSTZWJ` and `keychain-access-groups` and configured Google credentials. E1.8 doesn't change signing; its sign-in task verifies that a Google sign-in survives an app restart.
 
 Done when: import a lecture PDF, highlight it, add notes/tags, search it, export highlights to a Google Doc, and add that Doc to Gemini Notebook.
 

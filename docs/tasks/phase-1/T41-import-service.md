@@ -27,6 +27,10 @@ protocol ImportInteraction: Sendable {
     func confirmLargeFile(named name: String, byteCount: Int64) async -> Bool
     /// Asked once per locked PDF. nil = the user cancelled.
     func password(forFileNamed name: String) async -> String?
+    /// Asked when a Markdown file's relative images can't be read (sandbox). The UI shows an NSOpenPanel for
+    /// directories, preselected on `folder`, with the message "Allow access to this folder so StudyReader can copy
+    /// the images." Returns the URL the user approved, or nil if cancelled (ADR-0016, user decision Q5).
+    func requestFolderAccess(for folder: URL, markdownFileName: String) async -> URL?
 }
 
 /// Implemented by ExtractionService (T44).
@@ -58,7 +62,8 @@ struct ImportReport: Sendable, Equatable {
     /// 3. one line per failure: damaged "Couldn't open \(name)"; wrongPassword "Wrong password for \(name)";
     ///    passwordCancelled "Skipped \(name) (password required)"; declinedLargeFile "Skipped \(name) (larger than 500 MB)";
     ///    copyFailed "Couldn't import \(name)"
-    /// 4. unreadableImageCount > 0: "\(n) images couldn't be read. Import the folder that contains the Markdown file to include them."
+    /// 4. unreadableImageCount > 0 (images still unreadable after the folder-access step):
+    ///    "\(n) images couldn't be read and show as placeholders." (n == 1: "1 image couldn't be read and shows as a placeholder.")
     var summary: String { get }
 }
 
@@ -92,18 +97,32 @@ Per file, in this order (ADR-0016):
 3. `documents.fetch(fileHash:)` non-nil → `duplicates.append(existing.title)`, next file.
 4. PDF: `PDFImportInspector.inspect(fileAt:password: nil)`. `.damaged` → `.damaged`. `.locked` → `await interaction.password`; nil → `.passwordCancelled`; inspect again with it; `.locked` → `.wrongPassword` (asked only once). Markdown: read `String(contentsOf:encoding: .utf8)`; error → `.damaged`; `FrontMatterParser.split`.
 5. `id = UUID().uuidString`. Category = `settings.defaultCategoryId` if `categories.fetch(id:)` finds it, else `BuiltinCategory.lectureSlides.id`.
-6. `fileStore.createDocumentFolder(documentId: id)`; destination = `originalFileURL(documentId: id, fileType:)`. Encrypted (password was needed) → `PDFImportInspector.writeUnlockedCopy`; otherwise `FileManager.copyItem`. Markdown: `MarkdownImageCollector.copyImages(sources: imageSources(in: body), from: url.deletingLastPathComponent(), to: fileStore.imagesFolderURL(documentId: id))`; add `unreadable`/`missing` counts to the report.
+6. `fileStore.createDocumentFolder(documentId: id)`; destination = `originalFileURL(documentId: id, fileType:)`. Encrypted (password was needed) → `PDFImportInspector.writeUnlockedCopy`; otherwise `FileManager.copyItem`. Markdown: `MarkdownImageCollector.copyImages(sources: imageSources(in: body), from: url.deletingLastPathComponent(), to: fileStore.imagesFolderURL(documentId: id))`. Then the folder-access step (below). Add the final `unreadable`/`missing` counts to the report.
 7. Insert `LibraryDocument(id: id, title: MetadataDefaults.title(metadataTitle: pdfInfo.title or frontMatter.title, fileName: url.lastPathComponent), author: MetadataDefaults.author(metadataAuthor: pdfInfo.author or frontMatter.author), categoryId:, fileType:, fileHash:, originalFilename: url.lastPathComponent, originalBookmark: try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil), storedPath: fileStore.relativePath(for: destination)!, pageCount: PDF page count or nil, addedAt: now())`. A `DatabaseError` with `.SQLITE_CONSTRAINT_UNIQUE` on `fileHash` → treat as duplicate (fetch by hash for the title).
 8. Any error in 6–7 → `try? fileStore.deleteDocumentFolder(documentId: id)` and failure `.copyFailed` (or duplicate, as above).
 9. PDF: `try? await covers.resetCover(documentId: id)` (a cover failure is logged, not a failure).
 10. `await extractionQueue.enqueue(documentId: id)`; append to `imported`.
+
+Folder-access step (ADR-0016, user decision Q5), for Markdown files only:
+- If the first `copyImages` result has `unreadable > 0`, let `folder = url.deletingLastPathComponent().standardizedFileURL`.
+- Keep a per-batch dictionary `folderAccess: [URL: URL?]` (folder → approved URL, or nil when declined). If `folder` has no entry, `await interaction.requestFolderAccess(for: folder, markdownFileName: url.lastPathComponent)` and store the answer. Never ask twice for the same folder in one `importItems` call; a new call (batch) may ask again.
+- Approved: call `approved.startAccessingSecurityScopedResource()` the first time it's used in the batch (remember it), then `copyImages` again with the same sources and the same source folder (already-copied images are skipped). Use the second result's counts. If the user chose a different folder that doesn't cover the images, they stay unreadable.
+- Declined (nil): keep the first result; the images become placeholders.
+- At the end of `importItems`, call `stopAccessingSecurityScopedResource()` on every approved URL that was started. Never create or store a bookmark for these folders.
+- The prompt happens after the document folder was created (step 6); a failure later still deletes the folder (step 8).
 
 Logging: `Log.files` with document IDs and counts only; never file names, titles or paths.
 
 ## Tests
 Use `AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))` (+ `defer TestFileStore.remove(env.fileStore)`), a `CoverService(fileStore:documents:)` from it, `TestSettings.make()` (+ remove), and these stubs in the test file:
 ```swift
-struct StubInteraction: ImportInteraction { var allowLarge = true; var password: String? = nil; /* record calls in an actor */ }
+struct StubInteraction: ImportInteraction {
+    var allowLarge = true
+    var password: String? = nil
+    /// Called by requestFolderAccess; returns the URL to approve or nil to cancel. Default: cancel.
+    var folderAnswer: @Sendable (URL) -> URL? = { _ in nil }
+    /* record every call (kind + argument) in an actor so tests can count them */
+}
 actor RecordingQueue: ExtractionQueue { private(set) var ids: [String] = []; func enqueue(documentId: String) { ids.append(documentId) } }
 ```
 `ImportServiceTests`:
@@ -121,12 +140,18 @@ actor RecordingQueue: ExtractionQueue { private(set) var ids: [String] = []; fun
 `MarkdownImportTests`:
 - `copiesRelativeImages` (SPEC F-03 AC2): `MarkdownFixtures.makeFolderWithImages()` → imported; `fileStore.markdownImageURL(documentId:storedFileName: MarkdownImageNaming.storedFileName(forSource: "images/diagram.png")!)` exists; nothing for `missing.png` or the remote URL; `report.missingImageCount == 1`, `unreadableImageCount == 0`.
 - `frontMatter` (SPEC F-03 AC3): `front-matter.md` → title "Gradient Descent Notes", author "Ada Lovelace". (Hiding front matter in the rendered view is checked in T43.)
+The folder-access tests simulate the sandbox by making the image unreadable: after `makeFolderWithImages()`, set `images/diagram.png` to POSIX permissions `0o000` (always restore `0o644` in `defer` before removing the folder).
+- `folderAccessApprovedCopiesImages` (SPEC F-03 AC4): `folderAnswer` restores `0o644` on the image and returns the folder it was given → `requestFolderAccess` was called once with `notes.md`'s parent folder (standardized) and `markdownFileName == "notes.md"`; the image exists at `markdownImageURL`; `unreadableImageCount == 0`; no line about images in `summary`.
+- `folderAccessCancelledLeavesPlaceholders` (SPEC F-03 AC4): `folderAnswer` returns nil → imported; no image copied; `unreadableImageCount == 1`; `summary` ends with `"1 image couldn't be read and shows as a placeholder."`.
+- `folderAccessAskedOncePerFolderPerBatch`: a second Markdown file (different content, same image reference) in the same folder, both in one `importItems` call with a cancelling stub → `requestFolderAccess` called once; a second `importItems` call with a third file from that folder asks again (one more call).
+- `noPromptWhenImagesReadable`: normal permissions → `requestFolderAccess` never called.
+- `noBookmarkStored`: after an approved import, the `document` row's `originalBookmark` is the original file's bookmark only (or nil); no other file or setting is written for the folder (check `SettingsStore` keys are unchanged in a `TestSettings` store).
 
 ## Acceptance criteria
 1. PDF and Markdown import with files copied into the container. → test `ImportServiceTests/importsPDFAndMarkdown`
 2. The same file twice keeps one document. → test `ImportServiceTests/deduplicatesByHash`
 3. Unsupported and damaged files are reported, not imported. → test `ImportServiceTests/reportsUnsupportedAndDamaged`
-4. Relative images are copied; front matter prefills metadata. → tests `MarkdownImportTests/copiesRelativeImages`, `MarkdownImportTests/frontMatter`
+4. Relative images are copied; front matter prefills metadata. → tests `MarkdownImportTests/copiesRelativeImages`, `MarkdownImportTests/frontMatter`. Unreadable images trigger one folder-access request per folder and batch; approval copies them, cancel leaves placeholders, no access is kept. → tests `MarkdownImportTests/folderAccess*`, `noPromptWhenImagesReadable`, `noBookmarkStored` (SPEC F-03 AC4)
 5. Uppercase extensions, encrypted PDFs, large files, folder depth and the category setting behave as specified. → tests `uppercaseExtensionImports`, `encryptedPDFWithPassword`, `largeFileNeedsConfirmation`, `folderDepthAndOrdering`, `usesDefaultCategorySetting`
 6. No failed import leaves a folder behind. → assertions in tests 3 and 5
 

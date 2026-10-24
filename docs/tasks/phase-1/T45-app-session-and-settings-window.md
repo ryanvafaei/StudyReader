@@ -7,7 +7,7 @@
 - **Visual check needed:** yes
 
 ## Goal
-One shared main-actor session object for all windows (main, readers, Settings), live settings for SwiftUI, the five highlight colors, and a Settings window (⌘,) with the tabs Phase 1 needs. Review and Google tabs come later (Phase 2, T72).
+One shared main-actor session object for all windows (main, readers, Settings), live settings for SwiftUI, the five highlight colors, and a Settings window (⌘,) with the tabs Phase 1 needs. The Review tab comes in Phase 2 and the Google tab in T72/T73.
 
 ## Files to touch
 - `StudyReader/App/AppSession.swift` (new)

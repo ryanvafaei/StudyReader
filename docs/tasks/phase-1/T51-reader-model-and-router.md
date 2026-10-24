@@ -4,10 +4,10 @@
 - **Agent:** ui-builder
 - **Depends on:** T38, T45
 - **ADRs:** docs/decisions/0017-reader-windows-and-commands.md (read in full), docs/decisions/0015-settings-and-injected-sleep.md (Debouncer), docs/decisions/0013-schema-migration-policy-v2.md (column-limited saves)
-- **Visual check needed:** no (T52 shows the window)
+- **Visual check needed:** no (T52 shows the tabs)
 
 ## Goal
-The per-window model every reader engine talks to (ADR-0017): loads the document, saves and restores reading position (F-04, debounced), records last opened, exposes the document's live highlights, creates highlights through `HighlightService`, carries popover and selection-toolbar requests for SwiftUI, and receives navigation requests from `ReaderRouter`. Pure logic, fully unit-tested; the engines (T53, T55, T59, T60) and chrome (T52, T62, T63) build on these exact names.
+The per-tab model every reader engine talks to (ADR-0017; each document is a native window tab in the main window's tab group, which T52 sets up): loads the document, saves and restores reading position (F-04, debounced), records last opened, exposes the document's live highlights, creates highlights through `HighlightService`, carries popover and selection-toolbar requests for SwiftUI, and receives navigation requests from `ReaderRouter`. Pure logic, fully unit-tested; the engines (T53, T55, T59, T60) and chrome (T52, T62, T63) build on these exact names.
 
 ## Files to touch
 - `StudyReader/Features/Reader/ReaderRouter.swift` (new)
@@ -32,7 +32,8 @@ final class ReaderRouter {
     private(set) var pendingLocations: [String: ReaderLocation] = [:]
     func setPendingLocation(_ location: ReaderLocation?, for documentId: String)   // nil removes
     func takePendingLocation(for documentId: String) -> ReaderLocation?            // returns and removes
-    /// setPendingLocation, then openWindow(id: windowId, value: documentId).
+    /// setPendingLocation, then openWindow(id: windowId, value: documentId). Each document is a reader window
+    /// that joins the main window's native tab group (T52, ADR-0017); an equal value reuses the open tab.
     func open(documentId: String, at location: ReaderLocation? = nil, using openWindow: OpenWindowAction)
 }
 
