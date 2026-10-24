@@ -398,7 +398,7 @@ Per page:
 3. Bullet lines (start with •, ▪, ◦, –, -, *, or `\d+[.)]`) start a new paragraph, prefixed `• ` (numbers kept).
 
 Across pages:
-4. **Repeated headers/footers:** among the first 2 and last 2 lines of each page, a line whose digit-normalized form (digits → `#`) appears on ≥ 50% of pages (min 3 pages) is removed everywhere. Lone page-number lines are removed.
+4. **Repeated headers/footers:** among the first 2 and last 2 lines of each page, a line whose digit-normalized form (digits → `#`) appears on ≥ 50% of pages (min 3 pages) is removed everywhere. A line counts as a candidate on a page only if its digit-normalized form occurs exactly once among that page's non-empty lines (a real header or footer appears once per page; body lines like "Body text on page 2, line 1." that repeat with different digits don't qualify). Lone page-number lines are removed. (Amended 2026-10-24 from T42. Known limitation: on very short pages, a body line near the top or bottom that differs across pages only by digits can still be removed.)
 
 Paragraph joining within a page:
 5. Line ending in U+00AD (soft hyphen) → always join with the next line, without the soft hyphen. Line ending in `-` or U+2010 (hyphen) and next line starting lowercase → join without the hyphen. (Amended 2026-10-24 for backlog L3: in PDFs a soft hyphen only appears at a line break, and the tokenizer only joins it inside a word.)
