@@ -4,20 +4,20 @@ import Testing
 @testable import StudyReader
 
 @Suite struct AnchorCodingTests {
-    private static let pdf = Anchor.pdf(PDFAnchor(
+    private static let pdf = HighlightAnchor.pdf(PDFAnchor(
         pages: [.init(pageIndex: 2, rects: [CGRectCodable(x: 10, y: 20, width: 100, height: 12)])],
         text: "selected", prefix: "before ", suffix: " after"))
 
-    private static let text = Anchor.text(TextAnchor(
+    private static let text = HighlightAnchor.text(TextAnchor(
         start: 10, length: 5, text: "hello", prefix: "say ", suffix: " world", sourceVersion: 1))
 
-    private static let image = Anchor.image(ImageAnchor(
+    private static let image = HighlightAnchor.image(ImageAnchor(
         pageIndex: 4, rect: CGRectCodable(x: 1, y: 2, width: 3, height: 4)))
 
     @Test func roundTripAllCases() throws {
         for anchor in [Self.pdf, Self.text, Self.image] {
             let data = try JSONEncoder().encode(anchor)
-            let decoded = try JSONDecoder().decode(Anchor.self, from: data)
+            let decoded = try JSONDecoder().decode(HighlightAnchor.self, from: data)
             #expect(decoded == anchor)
         }
     }
@@ -39,7 +39,7 @@ import Testing
 
     @Test func decodesTextAnchorLiteral() throws {
         let json = #"{"type":"text","text":{"start":10,"length":5,"text":"hello","prefix":"say ","suffix":" world","sourceVersion":1}}"#
-        let decoded = try JSONDecoder().decode(Anchor.self, from: Data(json.utf8))
+        let decoded = try JSONDecoder().decode(HighlightAnchor.self, from: Data(json.utf8))
         #expect(decoded == .text(TextAnchor(
             start: 10, length: 5, text: "hello", prefix: "say ", suffix: " world", sourceVersion: 1)))
     }
@@ -47,7 +47,7 @@ import Testing
     @Test func unknownTypeThrows() {
         let json = Data(#"{"type":"bogus"}"#.utf8)
         #expect(throws: DecodingError.self) {
-            _ = try JSONDecoder().decode(Anchor.self, from: json)
+            _ = try JSONDecoder().decode(HighlightAnchor.self, from: json)
         }
     }
 

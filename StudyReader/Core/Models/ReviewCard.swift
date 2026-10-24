@@ -13,7 +13,7 @@ struct ReviewCard: StudyRecord, Equatable, Identifiable {
     var answer: String? = nil
     var fsrsCard: String
     var dueAt: Date
-    var state: CardState
+    var state: ReviewCardState
     var frequencyOverride: ReviewFrequency? = nil
     var suspended: Bool = false
     var suspendedReason: SuspendedReason? = nil

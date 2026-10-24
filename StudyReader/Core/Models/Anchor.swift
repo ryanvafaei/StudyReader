@@ -49,8 +49,8 @@ struct ImageAnchor: Codable, Sendable, Equatable {
     var rect: CGRectCodable
 }
 
-/// Stored as JSON in `highlight.anchor`. Encodes as `{"type": "<case>", "<case>": {...}}`.
-enum Anchor: Codable, Sendable, Equatable {
+/// Stored as JSON in highlight.anchor. Encodes as {"type": "<case>", "<case>": {...}}. Named HighlightAnchor to avoid SwiftUI.Anchor (ADR-0012).
+enum HighlightAnchor: Codable, Sendable, Equatable {
     case pdf(PDFAnchor)
     case text(TextAnchor)
     case image(ImageAnchor)

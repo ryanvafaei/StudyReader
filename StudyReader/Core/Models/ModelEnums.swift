@@ -37,8 +37,8 @@ enum CardType: String, Codable, Sendable, CaseIterable, DatabaseValueConvertible
     case passive, cloze, qa
 }
 
-/// reviewCard.state (copy of FSRS state)
-enum CardState: String, Codable, Sendable, CaseIterable, DatabaseValueConvertible {
+/// reviewCard.state (copy of FSRS state). Named ReviewCardState to avoid FSRS.CardState (ADR-0012).
+enum ReviewCardState: String, Codable, Sendable, CaseIterable, DatabaseValueConvertible {
     case new, learning, review, relearning
 }
 

@@ -118,7 +118,7 @@ struct RecordRoundTripTests {
     @Test func pdfHighlightRoundTrip() async throws {
         let db = try AppDatabase.makeInMemory()
         _ = try await Self.insertDocument(db)
-        let anchor = Anchor.pdf(PDFAnchor(
+        let anchor = HighlightAnchor.pdf(PDFAnchor(
             pages: [
                 PDFAnchor.PageRects(pageIndex: 3, rects: [CGRectCodable(x: 72, y: 540, width: 300, height: 14)]),
                 PDFAnchor.PageRects(pageIndex: 4, rects: [CGRectCodable(x: 72, y: 700, width: 120, height: 14)])

@@ -63,3 +63,4 @@ enum HighlightAnchor: Codable, Sendable, Equatable { case pdf(PDFAnchor), text(T
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 95/95, pure rename, NameClashTests added, no stray old names.

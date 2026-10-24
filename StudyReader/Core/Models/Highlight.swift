@@ -15,7 +15,7 @@ struct Highlight: StudyRecord, Equatable, Identifiable {
     var note: String = ""
     var pageIndex: Int? = nil
     var positionKey: Double
-    var anchor: Anchor
+    var anchor: HighlightAnchor
     var anchorStatus: AnchorStatus = .ok
     var imagePath: String? = nil
     var createdAt: Date

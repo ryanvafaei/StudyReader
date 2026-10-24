@@ -11,7 +11,7 @@ import Testing
         #expect(AnchorStatus.allCases.map(\.rawValue) == ["ok", "orphaned"])
         #expect(ReviewFrequency.allCases.map(\.rawValue) == ["off", "low", "normal", "high"])
         #expect(CardType.allCases.map(\.rawValue) == ["passive", "cloze", "qa"])
-        #expect(CardState.allCases.map(\.rawValue) == ["new", "learning", "review", "relearning"])
+        #expect(ReviewCardState.allCases.map(\.rawValue) == ["new", "learning", "review", "relearning"])
         #expect(SuspendedReason.allCases.map(\.rawValue) == ["mastery", "frequencyOff", "user"])
         #expect(ReviewSessionKind.allCases.map(\.rawValue) == ["daily", "themed"])
         #expect(ReviewOrderMode.allCases.map(\.rawValue) == ["dueFirst", "random"])

@@ -70,7 +70,7 @@ enum TestData {
         id: String = UUID().uuidString,
         cardType: CardType = .passive,
         dueAt: Date = referenceDate,
-        state: CardState = .new,
+        state: ReviewCardState = .new,
         createdAt: Date = referenceDate
     ) -> ReviewCard {
         ReviewCard(
