@@ -1,7 +1,63 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Categories" : {
 
+    },
+    "Check that your Mac has free disk space, then reopen StudyReader." : {
+
+    },
+    "Couldn't open the library" : {
+
+    },
+    "Highlights" : {
+
+    },
+    "Library" : {
+
+    },
+    "Opening library…" : {
+
+    },
+    "Quit and reopen StudyReader. If this keeps happening, back up the StudyReader folder before trying anything else." : {
+
+    },
+    "Restore the StudyReader folder from a backup, then reopen StudyReader." : {
+
+    },
+    "Review" : {
+
+    },
+    "Select a section" : {
+
+    },
+    "StudyReader" : {
+
+    },
+    "StudyReader couldn't create its library folder." : {
+
+    },
+    "StudyReader couldn't open its library." : {
+
+    },
+    "StudyReader couldn't open its library. Quit and reopen StudyReader." : {
+
+    },
+    "StudyReader couldn't update its library to this version." : {
+
+    },
+    "Tags" : {
+
+    },
+    "The library database is damaged." : {
+
+    },
+    "Themed Reviews" : {
+
+    },
+    "This section isn't built yet." : {
+
+    }
   },
   "version" : "1.0"
 }

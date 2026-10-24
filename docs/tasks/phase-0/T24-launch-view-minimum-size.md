@@ -66,3 +66,4 @@ None new. Window and view sizing can't be checked by a unit test, and adding an 
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 154/154, diff is the single frame line. Visual check pending from user.
