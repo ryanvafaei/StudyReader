@@ -28,11 +28,47 @@ struct AppEnvironment: Sendable {
         return AppEnvironment(fileStore: fileStore, database: database, now: now)
     }
 
+    /// FileManager.default.temporaryDirectory/StudyReader-InMemory
+    static var inMemoryParentURL: URL {
+        FileManager.default.temporaryDirectory.appending(path: "StudyReader-InMemory", directoryHint: .isDirectory)
+    }
+
+    /// Removes direct subfolders of `parent` whose creation date (URLResourceKey.creationDateKey) is earlier than `cutoff`.
+    /// Missing `parent` is not an error. Each removal failure is ignored. Returns the number of folders removed.
+    @discardableResult
+    static func removeStaleInMemoryFolders(in parent: URL, olderThan cutoff: Date) -> Int {
+        let keys: Set<URLResourceKey> = [.creationDateKey, .isDirectoryKey]
+        guard let children = try? FileManager.default.contentsOfDirectory(
+            at: parent,
+            includingPropertiesForKeys: Array(keys),
+            options: [.skipsHiddenFiles]
+        ) else {
+            return 0
+        }
+        var removed = 0
+        for child in children {
+            guard let values = try? child.resourceValues(forKeys: keys),
+                  values.isDirectory == true,
+                  let created = values.creationDate,
+                  created < cutoff else {
+                continue
+            }
+            if (try? FileManager.default.removeItem(at: child)) != nil {
+                removed += 1
+            }
+        }
+        return removed
+    }
+
     /// AppDatabase.makeInMemory() plus a FileStore rooted at
     /// FileManager.default.temporaryDirectory/StudyReader-InMemory/<UUID>/StudyReader (directories created).
+    /// Removes in-memory folders older than one hour first.
     static func inMemory(now: any Now = SystemNow()) throws -> AppEnvironment {
-        let root = FileManager.default.temporaryDirectory
-            .appending(path: "StudyReader-InMemory", directoryHint: .isDirectory)
+        let removed = removeStaleInMemoryFolders(in: inMemoryParentURL, olderThan: now().addingTimeInterval(-3600))
+        if removed > 0 {
+            Log.files.info("Removed \(removed, privacy: .public) stale in-memory libraries")
+        }
+        let root = inMemoryParentURL
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
             .appending(path: "StudyReader", directoryHint: .isDirectory)
         let fileStore = FileStore(rootURL: root)

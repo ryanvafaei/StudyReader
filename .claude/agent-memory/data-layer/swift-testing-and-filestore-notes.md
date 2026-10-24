@@ -11,3 +11,5 @@ metadata:
 - `FileStore.relativePath(for:)` trims trailing slashes on both sides before the prefix check (directory URLs can carry them).
 - `#expect(throws: FileStoreError.invalidDocumentId(id)) { ... }` compiles and works with the Swift Testing in use.
 - Full suite on T02 was 13 tests in 4 suites; test output has noisy `com.apple.linkd` lines, filter them out with grep.
+- T14: `TestFileStore.remove(_:)` deletes `<UUID>/` only for `StudyReaderTests` / `StudyReader-InMemory` parents under temp. Use it in a `defer` right after every `TestFileStore.make()` or `AppEnvironment.inMemory()`. `AppEnvironment.removeStaleInMemoryFolders(in:olderThan:)` runs inside `inMemory()` (folders older than 1 h).
+- `scripts/test.sh` filters take the Swift struct name (`StudyReaderTests/AppEnvironmentTests`), not the `@Suite` display string. A display-name filter runs 0 tests and still reports success, so check the "run with N tests" line.

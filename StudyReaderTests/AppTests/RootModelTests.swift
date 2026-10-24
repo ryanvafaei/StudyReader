@@ -5,7 +5,9 @@ import Testing
 @MainActor
 struct RootModelTests {
     @Test func defaultsToLibrary() throws {
-        let model = RootModel(environment: try AppEnvironment.inMemory())
+        let environment = try AppEnvironment.inMemory()
+        defer { TestFileStore.remove(environment.fileStore) }
+        let model = RootModel(environment: environment)
 
         #expect(model.selection == .library)
     }

@@ -71,6 +71,7 @@ struct DatabaseMigrationTests {
 
     @Test func reopeningDoesNotRemigrate() async throws {
         let fileStore = TestFileStore.make()
+        defer { TestFileStore.remove(fileStore) }
         let first = try AppDatabase.makeShared(fileStore: fileStore)
         try await first.writer.write { db in
             try Self.insertDocument(db, id: "11111111-1111-1111-1111-111111111111")
@@ -91,6 +92,7 @@ struct DatabaseMigrationTests {
 
     @Test func onDiskDatabaseUsesWAL() async throws {
         let fileStore = TestFileStore.make()
+        defer { TestFileStore.remove(fileStore) }
         let db = try AppDatabase.makeShared(fileStore: fileStore)
         let mode = try await db.reader.read { db in
             try String.fetchOne(db, sql: "PRAGMA journal_mode")

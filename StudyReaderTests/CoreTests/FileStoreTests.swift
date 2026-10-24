@@ -8,6 +8,7 @@ import Testing
 
     @Test func pathsFollowLayout() {
         let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
         let root = store.rootURL.standardizedFileURL.path(percentEncoded: false)
 
         #expect(store.databaseURL.lastPathComponent == "StudyReader.sqlite")
@@ -32,6 +33,7 @@ import Testing
 
     @Test func relativePathRoundTrip() {
         let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
         let original = store.originalFileURL(documentId: Self.docId, fileExtension: "pdf")
 
         #expect(store.relativePath(for: original) == "\(Self.docId)/original.pdf")
@@ -44,6 +46,7 @@ import Testing
 
     @Test func createRootDirectoriesIsIdempotent() throws {
         let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
         try store.createRootDirectories()
         try store.createRootDirectories()
 
@@ -58,6 +61,7 @@ import Testing
 
     @Test func deleteDocumentFolderRemovesContents() throws {
         let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
         try store.createRootDirectories()
         let folder = try store.createDocumentFolder(documentId: Self.docId)
         let file = store.originalFileURL(documentId: Self.docId, fileExtension: "pdf")
@@ -72,6 +76,7 @@ import Testing
 
     @Test func rejectsInvalidDocumentIds() throws {
         let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
         try store.createRootDirectories()
         let invalidIds = ["", "..", "a/b", "not-a-uuid"]
 
@@ -88,6 +93,7 @@ import Testing
 
     @Test func documentFolderIdsListsUUIDFolders() throws {
         let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
         #expect(try store.documentFolderIds() == [])
 
         try store.createRootDirectories()

@@ -15,10 +15,11 @@ struct AppLaunchModelTests {
 
         model.start()
 
-        guard case .ready = model.state else {
+        guard case .ready(let environment) = model.state else {
             Issue.record("Expected .ready after start()")
             return
         }
+        TestFileStore.remove(environment.fileStore)
     }
 
     @Test func startReportsFailureOnce() {
