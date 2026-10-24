@@ -10,4 +10,5 @@ metadata:
 - Counting factory calls: `Mutex<Int>` from `Synchronization` captured in a `@Sendable` closure works without `@unchecked`.
 - `AppEnvironment.inMemory()` and `make(fileStore:)` leave temp folders behind; tests remove `fileStore.rootURL.deletingLastPathComponent()` in `defer`.
 - Full suite after T08: 69 tests in 17 suites (63 prior + 6 new) pass.
+- T15: `AppEnvironment.usesInMemoryLibrary(environment:arguments:)` is the single in-memory decision; `AppLaunchModel.defaultFactory` calls it. Compute `try FileStore.applicationSupport()` into a local before `#expect`.
 - `Localizable.xcstrings` is empty; SwiftUI literals (`ProgressView("Opening library…")`) are extracted at build via SWIFT_EMIT_LOC_STRINGS.

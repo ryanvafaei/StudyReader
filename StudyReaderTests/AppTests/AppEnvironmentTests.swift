@@ -33,6 +33,28 @@ struct AppEnvironmentTests {
         #expect(!AppEnvironment.isRunningUnitTests(environment: [:]))
     }
 
+    /// If this fails, Xcode changed how it launches the test host. Fix detection before running any other test: the app would open the real library.
+    @Test func hostedProcessIsDetected() {
+        #expect(AppEnvironment.isRunningUnitTests())
+        #expect(AppEnvironment.usesInMemoryLibrary())
+    }
+
+    @Test func inMemoryLaunchArgumentIsHonoured() {
+        #expect(AppEnvironment.usesInMemoryLibrary(environment: [:], arguments: ["StudyReader", "-StudyReaderInMemory"]))
+        #expect(!AppEnvironment.usesInMemoryLibrary(environment: [:], arguments: ["StudyReader"]))
+        #expect(AppEnvironment.usesInMemoryLibrary(environment: ["XCTestBundlePath": "x"], arguments: []))
+    }
+
+    @Test func defaultFactoryUsesTemporaryLibraryInTests() throws {
+        let environment = try AppLaunchModel.defaultFactory()
+        defer { TestFileStore.remove(environment.fileStore) }
+        let libraryStore = try FileStore.applicationSupport()
+        let temporaryPath = FileManager.default.temporaryDirectory.path(percentEncoded: false)
+
+        #expect(environment.fileStore.rootURL.path(percentEncoded: false).hasPrefix(temporaryPath))
+        #expect(environment.fileStore != libraryStore)
+    }
+
     @Test func removeStaleInMemoryFoldersKeepsRecentOnes() throws {
         let fileManager = FileManager.default
         let base = fileManager.temporaryDirectory

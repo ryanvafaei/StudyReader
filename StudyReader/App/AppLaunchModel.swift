@@ -19,7 +19,7 @@ final class AppLaunchModel {
     }
 
     nonisolated static func defaultFactory() throws -> AppEnvironment {
-        if AppEnvironment.isRunningUnitTests() {
+        if AppEnvironment.usesInMemoryLibrary() {
             return try AppEnvironment.inMemory()
         }
         return try AppEnvironment.live()

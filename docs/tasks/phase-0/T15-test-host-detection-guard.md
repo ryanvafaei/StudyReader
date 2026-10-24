@@ -67,3 +67,4 @@ Never call `AppEnvironment.live()` in a test.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 100/100, spec match, mutation check by reading OK; minor note: no fixed-input assertion for XCTestConfigurationFilePath.

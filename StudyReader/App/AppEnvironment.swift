@@ -82,4 +82,15 @@ struct AppEnvironment: Sendable {
     static func isRunningUnitTests(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
         environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil
     }
+
+    /// Launch argument that forces the in-memory environment (ADR-0011). UI tests pass it via launchArguments.
+    static let inMemoryLaunchArgument = "-StudyReaderInMemory"
+
+    /// true when isRunningUnitTests(environment:) is true, or `arguments` contains inMemoryLaunchArgument.
+    static func usesInMemoryLibrary(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Bool {
+        isRunningUnitTests(environment: environment) || arguments.contains(inMemoryLaunchArgument)
+    }
 }
