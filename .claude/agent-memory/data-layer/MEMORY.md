@@ -10,3 +10,4 @@
 - [Markdown fixtures notes](markdown-fixtures-notes.md) — T10 markdown fixture files, MarkdownFixtures loader, Equatable pitfall with #expect(throws:)
 - [Highlight repository notes](highlight-repository-notes.md) — T35 HighlightRepository: FTSIntegrity must run in write, HighlightColor cases, snapshot cleanup
 - [Settings, sleeper, debouncer notes](settings-sleeper-debouncer-notes.md) — T33 SettingsStore suiteName design (UserDefaults not Sendable), ManualSleeper/Debouncer
+- [Import helpers notes](import-helpers-notes.md) — T40 MetadataDefaults, FrontMatterParser (CRLF pitfall), MarkdownImage naming/copy classification

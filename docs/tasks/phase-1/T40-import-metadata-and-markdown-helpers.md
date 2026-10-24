@@ -108,3 +108,4 @@ Use `imagesFolderURL(documentId:)` for the folder.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. All spec assertions present; 236 tests pass; gaps (duplicate keys, empty values) accepted. Minor: naming could pin stem == sha256 prefix.

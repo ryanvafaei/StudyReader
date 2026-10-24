@@ -96,6 +96,20 @@ struct FileStore: Sendable, Equatable {
             .appending(path: "images", directoryHint: .isDirectory)
     }
 
+    /// Documents/<id>/images/<storedFileName>. storedFileName must match ^[0-9a-f]{16}\.[a-z0-9]{1,10}$,
+    /// else FileStoreError.invalidFileExtension(storedFileName).
+    func markdownImageURL(documentId: String, storedFileName: String) throws -> URL {
+        let folder = try imagesFolderURL(documentId: documentId)
+        let parts = storedFileName.split(separator: ".", omittingEmptySubsequences: false)
+        let isValid = parts.count == 2
+            && parts[0].utf8.count == 16
+            && parts[0].utf8.allSatisfy { ($0 >= UInt8(ascii: "0") && $0 <= UInt8(ascii: "9"))
+                || ($0 >= UInt8(ascii: "a") && $0 <= UInt8(ascii: "f")) }
+            && (try? Self.validateFileExtension(String(parts[1]))) != nil
+        guard isValid else { throw FileStoreError.invalidFileExtension(storedFileName) }
+        return folder.appending(path: storedFileName, directoryHint: .notDirectory)
+    }
+
     func snapshotURL(documentId: String, highlightId: String) throws -> URL {
         let folder = try documentFolderURL(documentId: documentId)
         try Self.validateHighlightId(highlightId)
