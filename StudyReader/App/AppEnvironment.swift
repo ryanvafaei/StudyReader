@@ -1,4 +1,5 @@
 import Foundation
+import MachO
 
 /// Long-lived dependencies, created once at launch. Feature models receive it in their initializers.
 struct AppEnvironment: Sendable {
@@ -86,11 +87,59 @@ struct AppEnvironment: Sendable {
     /// Launch argument that forces the in-memory environment (ADR-0011). UI tests pass it via launchArguments.
     static let inMemoryLaunchArgument = "-StudyReaderInMemory"
 
-    /// true when isRunningUnitTests(environment:) is true, or `arguments` contains inMemoryLaunchArgument.
-    static func usesInMemoryLibrary(
-        environment: [String: String] = ProcessInfo.processInfo.environment,
-        arguments: [String] = ProcessInfo.processInfo.arguments
-    ) -> Bool {
-        isRunningUnitTests(environment: environment) || arguments.contains(inMemoryLaunchArgument)
+    /// Environment variable that forces the in-memory environment. The test action in project.yml sets it (ADR-0011).
+    static let inMemoryEnvironmentVariable = "STUDYREADER_IN_MEMORY"
+
+    /// Independent signals that this process is a test host (ADR-0011). Any one of them selects the in-memory library.
+    struct TestHostSignals: Sendable, Equatable {
+        /// isRunningUnitTests(environment:): Xcode's XCTest environment variables.
+        var xctestEnvironment: Bool
+        /// inMemoryEnvironmentVariable is set (any value), or the arguments contain inMemoryLaunchArgument.
+        var inMemoryRequested: Bool
+        /// xctestLibraryIsLoaded(imagePaths:): Xcode's test-bundle injection library is in the process.
+        var xctestLibraryLoaded: Bool
+
+        /// true when any signal is set. Only when this is false may the user's library be opened.
+        var usesInMemoryLibrary: Bool {
+            xctestEnvironment || inMemoryRequested || xctestLibraryLoaded
+        }
     }
+
+    /// true when an image's file name (last path component) starts with "XCTest" or "libXCTest",
+    /// for example libXCTestBundleInject.dylib, XCTest, XCTestCore. Directory names don't count.
+    static func xctestLibraryIsLoaded(imagePaths: [String]) -> Bool {
+        imagePaths.contains { path in
+            let name = URL(filePath: path).lastPathComponent
+            return name.hasPrefix("XCTest") || name.hasPrefix("libXCTest")
+        }
+    }
+
+    /// Paths of the images (executable, dylibs, frameworks) dyld has loaded into this process.
+    static func loadedImagePaths() -> [String] {
+        (0..<_dyld_image_count()).compactMap { index in
+            _dyld_get_image_name(index).flatMap { String(validatingCString: $0) }
+        }
+    }
+
+    /// Pure: reads the three signals from the given inputs.
+    static func testHostSignals(
+        environment: [String: String],
+        arguments: [String],
+        imagePaths: [String]
+    ) -> TestHostSignals {
+        TestHostSignals(
+            xctestEnvironment: isRunningUnitTests(environment: environment),
+            inMemoryRequested: environment[inMemoryEnvironmentVariable] != nil
+                || arguments.contains(inMemoryLaunchArgument),
+            xctestLibraryLoaded: xctestLibraryIsLoaded(imagePaths: imagePaths)
+        )
+    }
+
+    /// This process's signals, read once. StudyReaderApp.init() reads it first, before any library is opened
+    /// and before Xcode loads the test bundle, so it shows the process as it was launched.
+    static let launchTestHostSignals: TestHostSignals = testHostSignals(
+        environment: ProcessInfo.processInfo.environment,
+        arguments: ProcessInfo.processInfo.arguments,
+        imagePaths: loadedImagePaths()
+    )
 }

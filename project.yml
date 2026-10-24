@@ -117,3 +117,6 @@ schemes:
       config: Debug
       targets:
         - StudyReaderTests
+      shouldUseLaunchSchemeArgsEnv: false
+      environmentVariables:
+        STUDYREADER_IN_MEMORY: "1"

@@ -4,6 +4,9 @@ import Testing
 
 @Suite("AppEnvironment")
 struct AppEnvironmentTests {
+    private typealias Signals = AppEnvironment.TestHostSignals
+    private enum Pick: Error { case live, inMemory }
+
     @Test func makeCreatesOnDiskDatabase() async throws {
         let fileStore = TestFileStore.make()
         defer { TestFileStore.remove(fileStore) }
@@ -34,15 +37,105 @@ struct AppEnvironmentTests {
     }
 
     /// If this fails, Xcode changed how it launches the test host. Fix detection before running any other test: the app would open the real library.
+    /// The other two signals still keep the real library closed.
     @Test func hostedProcessIsDetected() {
         #expect(AppEnvironment.isRunningUnitTests())
-        #expect(AppEnvironment.usesInMemoryLibrary())
+        #expect(AppEnvironment.launchTestHostSignals.xctestEnvironment)
+        #expect(AppEnvironment.launchTestHostSignals.usesInMemoryLibrary)
+    }
+
+    /// If this fails, project.yml's test action no longer passes STUDYREADER_IN_MEMORY (check shouldUseLaunchSchemeArgsEnv: false).
+    @Test func testSchemeSetsInMemoryVariable() {
+        #expect(ProcessInfo.processInfo.environment[AppEnvironment.inMemoryEnvironmentVariable] != nil)
+        #expect(AppEnvironment.launchTestHostSignals.inMemoryRequested)
+    }
+
+    /// If this fails, Xcode no longer injects an XCTest library before launch. The message lists the XCTest images loaded now.
+    @Test func xctestLibraryWasLoadedAtLaunch() {
+        let xctestImages = AppEnvironment.loadedImagePaths().filter { $0.localizedCaseInsensitiveContains("xctest") }
+        #expect(AppEnvironment.launchTestHostSignals.xctestLibraryLoaded, "XCTest images loaded now: \(xctestImages)")
     }
 
     @Test func inMemoryLaunchArgumentIsHonoured() {
-        #expect(AppEnvironment.usesInMemoryLibrary(environment: [:], arguments: ["StudyReader", "-StudyReaderInMemory"]))
-        #expect(!AppEnvironment.usesInMemoryLibrary(environment: [:], arguments: ["StudyReader"]))
-        #expect(AppEnvironment.usesInMemoryLibrary(environment: ["XCTestBundlePath": "x"], arguments: []))
+        #expect(AppEnvironment.testHostSignals(environment: [:], arguments: ["StudyReader", "-StudyReaderInMemory"], imagePaths: []).usesInMemoryLibrary)
+        #expect(!AppEnvironment.testHostSignals(environment: [:], arguments: ["StudyReader"], imagePaths: []).usesInMemoryLibrary)
+        #expect(AppEnvironment.testHostSignals(environment: ["XCTestBundlePath": "x"], arguments: [], imagePaths: []).usesInMemoryLibrary)
+    }
+
+    @Test func testHostSignalsReadEachInput() {
+        let system = "/usr/lib/libSystem.B.dylib"
+        let none = AppEnvironment.testHostSignals(environment: [:], arguments: ["StudyReader"], imagePaths: [system])
+        #expect(none == Signals(xctestEnvironment: false, inMemoryRequested: false, xctestLibraryLoaded: false))
+        #expect(!none.usesInMemoryLibrary)
+
+        let xctestEnvironment = AppEnvironment.testHostSignals(environment: ["XCTestConfigurationFilePath": "x"], arguments: [], imagePaths: [])
+        #expect(xctestEnvironment == Signals(xctestEnvironment: true, inMemoryRequested: false, xctestLibraryLoaded: false))
+
+        let variableOne = AppEnvironment.testHostSignals(environment: ["STUDYREADER_IN_MEMORY": "1"], arguments: [], imagePaths: [])
+        #expect(variableOne == Signals(xctestEnvironment: false, inMemoryRequested: true, xctestLibraryLoaded: false))
+
+        // Presence counts, not the value. This fails closed.
+        let variableZero = AppEnvironment.testHostSignals(environment: ["STUDYREADER_IN_MEMORY": "0"], arguments: [], imagePaths: [])
+        #expect(variableZero == Signals(xctestEnvironment: false, inMemoryRequested: true, xctestLibraryLoaded: false))
+
+        let argument = AppEnvironment.testHostSignals(environment: [:], arguments: ["StudyReader", "-StudyReaderInMemory"], imagePaths: [])
+        #expect(argument == Signals(xctestEnvironment: false, inMemoryRequested: true, xctestLibraryLoaded: false))
+
+        let injected = AppEnvironment.testHostSignals(
+            environment: [:],
+            arguments: [],
+            imagePaths: ["/Applications/Xcode.app/Contents/Developer/usr/lib/libXCTestBundleInject.dylib"]
+        )
+        #expect(injected == Signals(xctestEnvironment: false, inMemoryRequested: false, xctestLibraryLoaded: true))
+
+        #expect(xctestEnvironment.usesInMemoryLibrary)
+        #expect(variableOne.usesInMemoryLibrary)
+        #expect(injected.usesInMemoryLibrary)
+    }
+
+    @Test func detectsXCTestLibrary() {
+        let truePaths = [
+            "/Applications/Xcode.app/Contents/Developer/usr/lib/libXCTestBundleInject.dylib",
+            "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks/XCTest.framework/Versions/A/XCTest",
+            "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks/XCTestCore.framework/Versions/A/XCTestCore",
+        ]
+        for path in truePaths {
+            #expect(AppEnvironment.xctestLibraryIsLoaded(imagePaths: [path]), "\(path)")
+        }
+
+        let falsePaths = [
+            "/Users/me/Build/Products/Debug/StudyReader.app/Contents/MacOS/StudyReader",
+            "/usr/lib/libSystem.B.dylib",
+            "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+            // The test bundle itself loads after the launch decision, and only its file name would count.
+            "/Users/me/Build/Products/Debug/StudyReader.app/Contents/PlugIns/StudyReaderTests.xctest/Contents/MacOS/StudyReaderTests",
+            // Only the file name counts, not the directory names.
+            "/Users/me/XCTestNotes/libNotes.dylib",
+        ]
+        for path in falsePaths {
+            #expect(!AppEnvironment.xctestLibraryIsLoaded(imagePaths: [path]), "\(path)")
+        }
+
+        #expect(!AppEnvironment.xctestLibraryIsLoaded(imagePaths: []))
+    }
+
+    /// Throwing closures stand in for live() and inMemory(), so no environment is created.
+    @Test func factoryChoiceFollowsSignals() {
+        let none = Signals(xctestEnvironment: false, inMemoryRequested: false, xctestLibraryLoaded: false)
+        #expect(throws: Pick.live) {
+            try AppLaunchModel.chooseEnvironment(for: none, live: { throw Pick.live }, inMemory: { throw Pick.inMemory })
+        }
+
+        let singles = [
+            Signals(xctestEnvironment: true, inMemoryRequested: false, xctestLibraryLoaded: false),
+            Signals(xctestEnvironment: false, inMemoryRequested: true, xctestLibraryLoaded: false),
+            Signals(xctestEnvironment: false, inMemoryRequested: false, xctestLibraryLoaded: true),
+        ]
+        for signals in singles {
+            #expect(throws: Pick.inMemory) {
+                try AppLaunchModel.chooseEnvironment(for: signals, live: { throw Pick.live }, inMemory: { throw Pick.inMemory })
+            }
+        }
     }
 
     @Test func defaultFactoryUsesTemporaryLibraryInTests() throws {

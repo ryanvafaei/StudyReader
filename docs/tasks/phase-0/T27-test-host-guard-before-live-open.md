@@ -217,3 +217,4 @@ If test 2 or test 3 fails when you first run the suite, don't change the signal,
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 163/163, normal launch cannot take in-memory path, live() only when all three signals false, four mutation checks verified by reading.

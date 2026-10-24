@@ -19,16 +19,31 @@ final class AppLaunchModel {
     /// `nonisolated` so the nonisolated failureMessage(for:) can read it.
     nonisolated static let genericFailureMessage = String(localized: "StudyReader couldn't open its library. Quit and reopen StudyReader.")
 
-    /// Default factory: in-memory environment when running as a test host, the user's library otherwise.
+    /// Default factory: defaultFactory() (in-memory library when any test-host signal is set, the user's library otherwise).
     init(makeEnvironment: @escaping @Sendable () throws -> AppEnvironment = AppLaunchModel.defaultFactory) {
         self.makeEnvironment = makeEnvironment
     }
 
     nonisolated static func defaultFactory() throws -> AppEnvironment {
-        if AppEnvironment.usesInMemoryLibrary() {
-            return try AppEnvironment.inMemory()
+        try chooseEnvironment(
+            for: AppEnvironment.launchTestHostSignals,
+            live: { try AppEnvironment.live() },
+            inMemory: { try AppEnvironment.inMemory() }
+        )
+    }
+
+    /// The only place that chooses the library (ADR-0011). Any test-host signal → `inMemory`.
+    /// `live` runs only when every signal is false.
+    nonisolated static func chooseEnvironment(
+        for signals: AppEnvironment.TestHostSignals,
+        live: () throws -> AppEnvironment,
+        inMemory: () throws -> AppEnvironment
+    ) rethrows -> AppEnvironment {
+        if signals.usesInMemoryLibrary {
+            Log.app.info("Using the in-memory library (xctestEnvironment: \(signals.xctestEnvironment, privacy: .public), inMemoryRequested: \(signals.inMemoryRequested, privacy: .public), xctestLibraryLoaded: \(signals.xctestLibraryLoaded, privacy: .public))")
+            return try inMemory()
         }
-        return try AppEnvironment.live()
+        return try live()
     }
 
     /// AppDatabaseError → errorDescription, plus "\n\n" + recoverySuggestion when present.
