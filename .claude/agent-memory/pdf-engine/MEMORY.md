@@ -1,0 +1,1 @@
+- [PDFKit facts](pdfkit_facts.md) — verified behaviours: encrypted copy writing, rotation, test filter names

@@ -87,3 +87,4 @@ Fixtures: `PDFFixtureBuilder` (`withMetadata`, `plainMultiPage`, `encrypted`, `d
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. 227 tests pass. write(to:withOptions:) with empty passwords accepted over plain write(to:); stored copy keeps the encryption dictionary (isEncrypted stays true) - user to be told. Minor: no EXIF orientation test.
