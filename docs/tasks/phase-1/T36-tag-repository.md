@@ -86,3 +86,4 @@ struct TagRepository: Sendable {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. All spec criteria asserted; 205 tests pass. Minor: no tests for extra behaviours (merge self no-op, notFound, invalidName on rename).
