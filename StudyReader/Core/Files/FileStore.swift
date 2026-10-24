@@ -14,8 +14,29 @@ enum FileStoreError: Error, Equatable, LocalizedError {
     }
 }
 
+extension FileType {
+    /// The extension of the stored copy: "pdf" or "md" (ADR-0016). Never derived from the source file name.
+    var storedFileExtension: String {
+        switch self {
+        case .pdf: "pdf"
+        case .markdown: "md"
+        }
+    }
+
+    /// Classifies a source file extension, case-insensitively.
+    /// "pdf" → .pdf; "md", "markdown" → .markdown; anything else (including "") → nil.
+    init?(fileExtension: String) {
+        switch fileExtension.lowercased() {
+        case "pdf": self = .pdf
+        case "md", "markdown": self = .markdown
+        default: return nil
+        }
+    }
+}
+
 /// The only code that builds file paths under the library root (ARCHITECTURE §13).
 /// Layout: `<root>/StudyReader.sqlite`, `<root>/Documents/<id>/…`.
+/// Stored originals always use `FileType.storedFileExtension` (lowercase).
 struct FileStore: Sendable, Equatable {
     /// .../Application Support/StudyReader
     let rootURL: URL
@@ -53,6 +74,12 @@ struct FileStore: Sendable, Equatable {
         return documentsURL.appending(path: documentId, directoryHint: .isDirectory)
     }
 
+    /// Documents/<id>/original.<fileType.storedFileExtension>. Importers call this one.
+    func originalFileURL(documentId: String, fileType: FileType) throws -> URL {
+        try originalFileURL(documentId: documentId, fileExtension: fileType.storedFileExtension)
+    }
+
+    /// Pass `FileType.storedFileExtension`, never a source file's `pathExtension`. Prefer `originalFileURL(documentId:fileType:)`.
     func originalFileURL(documentId: String, fileExtension: String) throws -> URL {
         let folder = try documentFolderURL(documentId: documentId)
         try Self.validateFileExtension(fileExtension)
@@ -92,14 +119,16 @@ struct FileStore: Sendable, Equatable {
         return resolved.standardizedFileURL
     }
 
-    /// Inverse of `url(forRelativePath:)`. Returns nil when `url` is not inside `documentsURL`.
+    /// Inverse of `url(forRelativePath:)`. Returns nil unless the result resolves with `url(forRelativePath:)`
+    /// (first component is a canonical document ID, no `.`/`..`).
     func relativePath(for url: URL) -> String? {
         let base = Self.trimmedPath(documentsURL)
         let target = Self.trimmedPath(url)
         let prefix = base + "/"
         guard target.hasPrefix(prefix) else { return nil }
         let relative = String(target.dropFirst(prefix.count))
-        return relative.isEmpty ? nil : relative
+        guard !relative.isEmpty, self.url(forRelativePath: relative) != nil else { return nil }
+        return relative
     }
 
     /// Creates the root and `Documents/` if missing.

@@ -62,3 +62,4 @@ Existing tests stay unchanged and must pass, including `rejectsInvalidFileExtens
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. Matches spec; 166 tests pass incl. 4 new FileStore tests.

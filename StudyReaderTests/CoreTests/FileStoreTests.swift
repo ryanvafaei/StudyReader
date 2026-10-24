@@ -194,4 +194,63 @@ import Testing
         #expect(!FileStore.isCanonicalId(""))
         #expect(!FileStore.isCanonicalId("\(Self.docId) "))
     }
+
+    @Test func fileTypeFromSourceExtension() {
+        for ext in ["pdf", "PDF", "Pdf"] {
+            #expect(FileType(fileExtension: ext) == .pdf)
+        }
+        for ext in ["md", "MD", "markdown", "Markdown"] {
+            #expect(FileType(fileExtension: ext) == .markdown)
+        }
+        for ext in ["txt", "", "pdf ", "mdx"] {
+            #expect(FileType(fileExtension: ext) == nil)
+        }
+    }
+
+    @Test func uppercaseSourceExtensionMapsToStoredExtension() throws {
+        let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
+
+        let pdfType = try #require(FileType(fileExtension: URL(filePath: "/x/SLIDES.PDF").pathExtension))
+        #expect(try store.originalFileURL(documentId: Self.docId, fileType: pdfType).lastPathComponent == "original.pdf")
+
+        let mdType = try #require(FileType(fileExtension: URL(filePath: "/x/Notes.MARKDOWN").pathExtension))
+        #expect(try store.originalFileURL(documentId: Self.docId, fileType: mdType).lastPathComponent == "original.md")
+
+        #expect(FileType.pdf.storedFileExtension == "pdf")
+        #expect(FileType.markdown.storedFileExtension == "md")
+    }
+
+    @Test func relativePathRejectsNonCanonicalFirstComponent() throws {
+        let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
+        let docs = store.documentsURL
+
+        #expect(store.relativePath(for: docs.appending(path: "notes/x.pdf")) == nil)
+        #expect(store.relativePath(for: docs.appending(path: "\(Self.docId.lowercased())/original.pdf")) == nil)
+        #expect(store.relativePath(for: docs) == nil)
+        #expect(store.relativePath(for: docs.appending(path: "\(Self.docId)/original.pdf")) == "\(Self.docId)/original.pdf")
+
+        let snapshot = try store.snapshotURL(documentId: Self.docId, highlightId: Self.highlightId)
+        let snapshotPath = try #require(store.relativePath(for: snapshot))
+        #expect(store.url(forRelativePath: snapshotPath) != nil)
+    }
+
+    @Test func relativePathAlwaysResolves() throws {
+        let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
+        let docs = store.documentsURL
+        let candidates = [
+            docs.appending(path: "notes/x.pdf"),
+            docs.appending(path: "\(Self.docId.lowercased())/original.pdf"),
+            docs,
+            docs.appending(path: "\(Self.docId)/original.pdf"),
+            try store.snapshotURL(documentId: Self.docId, highlightId: Self.highlightId),
+        ]
+        for candidate in candidates {
+            if let relative = store.relativePath(for: candidate) {
+                #expect(store.url(forRelativePath: relative) != nil, "\(relative) should resolve")
+            }
+        }
+    }
 }

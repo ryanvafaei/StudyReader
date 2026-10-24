@@ -21,7 +21,7 @@ None. All Phase 0 findings (H1, M1–M5, L1–L7 in [`phase-0.md`](phase-0.md)) 
 
 ## Phase 0 second pass
 
-Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, was fixed by T26. By user decision on 2026-10-24, L1 was fixed by T27 and the `DateStorageTests` part of L7 by T26; both are committed and removed here. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
+Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, was fixed by T26. By user decision on 2026-10-24, L1 was fixed by T27 and the `DateStorageTests` part of L7 by T26; both are committed and removed here. L4 was fixed by T29 and removed here. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
 
 - **L2. `inMemory(now:)` uses the injected clock for temp-folder cleanup.** Severity: low. [Report](phase-0-second-pass.md#l2-inmemorynow-uses-the-injected-domain-clock-to-judge-folder-age-so-a-future-fixednow-deletes-the-folders-of-tests-that-are-still-running). A future `FixedNow` makes every existing `StudyReader-InMemory/<UUID>` folder look stale, so parallel tests lose their folders.
   - Suggested fix: compute the one-hour cleanup cutoff from the real wall clock or the folders' file-system dates, independent of the injected `Now`, or clean up only in `defaultFactory`. Add the report's failing test.
@@ -31,10 +31,6 @@ Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its onl
   - Suggested fix: amend ARCHITECTURE §6 rule 5 so a line ending in U+00AD (or U+2010) is joined like `-`. Extraction is versioned, so no migration. Test with `SearchSamples` line-end variants, and check a Word-exported lecture PDF in `Fixtures/private/`.
   - Suggested agent: architect (§6 amendment), then pdf-engine (extraction).
   - Revisit when: PDF text extraction is planned (Phase 1). Put the rule into the extraction task's spec, not a separate fix.
-- **L4. FileStore rejects uppercase extensions, and `relativePath(for:)` returns paths `url(forRelativePath:)` won't resolve.** Severity: low. [Report](phase-0-second-pass.md#l4-filestore-rejects-uppercase-file-extensions-and-relativepathfor-accepts-paths-that-urlforrelativepath-rejects). Passing `pathExtension` from `SLIDES.PDF` throws `.invalidFileExtension("PDF")`, and a stored non-canonical relative path can never be resolved.
-  - Suggested fix: derive the stored extension from `fileType` (or lowercase it) and say so in the doc comment. Make `relativePath(for:)` return nil unless the first component is a canonical ID. Add tests for both.
-  - Suggested agent: data-layer.
-  - Revisit when: import (Phase 1, F-01/F-02) is planned. Do it as the first task of the import epic, before the importer stores any `storedPath`.
 - **L5. An older build opens a library migrated by a newer build without error.** Severity: low. [Report](phase-0-second-pass.md#l5-a-newer-library-is-opened-silently-by-an-older-build). GRDB skips applied migrations it doesn't know, so an older build writes against a schema it doesn't understand.
   - Suggested fix: in `AppDatabase.makeShared`, check `migrator.hasBeenSuperseded(db)` and throw a new `AppDatabaseError.newerVersion` with its own user text. Test: insert `'v3'` into `grdb_migrations`, then reopen and expect the throw.
   - Suggested agent: data-layer.
