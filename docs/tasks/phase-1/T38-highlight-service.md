@@ -85,3 +85,4 @@ actor HighlightService {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. All spec assertions present; 215 tests pass. Minor: no test for PNG cleanup on insert failure; undoLastAutoHighlight clears the id before delete; snapshotURL errors not mapped to snapshotWriteFailed.
