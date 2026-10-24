@@ -8,7 +8,7 @@ metadata:
 Decided 2026-10-23/24 in Phase 0 planning and bug-hunt fixes. Authoritative text: docs/decisions/0011–0014; module map in docs/tasks/phase-0/README.md.
 
 - Record names avoid module clashes: `LibraryDocument`, `DocumentCategory`, `LibraryTag`, `ReviewLogEntry`; others = table name UpperCamel. Value types renamed in T13: `HighlightAnchor` (was Anchor; file still Anchor.swift), `ReviewCardState` (was CardState). JSON/SQL unchanged. Guard: NameClashTests.
-- Records conform to `StudyRecord` (Unix-second REAL dates). Dates must be `.storageRounded` (1/1024 s grid) to be == after fetch; `SystemNow` rounds (T21). Phase 2 FSRS due dates must apply `.storageRounded`.
+- Records conform to `StudyRecord` (Unix-second REAL dates). Dates must be `.storageRounded` (1/1024 s grid) to be == after fetch; `SystemNow` rounds (T21). Phase 2 FSRS due dates must apply `.storageRounded`. In SQL (filter, SQL interpolation, arguments:, updateAll set(to:)) NEVER bind a bare Date (GRDB binds TEXT; REAL < TEXT so `dueAt <= date` matches all rows): use `date.databaseUnixSeconds` (Double, no rounding, in StudyRecord.swift; ADR-0012 amendment, T26).
 - IDs: canonical uppercase `UUID().uuidString`; FileStore rejects others, builders throw, `url(forRelativePath:)` returns nil on escape (T20).
 - `HighlightAnchor` JSON = `{"type":"<case>","<case>":{...}}`. ExportOptions/ThemedReviewFilter decode missing keys as defaults.
 - Upsert: only `upsertAndFetch(db, onConflict: [PK cols])`; dedupe by fileHash/name = lookup then insert. Never REPLACE (RecordConventionTests). Never VACUUM without FTS rebuild.

@@ -53,6 +53,16 @@ Points of care:
 - T18 (a GRDB custom FTS5 tokenizer class under Swift 6) runs as data-layer with model `sonnet` and effort `high` from the first call (user decision 2026-10-24). Treat it as escalated: review it with code-reviewer effort `high`, and if it's rejected twice, stop and ask the user.
 - Search is English-only (ADR-0014, user decision 2026-10-24): the tokenizer handles NFKC (ligatures), soft hyphens, case and Latin diacritics. Persian/Arabic folding was deliberately dropped; adding it later needs a new tokenizer version and migration.
 
+### Second bug hunt fix (from [`phase-0-second-pass.md`](../../bugs/phase-0-second-pass.md), 2026-10-24)
+
+Amended: ADR-0012 ("Dates in SQL" bullet) and ARCHITECTURE §4 and §10.2. The second-pass low findings L1–L7 aren't tasks; they're in [`docs/bugs/backlog.md`](../../bugs/backlog.md).
+
+| # | Task | Finding | Agent | Depends on | Visual check |
+|---|---|---|---|---|---|
+| 26 | [T26 Bind dates in queries as Unix seconds](T26-date-query-arguments.md) | second pass M1 | data-layer | T25 | no |
+
+T26 touches only `StudyRecord.swift` and `DateStorageTests.swift`. It has no schema change, so v2 stays frozen and the user's real library isn't touched.
+
 ## Module map after Phase 0
 
 ```
@@ -61,7 +71,7 @@ StudyReader/App/                 StudyReaderApp, RootView, RootModel, SidebarIte
 StudyReader/Core/Support/        Now, SystemNow (storage-rounded), Log
 StudyReader/Core/Files/          FileStore (canonical-ID validation), FileStoreError
 StudyReader/Core/Models/         ModelEnums (incl. ReviewCardState), Anchor.swift (HighlightAnchor + PDF/Text/ImageAnchor,
-                                 CGRectCodable), ColumnValues, StudyRecord (+ Date.storageRounded), DocumentCategory,
+                                 CGRectCodable), ColumnValues, StudyRecord (+ Date.storageRounded, Date.databaseUnixSeconds), DocumentCategory,
                                  LibraryDocument, DocumentText, Highlight, LibraryTag, HighlightTag, DocumentTag,
                                  DocumentNote, ReviewCard, ReviewLogEntry, ThemedReview, ExportTarget, HighlightEmbedding
 StudyReader/Core/Database/       AppDatabase, AppDatabaseError, SchemaV1 (frozen), SchemaV2 (frozen after T19),
@@ -82,9 +92,9 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - Phase 0 has no SPEC feature ACs of its own. It prepares fixtures and types named by F-02, F-03, F-05, F-06, F-07, F-08, F-11, F-12 ACs in Phase 1.
 
 ## Phase done when
-- All 25 tasks are approved and committed (`TNN: <title>`).
+- All 26 tasks are approved and committed (`TNN: <title>`).
 - Full test suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes. The app launches, and its library is at migration `v2`.
-- bug-hunter has run, and its critical/high findings are fixed. Every bug-hunt finding (H1, M1–M5, L1–L7) is covered by T12–T23 (M3 in its narrowed, English-only scope).
+- bug-hunter has run, and its critical/high findings are fixed. Every first-hunt finding (H1, M1–M5, L1–L7) is covered by T12–T23 (M3 in its narrowed, English-only scope). The second hunt's M1 is covered by T26, and its L1–L7 are in the backlog.
 
 ## Fix history
 - T11 (bundle version) shipped.
@@ -95,4 +105,5 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - T24 was added on 2026-10-24 from the user's T23 visual check. `LaunchView` had no frame, so the loading and failed states and both previews rendered tiny, and the "Failed" preview showed only a truncated title. T24 adds a 700 × 450 minimum on the view's root and leaves scene sizing alone.
 - T25 was added on 2026-10-24 from the user's T24 visual check. The 700 × 450 minimum was smaller than `RootView`'s 900 × 600, so the default `LaunchView` preview clipped the sidebar and the toolbar overflowed. The "Failed" preview was fine. T25 adds one shared constant, `MainWindowLayout.minWidth`/`minHeight` (900 × 600, in `App/`), and uses it in both `RootView` and `LaunchView`. Scene sizing (`.defaultSize` 1100 × 720) doesn't change, and there's no new test because sizing is covered by the visual check.
 - The T22 review noted that system SQLite `[logging]` output on open or migration failures can include SQL and the database path. It comes from the OS, not our logger. It's accepted and listed in the backlog, with no task.
+- The second Phase 0 bug hunt (2026-10-24, [`phase-0-second-pass.md`](../../bugs/phase-0-second-pass.md)) found 0 critical, 0 high, 1 medium and 7 low. Under the backlog policy, only M1 became a task, because it gets more expensive later: every date filter in Phases 1–3 builds on it. T26 adds `Date.databaseUnixSeconds` and guard tests, and ADR-0012 now forbids binding a bare `Date` in SQL. L1–L7 went to the backlog, each with a "revisit when" trigger.
 - Bug-hunt policy from Phase 1 on: see [`docs/bugs/backlog.md`](../../bugs/backlog.md).

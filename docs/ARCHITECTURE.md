@@ -153,7 +153,7 @@ Info.plist additions:
 
 ## 4. Data model (SQLite via GRDB, migrations `v1` and `v2`)
 
-IDs are `TEXT` UUIDs (canonical uppercase, `UUID().uuidString`). Dates are `REAL` (Unix seconds). JSON columns hold `Codable` structs. Coding rules: ADR-0012. SQL table names below stay as written. Only the Swift types are renamed, to avoid clashes with Markdown, ObjectiveC, Testing, FSRS and SwiftUI.
+IDs are `TEXT` UUIDs (canonical uppercase, `UUID().uuidString`). Dates are `REAL` (Unix seconds). In queries, bind dates as `date.databaseUnixSeconds`, never as a bare `Date` (GRDB would bind TEXT; ADR-0012). JSON columns hold `Codable` structs. Coding rules: ADR-0012. SQL table names below stay as written. Only the Swift types are renamed, to avoid clashes with Markdown, ObjectiveC, Testing, FSRS and SwiftUI.
 
 | SQL table | Swift record type |
 |---|---|
@@ -505,7 +505,7 @@ struct ReviewScheduler: Sendable {
 - `Rating` cases in swift-fsrs: `.manual` (never used), `.again`, `.hard`, `.good`, `.easy`. Two-button mode maps Forgot → `.again`, Remembered → `.good`.
 
 ### 10.2 Session builders (pure, take `Now`)
-- `DailyReviewBuilder`: due non-suspended cards (`dueAt ≤ now`) ordered by `dueAt` asc, limit `dailyLimit`; then new cards (`state == new`, `introducedAt == nil`) ordered by highlight `createdAt`, limit `newPerDay − introducedToday`. "Today" starts at 04:00 local.
+- `DailyReviewBuilder`: due non-suspended cards (`dueAt ≤ now`, written `Column("dueAt") <= now.databaseUnixSeconds`; the same applies to the `introducedToday` and `lastCompletedAt` cutoffs, ADR-0012) ordered by `dueAt` asc, limit `dailyLimit`; then new cards (`state == new`, `introducedAt == nil`) ordered by highlight `createdAt`, limit `newPerDay − introducedToday`. "Today" starts at 04:00 local.
 - `ThemedReviewBuilder`: filter → candidate cards (non-suspended), order dueFirst (due asc, then `lastReview` asc) or random (seeded RNG injectable), limit `cardsPerSession`. Excludes cards already rated today in another session.
 - `ThemedReviewSchedule.isDue(review, now)`: daily → last completed before today's 04:00; everyNDays → ≥ N days since; weekdays → today is a listed weekday and not completed today.
 

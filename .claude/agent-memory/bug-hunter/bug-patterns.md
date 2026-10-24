@@ -1,20 +1,20 @@
 ---
 name: bug-patterns
-description: Recurring StudyReader bug patterns found in end-of-phase hunts (phase 0 onward); check each new phase for repeats
+description: Recurring StudyReader bug patterns found in end-of-phase hunts (phase 0 + second pass); check each new phase for repeats
 metadata:
   type: project
 ---
 
-Patterns seen so far (phase 0 report: docs/bugs/phase-0.md):
+Reports: docs/bugs/phase-0.md (first pass), docs/bugs/phase-0-second-pass.md (after fixes T12–T25). All first-pass findings were verified fixed in the second pass.
 
-- **ADR guidance that is unsafe with GRDB defaults.** ADR-0012 says "use update/upsert/save". GRDB upsert without `onConflict:` fires on ANY unique constraint (document.fileHash, tag.name, category.name) and overwrites another row. Check new repositories for untargeted `upsert`/`upsertAndFetch`.
-- **Editing frozen migration v1.** The user's real library already has v1 applied (checked 2026-10-24). Schema fixes must be new migrations. Check whether `SchemaV1.swift` changed in the phase's diff.
-- **FTS desync invisible to tests.** Tests only MATCH single words. Look for `INSERT OR REPLACE`, `persistenceConflictPolicy`, VACUUM, and missing `'integrity-check'` assertions.
-- **Persian/Arabic search.** unicode61 splits on ZWNJ and Arabic harakat and doesn't fold ي/ك to ی/ک. Recheck once SearchService lands.
-- **Unindexed FK child columns** (reviewLog.cardId etc.) make cascades scan whole tables.
-- **Name clashes with imported modules** that only show up in test files importing both (CardState vs FSRS, Anchor vs SwiftUI).
-- **Temp-dir leaks** from TestFileStore / AppEnvironment.inMemory().
-- **Date `==` after REAL round-trip** fails for about 46% of fractional timestamps.
+- **ADR guidance that is unsafe with GRDB defaults.** ADR-0012 upsert was fixed (PK-target only). Still check new repositories for `upsert(`/`upsertAndFetch(` without `onConflict:`.
+- **Date as a query argument (2nd pass M1).** Records store dates as REAL through `StudyRecord`, but a bare `Date` bound in `filter(Column("dueAt") <= now)` becomes GRDB TEXT `yyyy-MM-dd HH:mm:ss.SSS`. REAL < TEXT always, so `<=` matches every row. Grep Phase 1/2 repositories for Date arguments (DailyReviewBuilder `dueAt ≤ now`, introducedToday, lastCompletedAt).
+- **Frozen migrations.** The real library is at **v2** (checked 2026-10-24; its dump equals Fixtures/schema/v2.sql). Any schema change needs v3. Check that the SchemaV1/V2 diffs are empty each phase.
+- **FTS desync.** v2 uses hand-written `AFTER UPDATE OF` triggers. A full-record `update(db)` still re-indexes, so Phase 1 position and progress saves must use `update(db, columns:)` or `updateChanges`. Check that new tests call `FTSIntegrity.check`.
+- **Tokenizer scope.** English-only (ADR-0014, user decision). Persian was dropped on purpose: don't report it. The open gap is a soft hyphen at a line end (`photo­\nsynthesis`), which isn't joined.
+- **Test-host safety.** Detection runs at host launch, before any guard test, so the guard is after the fact. `inMemory(now:)` uses the injected clock for its cleanup cutoff, so a future `FixedNow` would wipe folders of tests still running.
+- **Unknown migrations accepted silently** by older builds (GRDB skips unknown ids). Watch for this if the user builds old commits.
+- Earlier patterns (fixed, still worth a grep): unindexed FK children, name clashes with imported modules (`NameClashTests`), temp-dir leaks, Date `==` after a REAL round trip (`storageRounded`).
 
 **Why:** these are the hazards most likely to recur as Haiku/Sonnet implementers build on the Phase 0 data layer.
-**How to apply:** at each phase hunt, grep for these patterns first, then do the category-based hunt. Verify test-host isolation by checking the real container's sqlite/-shm mtimes against test-run times. Use read-only `sqlite3 -readonly` only; never write the real library.
+**How to apply:** at each phase hunt, grep for these patterns first, then do the category-based hunt. Verify test-host isolation by comparing the real container's sqlite/-wal/-shm mtimes before and after `./scripts/test.sh`.

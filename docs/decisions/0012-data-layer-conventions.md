@@ -1,6 +1,6 @@
 # ADR-0012: Data-layer naming and coding conventions
 
-- Status: Accepted (amended 2026-10-24: upsert rule from bug hunt `docs/bugs/phase-0.md` H1; value-type renames (L6), storage-rounded dates (L4), canonical IDs (L1), FTS triggers (ADR-0013))
+- Status: Accepted (amended 2026-10-24: upsert rule from bug hunt `docs/bugs/phase-0.md` H1; value-type renames (L6), storage-rounded dates (L4), canonical IDs (L1), FTS triggers (ADR-0013); amended again 2026-10-24: date query arguments, from `docs/bugs/phase-0-second-pass.md` M1)
 - Date: 2026-10-23
 
 ## Context
@@ -11,6 +11,7 @@ ARCHITECTURE §4 defines the SQL schema but not the Swift record types. Several 
 - Column value types that would clash: `highlight.anchor` is `HighlightAnchor` (was `Anchor`, which clashes with `SwiftUI.Anchor`), and `reviewCard.state` is `ReviewCardState` (was `CardState`, which clashes with `FSRS.CardState`). Only the Swift names changed. SQL values and JSON are unchanged. `NameClashTests` (T13) compiles every record and value type with SwiftUI, FSRS, Markdown, GRDB and Testing imported.
 - All records conform to `StudyRecord` (Codable, Sendable, FetchableRecord, PersistableRecord), which stores dates as Unix seconds (`.timeIntervalSince1970`).
 - **Dates:** a `Date` survives the Unix-seconds round trip exactly only if it lies on a 1/1024 s grid. `Date.storageRounded` rounds down to that grid. `SystemNow` returns storage-rounded dates, so any record built from `Now` is `==` to its fetched copy. Any other date written to a record (for example FSRS-computed due dates in Phase 2) must go through `.storageRounded` before it is saved. Tests may keep using whole-second dates.
+- **Dates in SQL (amendment 2026-10-24):** never bind a bare `Date` anywhere outside record encoding. The `StudyRecord` strategy only applies when a record is encoded. A bare `Date` goes through GRDB's `Date.databaseValue`, which is the TEXT `"yyyy-MM-dd HH:mm:ss.SSS"`, and SQLite sorts every REAL before every TEXT, so `dueAt <= date` is true for every row and `dueAt > date` is never true, with no error. Always pass `date.databaseUnixSeconds` (a `Double`, defined next to `storageRounded` in `Core/Models/StudyRecord.swift`). This covers `filter` expressions (`Column("dueAt") <= now.databaseUnixSeconds`), `SQL` interpolation, `arguments:` in raw SQL, and `updateAll` assignments (`Column("dueAt").set(to: date.databaseUnixSeconds)`; a bare `Date` there writes TEXT into a REAL column). The helper doesn't round: it returns exactly the `Double` the record encoder writes for the same `Date`, so a query date equals the stored value of a record saved with that date. Rounding stays the job of `.storageRounded` at write time. Guard: `DateStorageTests` (T26), including a test that pins GRDB's TEXT binding.
 - IDs are `String` (`UUID().uuidString`, canonical uppercase), never `UUID` (GRDB would store a 16-byte blob). `FileStore` rejects non-canonical IDs, so lowercase UUID strings must never be created in app code.
 - Column enums are `String`/`Int` raw-value enums conforming to `DatabaseValueConvertible`.
 - JSON columns are Codable value types (Core/Models/ColumnValues.swift, Anchor.swift). `HighlightAnchor` encodes as `{"type": "<case>", "<case>": {...}}`. Option and filter types decode missing keys as defaults.
@@ -27,4 +28,4 @@ ARCHITECTURE §4 defines the SQL schema but not the Swift record types. Several 
 Plain names with module qualification at every use site; a `Record` suffix on every type; GRDB defaults for UUID and Date; storing `timeIntervalSinceReferenceDate` (exact, but not Unix seconds as ARCHITECTURE §4 specifies); rounding to whole milliseconds (not exact through the 1970 offset).
 
 ## Consequences
-Later phases use these names in specs. `UpsertConventionTests` (T12) guards the upsert rule, and reviewers reject any `upsert(` call and any `upsertAndFetch(` call without a target. `DateStorageTests` (T21) guards the date rule.
+Later phases use these names in specs. `UpsertConventionTests` (T12) guards the upsert rule, and reviewers reject any `upsert(` call and any `upsertAndFetch(` call without a target. `DateStorageTests` (T21, T26) guards the date rules. Reviewers reject any `Date` value used in a query expression, SQL interpolation, `arguments:` or `set(to:)` without `.databaseUnixSeconds`.
