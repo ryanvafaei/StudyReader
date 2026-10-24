@@ -69,3 +69,4 @@ Model tests (`@MainActor`):
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (code-reviewer, effort medium): APPROVED. 313 tests pass, 0 warnings. Note: AppSettings.librarySort/libraryLayout are an unused stale mirror of keys LibraryModel owns; remove them in T47 or a T45 follow-up.
