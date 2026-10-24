@@ -6,6 +6,8 @@
 - **ADRs:** none; ARCHITECTURE §3 (launch)
 - **Visual check needed:** yes
 
+> **Superseded value (2026-10-24):** The user's T24 visual check found that 700 × 450 is too small for the default preview, which renders `RootView` and clips its sidebar. [T25](T25-shared-main-window-minimum-size.md) replaces both literals with the shared `MainWindowLayout.minWidth`/`minHeight` (900 × 600). The text below records T24 as it was shipped.
+
 ## Goal
 `LaunchView` has no frame, so its loading and failed states, and both of its previews (default and "Failed"), render in a tiny window. The "Failed" preview shows only a truncated "Couldn't open" with no icon or description. Give the view's root a minimum size so every state fills a normal window and the failure message wraps and is fully visible, centered.
 
