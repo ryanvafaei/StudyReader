@@ -25,21 +25,48 @@ Run in this order, one at a time (CLAUDE.md workflow).
 
 T09 and T10 only need T01; they're last so the database chain isn't interrupted, but they may run any time after T01 if a database task is blocked.
 
+### Bug-hunt fixes (from `docs/bugs/phase-0.md`, user decisions 2026-10-24)
+
+New ADRs: [0013 frozen migrations, schema goldens, v2](../../decisions/0013-schema-migration-policy-v2.md) and [0014 search tokenizer](../../decisions/0014-search-tokenizer-persian-arabic.md). Amended: ADR-0011 (in-memory launch argument, temp cleanup) and ADR-0012 (renames, dates, canonical IDs, FTS triggers).
+
+| # | Task | Finding | Agent | Depends on | Visual check |
+|---|---|---|---|---|---|
+| 13 | [T13 Rename `CardState`/`Anchor` to `ReviewCardState`/`HighlightAnchor`](T13-rename-clashing-value-types.md) | L6 | data-layer | T12 | no |
+| 14 | [T14 Remove temporary libraries created by tests and the test host](T14-temporary-folder-cleanup.md) | L7 | data-layer | T13 | no |
+| 15 | [T15 Guard test-host detection, add `-StudyReaderInMemory`](T15-test-host-detection-guard.md) | M4 | ui-builder | T14 | no |
+| 16 | [T16 Schema golden for v1 and populated v1 fixture database](T16-schema-goldens-and-v1-fixture.md) | M1 | data-layer | T14 | no |
+| 17 | [T17 FTS integrity helper and REPLACE conflict-policy guard](T17-fts-integrity-and-conflict-guard.md) | M5 | data-layer | T16 | no |
+| 18 | [T18 `studyreader` FTS5 tokenizer (Persian/Arabic)](T18-search-tokenizer.md) | M3 (1/2) | data-layer | T17 | no |
+| 19 | [T19 Migration v2: FK indexes, tokenizer FTS tables, filtered triggers](T19-migration-v2.md) | M2, M3 (2/2), L5 | data-layer | T16, T17, T18 | no |
+| 20 | [T20 FileStore validates IDs, extensions, relative paths](T20-filestore-path-validation.md) | L1 | data-layer | T14 | no |
+| 21 | [T21 Storage-rounded dates](T21-storage-rounded-dates.md) | L4 | data-layer | T13 | no |
+| 22 | [T22 Typed `AppDatabaseError`](T22-app-database-error.md) | L3 (data) | data-layer | T19 | no |
+| 23 | [T23 Async launch off the main actor, safe error messages](T23-async-launch-and-error-message.md) | L2, L3 (UI) | ui-builder | T15, T22 | yes |
+
+Run them in this order, one at a time. The order keeps files that several tasks touch in sequence: `AppEnvironment`/`AppLaunchModel` go T14 → T15 → T23, `AppDatabase.swift` goes T18 → T19 → T22, and `FileStoreTests` goes T14 → T20.
+
+Points of care:
+- **T19 changes the user's real library** on the next app launch (v1 → v2). That is the intended upgrade. After T19 is committed, `SchemaV2` is frozen. Any later schema fix needs `v3`.
+- T16 and T19 generate golden files from test output (`Fixtures/schema/v1.sql`, `v2.sql`). The implementer reads the `*.actual.sql` path printed by the failing test (under the app container's `tmp`). Goldens are never hand-written or regenerated after commit.
+- T18 is the riskiest Haiku task: a GRDB custom FTS5 tokenizer class under Swift 6. If it's rejected twice, the escalation rule moves it to Sonnet.
+
 ## Module map after Phase 0
 
 ```
 StudyReader/App/                 StudyReaderApp, RootView, RootModel, SidebarItem, AppEnvironment, AppLaunchModel, LaunchView
-StudyReader/Core/Support/        Now, SystemNow, Log
-StudyReader/Core/Files/          FileStore, FileStoreError
-StudyReader/Core/Models/         ModelEnums, Anchor (+PDF/Text/ImageAnchor, CGRectCodable), ColumnValues,
-                                 StudyRecord, DocumentCategory, LibraryDocument, DocumentText, Highlight,
-                                 LibraryTag, HighlightTag, DocumentTag, DocumentNote, ReviewCard, ReviewLogEntry,
-                                 ThemedReview, ExportTarget, HighlightEmbedding
-StudyReader/Core/Database/       AppDatabase, SchemaV1, BuiltinCategory
+StudyReader/Core/Support/        Now, SystemNow (storage-rounded), Log
+StudyReader/Core/Files/          FileStore (canonical-ID validation), FileStoreError
+StudyReader/Core/Models/         ModelEnums (incl. ReviewCardState), Anchor.swift (HighlightAnchor + PDF/Text/ImageAnchor,
+                                 CGRectCodable), ColumnValues, StudyRecord (+ Date.storageRounded), DocumentCategory,
+                                 LibraryDocument, DocumentText, Highlight, LibraryTag, HighlightTag, DocumentTag,
+                                 DocumentNote, ReviewCard, ReviewLogEntry, ThemedReview, ExportTarget, HighlightEmbedding
+StudyReader/Core/Database/       AppDatabase, AppDatabaseError, SchemaV1 (frozen), SchemaV2 (frozen after T19),
+                                 SearchTokenizer (+ SearchTokenNormalizer), BuiltinCategory
 StudyReader/Core/Repositories/   CategoryRepository, DocumentRepository
 StudyReader/Resources/           Info.plist + StudyReader.entitlements (generated), Localizable.xcstrings, Assets.xcassets
-StudyReaderTests/Support/        FixedNow, TestFileStore, TestData, PDFFixtureBuilder, MarkdownFixtures
-StudyReaderTests/Fixtures/       markdown/*.md  (folder reference; private/ is git-ignored)
+StudyReaderTests/Support/        FixedNow, TestFileStore (+ remove), TestData, PDFFixtureBuilder, MarkdownFixtures,
+                                 SchemaSnapshot, V1FixtureDatabase, FTSIntegrity, ArabicScriptSamples
+StudyReaderTests/Fixtures/       markdown/*.md, schema/v1.sql, schema/v2.sql  (folder reference; private/ is git-ignored)
 StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 ```
 
@@ -51,12 +78,11 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - Phase 0 has no SPEC feature ACs of its own. It prepares fixtures and types named by F-02, F-03, F-05, F-06, F-07, F-08, F-11, F-12 ACs in Phase 1.
 
 ## Phase done when
-- All 12 tasks are approved and committed (`TNN: <title>`).
-- Full test suite passes via test-runner; the app launches and creates its database in the sandbox container.
-- bug-hunter has run and its critical/high findings are fixed.
+- All 23 tasks are approved and committed (`TNN: <title>`).
+- Full test suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes. The app launches, and its library is at migration `v2`.
+- bug-hunter has run, and its critical/high findings are fixed. Every bug-hunt finding (H1, M1–M5, L1–L7) is covered by T12–T23.
 
-## Queued fixes
-
+## Fix history
 - T11 (bundle version) shipped.
-- T12 fixes bug hunt H1 (`docs/bugs/phase-0.md`). ADR-0012 was amended first, so T12 has tests only.
-- The medium and low findings (M1–M5, L1–L7) aren't scheduled yet. Several of them (M2, M3, L5) need a `v2` migration, and the user hasn't decided on that yet.
+- T12 fixes bug hunt H1. ADR-0012 was amended first, so T12 has tests only.
+- T13–T23 fix M1–M5 and L1–L7. The user decided on 2026-10-24: a new `v2` migration (v1 stays frozen), fix everything now, and do the L6 renames.

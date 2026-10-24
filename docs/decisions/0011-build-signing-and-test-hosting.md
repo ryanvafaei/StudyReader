@@ -14,6 +14,9 @@ Agents build and test from the command line without the user's Apple team ID. AR
 - Test fixtures: `StudyReaderTests/Fixtures` is a folder reference copied into the test bundle; look files up with `Bundle(for:)` and subdirectory `Fixtures/<kind>`.
 - `.gitignore` ignores everything in `StudyReader.xcodeproj/` except `project.xcworkspace/xcshareddata/swiftpm/Package.resolved`, which is committed.
 - When the app runs as a test host (`XCTestConfigurationFilePath` or `XCTestBundlePath` in the environment) it uses an in-memory database and a temporary FileStore, never the user's library.
+  - Amended 2026-10-24 (bug hunt M4). The launch argument `-StudyReaderInMemory` forces the same in-memory environment, for example for UI tests (XCUITest sets `launchArguments`) or manual runs. The decision goes through `AppEnvironment.usesInMemoryLibrary()`.
+  - `AppEnvironmentTests/hostedProcessIsDetected` checks detection against the real process environment, so a renamed Xcode variable fails a test instead of opening the real library.
+  - Temporary libraries go under `tmp/StudyReader-InMemory/`. Folders older than one hour are removed when `inMemory()` runs. Tests remove their own folders with `TestFileStore.remove(_:)` (T14).
 
 ## Alternatives considered
 Require the team ID in Phase 0 (blocks agents); separate entitlements files switched by xcconfig (more moving parts before they're needed); move app logic into a framework target so tests needn't be hosted (re-decides ARCHITECTURE §2).

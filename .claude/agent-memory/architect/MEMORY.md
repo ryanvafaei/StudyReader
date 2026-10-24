@@ -1,2 +1,2 @@
-- [Project conventions](project_conventions.md) — record names, ADR-0011/0012 rules, DI, test layout, fixture interfaces for later specs
-- [Phase status](project_phase_status.md) — phases planned so far, deferred items, open user questions
+- [Project conventions](project_conventions.md) — names (HighlightAnchor, ReviewCardState), ADR-0011..0014 rules: migrations, studyreader FTS, dates, IDs, DI, tests
+- [Phase status](project_phase_status.md) — phases planned (Phase 0 T01–T23), deferred items, open user questions

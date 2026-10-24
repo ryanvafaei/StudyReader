@@ -46,7 +46,7 @@ StudyReader/
 │   ├── App/                    # StudyReaderApp, AppEnvironment (DI), commands/menus, Settings scene
 │   ├── Core/
 │   │   ├── Database/           # AppDatabase, migrations, FTS setup
-│   │   ├── Models/             # GRDB records + domain types (Highlight, Anchor, ReviewCard…)
+│   │   ├── Models/             # GRDB records + domain types (Highlight, HighlightAnchor, ReviewCard…)
 │   │   ├── Repositories/       # DocumentRepository, HighlightRepository, TagRepository…
 │   │   ├── Files/              # FileStore (container paths, copy, delete)
 │   │   └── Support/            # Now (clock), Logging, Hashing, Debounce
@@ -145,13 +145,14 @@ Info.plist additions:
 - UI models are `@MainActor @Observable` classes. Live lists use GRDB `ValueObservation` started in `.task {}` and cancelled with the view.
 - Long work runs in actors: `ImportService`, `ExtractionService`, `EmbeddingService`, `GoogleExportService`.
 - **PDFKit is not thread-safe.** Background work (extraction, cover, snapshot rendering) opens its *own* `PDFDocument(url:)` instance; never pass a `PDFDocument`/`PDFPage` across actors. The UI's `PDFView` document lives on the main actor.
-- Time comes from an injected `Now` (`protocol Now: Sendable { func callAsFunction() -> Date }`), never `Date()` in logic.
+- Time comes from an injected `Now` (`protocol Now: Sendable { func callAsFunction() -> Date }`), never `Date()` in logic. `SystemNow` returns `Date.storageRounded` values (1/1024 s grid), so stored dates are `==` after a round trip (ADR-0012).
+- The library opens off the main actor: `AppLaunchModel.start()` is `async` and runs the environment factory in a detached task.
 
 ---
 
-## 4. Data model (SQLite via GRDB, migration `v1`)
+## 4. Data model (SQLite via GRDB, migrations `v1` and `v2`)
 
-IDs are `TEXT` UUIDs. Dates are `REAL` (Unix seconds). JSON columns hold `Codable` structs. Coding rules: ADR-0012. SQL table names below stay as written; only the Swift record types are renamed, to avoid clashes with Markdown, ObjectiveC, Testing and FSRS.
+IDs are `TEXT` UUIDs (canonical uppercase, `UUID().uuidString`). Dates are `REAL` (Unix seconds). JSON columns hold `Codable` structs. Coding rules: ADR-0012. SQL table names below stay as written. Only the Swift types are renamed, to avoid clashes with Markdown, ObjectiveC, Testing, FSRS and SwiftUI.
 
 | SQL table | Swift record type |
 |---|---|
@@ -168,6 +169,8 @@ IDs are `TEXT` UUIDs. Dates are `REAL` (Unix seconds). JSON columns hold `Codabl
 | `themedReview` | `ThemedReview` |
 | `exportTarget` | `ExportTarget` |
 | `highlightEmbedding` | `HighlightEmbedding` |
+
+Column value types with renamed Swift names: `highlight.anchor` → `HighlightAnchor` (JSON, §5), `reviewCard.state` → `ReviewCardState`. Lines marked `-- v2` below were added by migration `v2`. Everything else is `v1`.
 
 ```sql
 CREATE TABLE category (
@@ -201,6 +204,7 @@ CREATE TABLE document (
   addedAt REAL NOT NULL,
   lastOpenedAt REAL
 );
+CREATE INDEX document_category ON document(categoryId);                -- v2
 
 CREATE TABLE documentText (                   -- text view source + search
   documentId TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
@@ -223,7 +227,7 @@ CREATE TABLE highlight (
   note TEXT NOT NULL DEFAULT '',
   pageIndex INTEGER,                          -- first page (pdf view, text view of PDF, image)
   positionKey REAL NOT NULL,                  -- reading-order sort key (§5.5)
-  anchor TEXT NOT NULL,                       -- JSON Anchor (§5)
+  anchor TEXT NOT NULL,                       -- JSON HighlightAnchor (§5)
   anchorStatus TEXT NOT NULL DEFAULT 'ok' CHECK (anchorStatus IN ('ok','orphaned')),
   imagePath TEXT,                             -- relative, image highlights
   createdAt REAL NOT NULL,
@@ -241,6 +245,7 @@ CREATE TABLE documentTag (
   tagId TEXT NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
   PRIMARY KEY (documentId, tagId));
 CREATE INDEX highlightTag_tag ON highlightTag(tagId);
+CREATE INDEX documentTag_tag ON documentTag(tagId);                    -- v2
 
 CREATE TABLE documentNote (
   documentId TEXT PRIMARY KEY REFERENCES document(id) ON DELETE CASCADE,
@@ -273,6 +278,8 @@ CREATE TABLE reviewLog (
   sessionKind TEXT NOT NULL CHECK (sessionKind IN ('daily','themed')),
   themedReviewId TEXT REFERENCES themedReview(id) ON DELETE SET NULL,
   fsrsLog TEXT NOT NULL);                     -- JSON of FSRS.ReviewLog
+CREATE INDEX reviewLog_card ON reviewLog(cardId, reviewedAt);          -- v2
+CREATE INDEX reviewLog_themedReview ON reviewLog(themedReviewId);      -- v2
 
 CREATE TABLE themedReview (
   id TEXT PRIMARY KEY,
@@ -306,22 +313,25 @@ CREATE TABLE highlightEmbedding (
   sourceHash TEXT NOT NULL);                  -- SHA-256 of embedded text, to detect staleness
 ```
 
-Full-text search (FTS5, tokenizer `unicode61 remove_diacritics 2`), external-content tables kept in sync with GRDB `synchronize(withTable:)`:
+Full-text search uses FTS5 external-content tables with tokenizer `studyreader` (ADR-0014). `studyreader` is a GRDB wrapper around `unicode61 remove_diacritics 2` that keeps ZWNJ and Arabic marks inside words, then normalizes each token: NFKC, strip joiners and marks, fold Arabic yeh/kaf to the Persian letters, lowercase. The tokenizer is registered on every connection in `AppDatabase.makeConfiguration()`. Since `v2`, hand-written triggers `<fts>_ai`, `<fts>_ad` and `<fts>_au` keep the tables in sync. The update trigger fires only `AFTER UPDATE OF` the indexed columns (ADR-0013). `v1` created these tables with `unicode61` and GRDB `synchronize(withTable:)` triggers, and `v2` dropped and rebuilt them.
 - `documentText_fts(text)` ← `documentText`
 - `highlight_fts(text, editedText, note)` ← `highlight`
 - `documentNote_fts(body)` ← `documentNote`
 - `document_fts(title, author)` ← `document`
 
-Migration rules: append-only; never edit `v1` after it ships to the user's machine; each later change is a new named migration with a test that migrates a populated `v1` database.
+Migration rules (ADR-0013):
+- Migrations are append-only. A migration is frozen once its task is committed: `v1` (`SchemaV1`) and `v2` (`SchemaV2`) are frozen.
+- Each migration `vN` has a schema golden `StudyReaderTests/Fixtures/schema/vN.sql`, checked by `SchemaSnapshotTests`.
+- Each later change is a new named migration, with a test that upgrades the populated `V1FixtureDatabase`.
 
 ---
 
 ## 5. Highlight anchoring
 
-`Anchor` is a `Codable` enum stored as JSON in `highlight.anchor`:
+`HighlightAnchor` is a `Codable` enum stored as JSON in `highlight.anchor`. It was named `Anchor` before T13, and the JSON is unchanged:
 
 ```swift
-enum Anchor: Codable, Sendable, Equatable {
+enum HighlightAnchor: Codable, Sendable, Equatable {
   case pdf(PDFAnchor)        // view == .pdf, kind == .text
   case text(TextAnchor)      // view == .text (PDF text view) or .markdown
   case image(ImageAnchor)    // kind == .image
@@ -418,6 +428,7 @@ Front matter is stripped before parsing; `title`/`author` returned separately.
 ## 8. Search
 
 - `SearchQueryParser` converts user input to an FTS5 MATCH expression: bare words → `"word"` (AND-joined); `word*` → `"word"*`; `"exact phrase"` kept; `-word` → `NOT "word"`. All user text is quoted/escaped; never interpolate raw input.
+- The parser does no Unicode normalization. FTS5 runs MATCH strings through the `studyreader` tokenizer, so `میخواهم` matches `می‌خواهم`, `کتاب` matches `كتاب`/`كِتَاب`, and `cafe` matches `café` (ADR-0014). `snippet()` returns the original stored text.
 - `SearchService.search(query, filters, limit)` runs four FTS queries (documentText, highlight, documentNote, document), each with `bm25()` ranking and `snippet(…, '**', '**', '…', 12)`, joins to apply filters (tag, category, file type), and returns grouped results with locations:
   - documentText hit → (documentId, pageIndex / unitIndex)
   - highlight hit → (documentId, highlightId)
@@ -529,6 +540,7 @@ struct ReviewScheduler: Sendable {
 - `StudyReader.sqlite` (+ `-wal`, `-shm`).
 - `Documents/<document-id>/original.<ext>`, `cover.png`, `images/` (Markdown images), `snapshots/<highlight-id>.png`.
 - `FileStore` owns all paths; nothing else builds file paths.
+- `FileStore` path builders throw `FileStoreError` unless document and highlight IDs are canonical uppercase UUID strings and the file extension is 1–10 lowercase letters or digits. `url(forRelativePath:)` returns nil for any path that would leave `Documents/` (absolute paths, `..`, or a first component that isn't a canonical document ID). `documentFolderIds()` lists only canonical IDs, so the orphan sweep never touches other folders.
 - On launch: remove `Documents/<id>` folders with no `document` row (interrupted imports), and documents with `extractionStatus = 'pending'` re-queue extraction.
 
 ---
@@ -536,6 +548,7 @@ struct ReviewScheduler: Sendable {
 ## 14. Error handling and logging
 
 - Domain errors are typed enums per service (`ImportError`, `ExportError`, …) with user-facing messages via `LocalizedError`.
+- Opening the library throws `AppDatabaseError` (`folderUnavailable`, `cannotOpen`, `damaged`, `migrationFailed`). The launch screen shows only its `errorDescription` and `recoverySuggestion`, and a generic message for any other error. Raw `DatabaseError` text (which can contain SQL) is never shown to the user.
 - UI shows errors as inline banners or alerts; background failures surface in the item's status (e.g., library item "Text extraction failed — Retry").
 - `os.Logger(subsystem: Bundle.main.bundleIdentifier!, category: <feature>)`. No PII: never log highlight text, notes, file contents, tokens, or emails.
 
@@ -548,6 +561,8 @@ struct ReviewScheduler: Sendable {
 - `PDFFixtureBuilder` (tests only) generates PDFs with Core Text into a `CGContext(consumer:mediaBox:)` PDF context: plain multi-page text, two-column layout, repeated header/footer + page numbers, bold/italic/monospace runs, hyphenated line ends, slide-like bullets. No binary PDFs committed except tiny ones if unavoidable.
 - `StudyReaderTests/Fixtures/private/` (git-ignored): the user may drop real lecture PDFs here for manual and optional tests; tests depending on them are skipped when absent.
 - Golden files for `ExportRenderer` in `Fixtures/golden/`.
+- Schema goldens in `Fixtures/schema/vN.sql` (`SchemaSnapshot`). `V1FixtureDatabase` builds a populated v1 database for upgrade tests. `FTSIntegrity.check(db)` runs FTS5 `'integrity-check'` on all four FTS tables, and every test that writes indexed tables calls it at the end.
+- Temporary FileStores and in-memory environments are removed by the test that made them (`defer { TestFileStore.remove(store) }`).
 - Network: `GoogleExportService` takes a `HTTPClient` protocol; tests use a stub returning canned responses.
 - Time: `FixedNow` for scheduling tests; `enableFuzz = false`.
 - UI isn't snapshot-tested. Tasks that change visuals require a user visual check (see CLAUDE.md).

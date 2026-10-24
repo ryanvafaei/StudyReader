@@ -23,4 +23,4 @@ Types, function signatures, and data shapes other tasks rely on. Be exact.
 What this task must not do.
 
 ## Review log
-<!-- Main session appends one line per review: date, model used, verdict, short reason -->
+<!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
