@@ -94,3 +94,4 @@ All tests are `async`. Environments are removed with `TestFileStore.remove(envir
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 154/154, concurrency sound, no raw error text reaches UI. Visual check pending from user.

@@ -19,10 +19,14 @@ struct LaunchView: View {
                 }
             }
         }
-        .task { model.start() }
+        .task { await model.start() }
     }
 }
 
 #Preview {
     LaunchView(model: AppLaunchModel(makeEnvironment: { try AppEnvironment.inMemory() }))
+}
+
+#Preview("Failed") {
+    LaunchView(model: AppLaunchModel(makeEnvironment: { throw AppDatabaseError.damaged(code: 26) }))
 }

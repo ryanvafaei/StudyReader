@@ -11,4 +11,5 @@ metadata:
 - `AppEnvironment.inMemory()` and `make(fileStore:)` leave temp folders behind; tests remove `fileStore.rootURL.deletingLastPathComponent()` in `defer`.
 - Full suite after T08: 69 tests in 17 suites (63 prior + 6 new) pass.
 - T15: `AppEnvironment.usesInMemoryLibrary(environment:arguments:)` is the single in-memory decision; `AppLaunchModel.defaultFactory` calls it. Compute `try FileStore.applicationSupport()` into a local before `#expect`.
+- T23: `start()` is async; factory runs in `Task.detached(priority: .userInitiated) { Result { try factory() } }.value`. Tests `await model.start()` on the @MainActor suite; `AppLaunchModelTests` filter works with `scripts/test.sh`. Failure messages come from `AppLaunchModel.failureMessage(for:)`, never `localizedDescription`.
 - `Localizable.xcstrings` is empty; SwiftUI literals (`ProgressView("Opening library…")`) are extracted at build via SWIFT_EMIT_LOC_STRINGS.

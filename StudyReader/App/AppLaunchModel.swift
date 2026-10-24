@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// Opens the long-lived dependencies once at launch and exposes whether the library is ready.
@@ -10,8 +11,13 @@ final class AppLaunchModel {
     }
 
     private(set) var state: State = .loading
+    private var hasStarted = false
 
     private let makeEnvironment: @Sendable () throws -> AppEnvironment
+
+    /// Generic text for errors that aren't AppDatabaseError (never shows their description).
+    /// `nonisolated` so the nonisolated failureMessage(for:) can read it.
+    nonisolated static let genericFailureMessage = String(localized: "StudyReader couldn't open its library. Quit and reopen StudyReader.")
 
     /// Default factory: in-memory environment when running as a test host, the user's library otherwise.
     init(makeEnvironment: @escaping @Sendable () throws -> AppEnvironment = AppLaunchModel.defaultFactory) {
@@ -25,15 +31,34 @@ final class AppLaunchModel {
         return try AppEnvironment.live()
     }
 
-    /// Runs the factory once. Success → .ready; error → .failed(message: error.localizedDescription)
-    /// and logs via Log.app (no paths or user data in the log). Calling start() again when not .loading does nothing.
-    func start() {
-        guard case .loading = state else { return }
-        do {
-            state = .ready(try makeEnvironment())
-        } catch {
+    /// AppDatabaseError → errorDescription, plus "\n\n" + recoverySuggestion when present.
+    /// Any other error → genericFailureMessage.
+    nonisolated static func failureMessage(for error: any Error) -> String {
+        guard let databaseError = error as? AppDatabaseError else {
+            return genericFailureMessage
+        }
+        let description = databaseError.errorDescription ?? genericFailureMessage
+        guard let suggestion = databaseError.recoverySuggestion else {
+            return description
+        }
+        return description + "\n\n" + suggestion
+    }
+
+    /// Runs the factory once, off the main actor. Success → .ready; failure → .failed(message:).
+    /// Calls after the first return immediately, even while the first is still running.
+    func start() async {
+        guard !hasStarted else { return }
+        hasStarted = true
+        let factory = makeEnvironment
+        let result = await Task.detached(priority: .userInitiated) {
+            Result { try factory() }
+        }.value
+        switch result {
+        case .success(let environment):
+            state = .ready(environment)
+        case .failure(let error):
             Log.app.error("Library failed to open: \(String(describing: type(of: error)), privacy: .public)")
-            state = .failed(message: error.localizedDescription)
+            state = .failed(message: Self.failureMessage(for: error))
         }
     }
 }
