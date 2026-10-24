@@ -9,3 +9,5 @@ metadata:
 - `PDFPage.bounds(for:)` ignores `rotation`; swap width/height yourself when `rotation % 180 == 90`. `page.draw(with: .cropBox, to:)` handles rotation and a non-zero crop-box origin in an unflipped bitmap CGContext (scale only).
 - Swift Testing `-only-testing:` filters use the Swift type name (`StudyReaderTests/CoverTests`), not the `@Suite("…")` display name; a wrong name runs 0 tests and still prints "TEST SUCCEEDED". Check the log for "Test run with N tests".
 - Test PNG pixel reads: draw the CGImage into an RGBA premultipliedLast CGContext; buffer row 0 is the top row.
+- `PDFPage.attributedString` fonts are `NSFont`; Helvetica-Bold/Oblique and Menlo map to `.bold`/`.italic`/`.monoSpace` traits exactly per run (verified in T42 tests). `PDFDocument(url:)` is nil for the truncated `damaged()` fixture; `encrypted()` opens with `isLocked == true`.
+- ARCHITECTURE §6 header rule taken literally removes digit-varying body lines that sit in a page's first/last 2 lines (e.g. "Body text on page N, line 1."); T42 counts a candidate only if its digit-normalized form occurs once on that page. Tests with short raw pages need distinct text in top/bottom-2 lines.

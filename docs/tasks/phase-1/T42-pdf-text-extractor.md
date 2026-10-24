@@ -69,3 +69,4 @@ Fixtures from `PDFFixtureBuilder`, written with `writeTemporary`.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. 15 TextExtraction tests run and pass; 267 total. Rule 4 deviation accepted (ARCHITECTURE section 6 rule 4 and spec wording to be amended). Minor: thin coverage for runs surviving joins, link runs, non-BMP offsets, all-lines-removed page.
