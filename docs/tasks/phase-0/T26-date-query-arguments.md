@@ -1,6 +1,6 @@
 # T26: Bind dates in queries as Unix seconds
 
-- **Phase:** 0 (fix from second bug hunt `docs/bugs/phase-0-second-pass.md` M1)
+- **Phase:** 0 (fix from second bug hunt `docs/bugs/phase-0-second-pass.md` M1, plus the `DateStorageTests` part of L7)
 - **Agent:** data-layer
 - **Depends on:** T25
 - **ADRs:** docs/decisions/0012-data-layer-conventions.md ("Dates" and "Dates in SQL" bullets)
@@ -9,9 +9,11 @@
 ## Goal
 Records store dates as REAL Unix seconds, but only because `StudyRecord`'s encoding strategy runs when a *record* is encoded. A bare `Date` used in a query (`ReviewCard.filter(Column("dueAt") <= now)`) goes through GRDB's `Date.databaseValue`, which binds the TEXT `"yyyy-MM-dd HH:mm:ss.SSS"`. SQLite sorts every REAL before every TEXT, so `dueAt <= now` matches every row, `dueAt > now` matches none, and nothing throws. Add one helper, `Date.databaseUnixSeconds`, that every query uses. Add guard tests: one shows the helper gives correct results, and one pins the raw-`Date` hazard. There's no schema change and no migration.
 
+Also (amended 2026-10-24, user decision): close the `DateStorageTests` part of second-pass finding L7. The existing test `recordRoundTripIsExact` inserts a document and a highlight (FTS-indexed tables) but doesn't end with `FTSIntegrity.check`, which ARCHITECTURE §15 requires. Add that one call. The other suites named in L7 (`UpsertConventionTests`, `ReviewExportRecordTests`, `RecordCodingTests`) stay in `docs/bugs/backlog.md`; don't touch them.
+
 ## Files to touch
 - `StudyReader/Core/Models/StudyRecord.swift` (modify: add one property to the existing `extension Date`)
-- `StudyReaderTests/CoreTests/DateStorageTests.swift` (modify: add four tests and one private helper; keep the five existing tests unchanged)
+- `StudyReaderTests/CoreTests/DateStorageTests.swift` (modify: add four tests and one private helper; add one line to the existing `recordRoundTripIsExact` (see "Change to an existing test"); keep the other four existing tests unchanged)
 
 Read these too, but don't change them: `StudyReaderTests/Support/TestData.swift` (`referenceDate`, `document`, `highlight`, `reviewCard`) and `StudyReaderTests/Support/FTSIntegrity.swift`.
 
@@ -78,7 +80,10 @@ Each test below:
    - `try String.fetchOne(db, sql: "SELECT typeof(dueAt) FROM reviewCard WHERE id = ?", arguments: [Self.pastCardId])` equals `"real"`.
    - `try ReviewCard.fetchOne(db, key: Self.pastCardId)?.dueAt` equals `newDue`.
 
-Don't change the five existing tests (`unroundedDatesCanDrift`, `storageRoundedDatesSurviveUnixSeconds`, `storageRoundedIsOnGridAndClose`, `recordRoundTripIsExact`, `systemNowIsStorageRounded`) or their sample dates.
+### Change to an existing test (L7, `DateStorageTests` part only)
+In `recordRoundTripIsExact`, add `try FTSIntegrity.check(db)` as the **last statement inside** the existing `try await db.writer.write { db in … }` closure, directly after `try highlight.insert(db)`. Inside that closure `db` is the GRDB `Database` (it shadows the outer `AppDatabase` named `db`), so the call compiles as written. Change nothing else in that test: not its IDs, its sample date, the read, or the `#expect`.
+
+Don't change the other four existing tests (`unroundedDatesCanDrift`, `storageRoundedDatesSurviveUnixSeconds`, `storageRoundedIsOnGridAndClose`, `systemNowIsStorageRounded`) or their sample dates.
 
 If a test fails in a way this spec doesn't predict, report BLOCKED with the exact failure. This applies especially to test 2 returning anything other than `"text"` and `2`. Don't change the helper or the expectations to make it pass.
 
@@ -88,15 +93,16 @@ If a test fails in a way this spec doesn't predict, report BLOCKED with the exac
 3. A bare `Date` argument binds as TEXT, and the helper binds REAL. The bare-`Date` filter returns 2 for `<=` and 0 for `>`, which pins the hazard. → test `DateStorageTests/rawDateArgumentsBindAsText`
 4. The helper equals the stored value of a record saved with the same date, exactly. → test `DateStorageTests/databaseUnixSecondsMatchesStoredValue`
 5. A bulk `updateAll` assignment through the helper stores REAL and decodes back to the same date. → test `DateStorageTests/dateColumnAssignmentsStoreReal`
-6. Every new test ends its write closure with `FTSIntegrity.check(db)`. The five existing `DateStorageTests` are unchanged and pass. → code review of the diff + `./scripts/test.sh StudyReaderTests/DateStorageTests`
-7. The full suite passes with no new warnings. → test-runner (`./scripts/test.sh`)
+6. Every new test ends its write closure with `FTSIntegrity.check(db)`. The other four existing `DateStorageTests` are unchanged and pass. → code review of the diff + `./scripts/test.sh StudyReaderTests/DateStorageTests`
+7. `recordRoundTripIsExact` ends its write closure with `try FTSIntegrity.check(db)`, its only change in the diff, and still passes. → code review of the diff + test `DateStorageTests/recordRoundTripIsExact`
+8. The full suite passes with no new warnings. → test-runner (`./scripts/test.sh`)
 
 ## Out of scope
 - Any schema change or migration (v1 and v2 are frozen, ADR-0013). The column format stays REAL Unix seconds.
 - Changing `StudyRecord`'s encoding or decoding strategies, `storageRounded`, `SystemNow` or `FixedNow`.
 - Adding repositories, `DailyReviewBuilder`, or any date-filter query to app code (Phase 1–2).
 - Editing ADR-0012 or ARCHITECTURE (already amended for this task).
-- The second-pass low findings L1–L7 (they're in `docs/bugs/backlog.md`).
+- The other second-pass low findings. L1 is T27. L2–L6 and the rest of L7 (`UpsertConventionTests`, `ReviewExportRecordTests`, `RecordCodingTests`) are in `docs/bugs/backlog.md`. This task only covers L7's `DateStorageTests` part.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->

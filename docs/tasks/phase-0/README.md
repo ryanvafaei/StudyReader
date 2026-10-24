@@ -53,15 +53,16 @@ Points of care:
 - T18 (a GRDB custom FTS5 tokenizer class under Swift 6) runs as data-layer with model `sonnet` and effort `high` from the first call (user decision 2026-10-24). Treat it as escalated: review it with code-reviewer effort `high`, and if it's rejected twice, stop and ask the user.
 - Search is English-only (ADR-0014, user decision 2026-10-24): the tokenizer handles NFKC (ligatures), soft hyphens, case and Latin diacritics. Persian/Arabic folding was deliberately dropped; adding it later needs a new tokenizer version and migration.
 
-### Second bug hunt fix (from [`phase-0-second-pass.md`](../../bugs/phase-0-second-pass.md), 2026-10-24)
+### Second bug hunt fixes (from [`phase-0-second-pass.md`](../../bugs/phase-0-second-pass.md), 2026-10-24)
 
-Amended: ADR-0012 ("Dates in SQL" bullet) and ARCHITECTURE §4 and §10.2. The second-pass low findings L1–L7 aren't tasks; they're in [`docs/bugs/backlog.md`](../../bugs/backlog.md).
+Amended: ADR-0012 ("Dates in SQL" bullet), ARCHITECTURE §4 and §10.2, and ADR-0011 (test-host signals, L1 rewording). L1 (T27) and the `DateStorageTests` part of L7 (in T26) were planned by user decision. L2–L6 and the rest of L7 are in [`docs/bugs/backlog.md`](../../bugs/backlog.md).
 
 | # | Task | Finding | Agent | Depends on | Visual check |
 |---|---|---|---|---|---|
-| 26 | [T26 Bind dates in queries as Unix seconds](T26-date-query-arguments.md) | second pass M1 | data-layer | T25 | no |
+| 26 | [T26 Bind dates in queries as Unix seconds](T26-date-query-arguments.md) | second pass M1, L7 (`DateStorageTests` only) | data-layer | T25 | no |
+| 27 | [T27 Decide on the test host before any library is opened](T27-test-host-guard-before-live-open.md) | second pass L1 | ui-builder | T26 | no |
 
-T26 touches only `StudyRecord.swift` and `DateStorageTests.swift`. It has no schema change, so v2 stays frozen and the user's real library isn't touched.
+T26 touches only `StudyRecord.swift` and `DateStorageTests.swift`. T27 touches `project.yml` (test action only), `AppEnvironment.swift`, `AppLaunchModel.swift`, `StudyReaderApp.swift` and `AppEnvironmentTests.swift`. Neither has a schema change, so v2 stays frozen. T27 regenerates the scheme. If its guard test `testSchemeSetsInMemoryVariable` or `xctestLibraryWasLoadedAtLaunch` fails on the first run, the implementer reports BLOCKED and the architect picks the replacement signal; don't loosen the tests.
 
 ## Module map after Phase 0
 
@@ -92,9 +93,9 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - Phase 0 has no SPEC feature ACs of its own. It prepares fixtures and types named by F-02, F-03, F-05, F-06, F-07, F-08, F-11, F-12 ACs in Phase 1.
 
 ## Phase done when
-- All 26 tasks are approved and committed (`TNN: <title>`).
+- All 27 tasks are approved and committed (`TNN: <title>`).
 - Full test suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes. The app launches, and its library is at migration `v2`.
-- bug-hunter has run, and its critical/high findings are fixed. Every first-hunt finding (H1, M1–M5, L1–L7) is covered by T12–T23 (M3 in its narrowed, English-only scope). The second hunt's M1 is covered by T26, and its L1–L7 are in the backlog.
+- bug-hunter has run, and its critical/high findings are fixed. Every first-hunt finding (H1, M1–M5, L1–L7) is covered by T12–T23 (M3 in its narrowed, English-only scope). The second hunt's M1 is covered by T26, L1 by T27 and L7's `DateStorageTests` part by T26. L2–L6 and the rest of L7 are in the backlog.
 
 ## Fix history
 - T11 (bundle version) shipped.
@@ -106,4 +107,5 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - T25 was added on 2026-10-24 from the user's T24 visual check. The 700 × 450 minimum was smaller than `RootView`'s 900 × 600, so the default `LaunchView` preview clipped the sidebar and the toolbar overflowed. The "Failed" preview was fine. T25 adds one shared constant, `MainWindowLayout.minWidth`/`minHeight` (900 × 600, in `App/`), and uses it in both `RootView` and `LaunchView`. Scene sizing (`.defaultSize` 1100 × 720) doesn't change, and there's no new test because sizing is covered by the visual check.
 - The T22 review noted that system SQLite `[logging]` output on open or migration failures can include SQL and the database path. It comes from the OS, not our logger. It's accepted and listed in the backlog, with no task.
 - The second Phase 0 bug hunt (2026-10-24, [`phase-0-second-pass.md`](../../bugs/phase-0-second-pass.md)) found 0 critical, 0 high, 1 medium and 7 low. Under the backlog policy, only M1 became a task, because it gets more expensive later: every date filter in Phases 1–3 builds on it. T26 adds `Date.databaseUnixSeconds` and guard tests, and ADR-0012 now forbids binding a bare `Date` in SQL. L1–L7 went to the backlog, each with a "revisit when" trigger.
+- Later on 2026-10-24 the user decided to plan two backlog items now. L1 became T27: three independent test-host signals (Xcode's XCTest variables, `STUDYREADER_IN_MEMORY` from the `project.yml` test action, and the injected XCTest library) are read once in `StudyReaderApp.init()`, before any library opens. Any one of them selects the in-memory library, and each has its own guard test. ADR-0011 was reworded: the old guard only reported a broken detection after the real library had been opened. The `DateStorageTests` part of L7 was folded into T26 (`recordRoundTripIsExact` now ends with `FTSIntegrity.check`). The rest of L7 stays in the backlog.
 - Bug-hunt policy from Phase 1 on: see [`docs/bugs/backlog.md`](../../bugs/backlog.md).
