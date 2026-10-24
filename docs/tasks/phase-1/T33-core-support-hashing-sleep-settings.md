@@ -130,3 +130,4 @@ enum TestSettings {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. suiteName fallback allowed by spec; 181 tests pass.

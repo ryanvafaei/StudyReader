@@ -8,25 +8,39 @@ struct AppEnvironment: Sendable {
     let now: any Now
     let categoryRepository: CategoryRepository
     let documentRepository: DocumentRepository
+    let settingsStore: SettingsStore
+    let sleeper: any Sleeper
 
     /// Builds the repositories from `database`.
-    init(fileStore: FileStore, database: AppDatabase, now: any Now) {
+    init(
+        fileStore: FileStore,
+        database: AppDatabase,
+        now: any Now,
+        settingsStore: SettingsStore = .ephemeral(),
+        sleeper: any Sleeper = SystemSleeper()
+    ) {
         self.fileStore = fileStore
         self.database = database
         self.now = now
+        self.settingsStore = settingsStore
+        self.sleeper = sleeper
         self.categoryRepository = CategoryRepository(database: database)
         self.documentRepository = DocumentRepository(database: database)
     }
 
-    /// The user's library: FileStore.applicationSupport(), then make(fileStore:).
+    /// The user's library: FileStore.applicationSupport(), then make(fileStore:now:settingsStore:) with `.standard()`.
     static func live() throws -> AppEnvironment {
-        try make(fileStore: FileStore.applicationSupport())
+        try make(fileStore: FileStore.applicationSupport(), settingsStore: .standard())
     }
 
     /// On-disk database in the given FileStore (AppDatabase.makeShared), SystemNow by default.
-    static func make(fileStore: FileStore, now: any Now = SystemNow()) throws -> AppEnvironment {
+    static func make(
+        fileStore: FileStore,
+        now: any Now = SystemNow(),
+        settingsStore: SettingsStore = .ephemeral()
+    ) throws -> AppEnvironment {
         let database = try AppDatabase.makeShared(fileStore: fileStore)
-        return AppEnvironment(fileStore: fileStore, database: database, now: now)
+        return AppEnvironment(fileStore: fileStore, database: database, now: now, settingsStore: settingsStore)
     }
 
     /// FileManager.default.temporaryDirectory/StudyReader-InMemory
@@ -75,7 +89,7 @@ struct AppEnvironment: Sendable {
         let fileStore = FileStore(rootURL: root)
         try fileStore.createRootDirectories()
         let database = try AppDatabase.makeInMemory()
-        return AppEnvironment(fileStore: fileStore, database: database, now: now)
+        return AppEnvironment(fileStore: fileStore, database: database, now: now, settingsStore: .ephemeral())
     }
 
     /// true when the process is a unit-test host: environment contains

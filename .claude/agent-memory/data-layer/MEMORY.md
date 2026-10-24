@@ -8,3 +8,4 @@
 - [Migration v2 notes](migration-v2-notes.md) — T19 v2 files, golden flow, #expect(try) and writes-in-read pitfalls
 - [App database error notes](app-database-error-notes.md) — T22 AppDatabaseError mapping, schema-read-before-tokenizer rule, corrupt-file fixture
 - [Markdown fixtures notes](markdown-fixtures-notes.md) — T10 markdown fixture files, MarkdownFixtures loader, Equatable pitfall with #expect(throws:)
+- [Settings, sleeper, debouncer notes](settings-sleeper-debouncer-notes.md) — T33 SettingsStore suiteName design (UserDefaults not Sendable), ManualSleeper/Debouncer
