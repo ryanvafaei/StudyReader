@@ -106,3 +106,4 @@ If a test fails in a way this spec doesn't predict, report BLOCKED with the exac
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 158/158, all 8 criteria met, hazard test commented, no expectations weakened.

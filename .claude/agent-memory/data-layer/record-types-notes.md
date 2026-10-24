@@ -17,4 +17,7 @@ metadata:
 - `String.fetchOne(db, sql:)` already returns `String?`; don't write `String?.fetchOne(...) ?? nil`.
 ## T21 additions
 - `Date.storageRounded` lives in `Core/Models/StudyRecord.swift` (rounds down to 1/1024 s). `SystemNow` returns it. Suite: `CoreTests/DateStorageTests.swift` (5 tests). Non-rounded dates drift through Unix seconds, so any record built from a raw `Date` may not `==` its fetched copy.
+## T26 additions
+- `Date.databaseUnixSeconds` (Double, no rounding) sits in the `extension Date` in `Core/Models/StudyRecord.swift`. Bind it in every SQL date query, never a bare `Date` (GRDB binds TEXT). `DateStorageTests` has 9 tests now; the hazard is pinned by `rawDateArgumentsBindAsText`.
+- `scripts/test.sh` run in background finishes in under a minute for a single suite; the notification arrives when it exits.
 - Nested Codable JSON (`[[Int]]?`, `ThemedReviewFilter`, `ExportOptions`) round-trips through GRDB without custom code; `typeof(...)` is 'text'.

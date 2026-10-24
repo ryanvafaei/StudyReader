@@ -27,4 +27,13 @@ extension Date {
     var storageRounded: Date {
         Date(timeIntervalSinceReferenceDate: (timeIntervalSinceReferenceDate * 1024).rounded(.down) / 1024)
     }
+
+    /// The value to bind wherever a date appears in SQL: `filter` expressions, `SQL` interpolation,
+    /// `arguments:` and `updateAll` assignments (ADR-0012). It's the same `Double` the `StudyRecord`
+    /// encoder writes for this date. Never bind a bare `Date`: GRDB binds it as TEXT, and in SQLite
+    /// every REAL sorts before every TEXT, so `dueAt <= date` would match every row.
+    /// Example: `ReviewCard.filter(Column("dueAt") <= now.databaseUnixSeconds)`.
+    var databaseUnixSeconds: Double {
+        timeIntervalSince1970
+    }
 }
