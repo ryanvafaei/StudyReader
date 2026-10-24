@@ -81,3 +81,4 @@ Saving:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. All spec assertions present; 210 tests pass. Minor: waitUntil could poll with Task.yield; model flush() could use Debouncer.flush(); save() may run twice concurrently (idempotent).
