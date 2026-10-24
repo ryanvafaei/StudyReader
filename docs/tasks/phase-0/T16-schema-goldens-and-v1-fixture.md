@@ -233,3 +233,4 @@ enum V1FixtureDatabase {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 107/107, golden matches SchemaV1 (49 lines), fixture uses frozen raw SQL; mutation check verified by reading.
