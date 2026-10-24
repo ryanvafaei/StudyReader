@@ -53,7 +53,7 @@ struct LibraryMaintenance: Sendable {
 Extraction of one document:
 - Fetch the row (`DocumentRepository.fetch(id:)`); gone → return. Resolve `fileStore.url(forRelativePath: storedPath)`; nil or missing file → `markFailed`, throw.
 - PDF: `try await Task.detached { try PDFTextExtractor.extract(fileAt: url) }.value`; `startOffsets`; one `DocumentText(documentId:, unitIndex: page.pageIndex, startOffset:, text: page.text, runs: page.runs.isEmpty ? nil : page.runs)` per page; version `PDFTextExtractor.version`.
-- Markdown: read UTF-8, `MarkdownRenderer.render(MarkdownDocumentSource(markdown:, documentId:, fileStore:))` inside `Task.detached`, returning only `(string, sections)`; one row per section: `unitIndex` = section index, `startOffset` = `section.location`, `text` = the substring, `runs` nil; version `MarkdownRenderer.version`.
+- Markdown: read UTF-8, `MarkdownRenderer.render(MarkdownDocumentSource(markdown:, documentId:, fileStore:))` inside `Task.detached`, returning only `(string, sections)`; one row per section: `unitIndex` = section index, `startOffset` = `section.location`, `text` = the substring, `runs` nil; version `MarkdownRenderer.version`. Sections come from T43 as is (ARCHITECTURE §6): a new section at each H1 or H2 heading, text before the first one is section 0 starting at offset 0, sections partition the string exactly, so the row texts concatenate to the rendered string. An empty document has no sections: write zero rows and still mark the document `.done` with the current version.
 - `replaceUnits(...)`. Errors → `markFailed` (if the row still exists), log the id, continue with the next queued id.
 - Logging (`Log.files` or a new `Log.extraction` category): ids and counts only.
 
@@ -67,6 +67,7 @@ Extraction of one document:
 `ExtractionServiceTests` (`AppEnvironment.inMemory()` + remove folder in `defer`; documents imported with `env.importService.importItems(at:interaction:)` using an always-yes stub interaction, defined locally):
 - `extractsPDFPages`: import `plainMultiPage(pageCount: 3)`; `await env.extractionService.waitUntilIdle()`; 3 `documentText` rows with unitIndex 0…2, startOffsets `[0, len0 + 2, len0 + len1 + 4]`; status `.done`, version `PDFTextExtractor.version`; a raw FTS query on `documentText_fts` for `"quick"` returns 3 rows.
 - `extractsMarkdownSections`: import a Markdown file `"Intro\n\n# A\n\ntext\n\n## B\n\nmore"` → 3 rows whose texts concatenate to `MarkdownRenderer.render(...).string`; status `.done`, version `MarkdownRenderer.version`.
+- `emptyMarkdownHasNoRows`: import an empty `.md` file (0 bytes, or only front matter) → 0 `documentText` rows; status `.done`, version `MarkdownRenderer.version`.
 - `missingFileMarksFailed`: insert a row by hand whose `storedPath` file doesn't exist; `extract` throws and status becomes `.failed`.
 - `reExtractionReplacesRows`: extracting the same document twice leaves the same row count (no duplicates).
 - `deletedDocumentIsSkipped`: enqueue, delete the document before `waitUntilIdle`; no rows, no error escapes.

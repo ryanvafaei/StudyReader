@@ -411,13 +411,13 @@ Output:
 
 Accepted limitations: math, tables, and multi-column slides may reflow imperfectly. A later optional improvement is Vision `RecognizeDocumentsRequest` (macOS 26+) for pages where extraction looks poor (ADR-0009); not in v1 scope unless the user asks.
 
-Markdown documents: `documentText` rows are filled from the rendered plain string (one row per top-level heading section) for search; text anchors use offsets into the rendered string (`MarkdownRenderer.version`).
+Markdown documents: `documentText` rows are filled from the rendered plain string for search, one row per section of `RenderedMarkdown.sections`: a new section starts at each H1 or H2 heading; text before the first such heading is section 0 (starting at offset 0); sections partition the string exactly (their substrings concatenate to the rendered string, `startOffset` = section start); an empty document has no sections and no rows (amended 2026-10-24 to match T43/T44); text anchors use offsets into the rendered string (`MarkdownRenderer.version`).
 
 ---
 
 ## 7. Markdown rendering
 
-`MarkdownRenderer` walks a swift-markdown `Document` (`MarkupWalker`) and produces:
+`MarkdownRenderer` walks a swift-markdown `Document` and produces:
 - `NSAttributedString` with semantic fonts (based on appearance settings), paragraph styles, list markers, table layout via tab stops (simple grid), code-block background via a custom attribute drawn by the text view, image attachments (`NSTextAttachment`) from copied local images or placeholders.
 - `SourceMap`: sorted list of `(renderedRange: NSRange, node: inline kind + formatting)` used to build rich text (SPEC F-07) for a selected range.
 - `version: Int` constant; bump when output text changes (triggers re-anchoring, §5.3).
