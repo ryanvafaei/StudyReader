@@ -3,9 +3,11 @@ import SwiftUI
 /// Main window content: sidebar of sections and a placeholder detail pane.
 struct RootView: View {
     @State private var model: RootModel
+    let session: AppSession
 
-    init(environment: AppEnvironment) {
-        _model = State(initialValue: RootModel(environment: environment))
+    init(session: AppSession) {
+        self.session = session
+        _model = State(initialValue: RootModel(environment: session.environment))
     }
 
     var body: some View {

@@ -1,6 +1,6 @@
 ---
 name: app-launch-and-test-pitfalls
-description: SwiftUI launch wiring (AppEnvironment/AppLaunchModel, T08) and test-file pitfalls hit while building it
+description: SwiftUI launch wiring (AppEnvironment/AppLaunchModel, T08) and test-file pitfalls hit while building it; Picker optional selection (T45 fixes)
 metadata:
   type: project
 ---
@@ -16,3 +16,5 @@ metadata:
 - T23: `start()` is async; factory runs in `Task.detached(priority: .userInitiated) { Result { try factory() } }.value`. Tests `await model.start()` on the @MainActor suite; `AppLaunchModelTests` filter works with `scripts/test.sh`. Failure messages come from `AppLaunchModel.failureMessage(for:)`, never `localizedDescription`.
 - T31: fourth signal `runningForPreviews` (env `XCODE_RUNNING_FOR_PREVIEWS` == "1") has a default value in `TestHostSignals`, so existing memberwise call sites compile. Log line in `AppLaunchModel.chooseEnvironment` lists it. Suite count after T31: 21 tests in AppEnvironment + AppLaunchModel.
 - `Localizable.xcstrings` is empty; SwiftUI literals (`ProgressView("Opening library…")`) are extracted at build via SWIFT_EMIT_LOC_STRINGS.
+- T45 fix: a `Picker` bound to a `String?` needs `.tag(Optional(id))` on each row, or the rows won't match the selection. Put the fallback in a pure static func on the model so tests can cover it.
+- T45 fix: `Task { }` stored in a property that calls back into the model: put `[weak self]` on the outer Task too, or the inner weak capture triggers the "differs from implicitly-captured strong reference" warning.

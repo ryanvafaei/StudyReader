@@ -75,7 +75,7 @@ final class NoteEditorModel {
     private func scheduleSave() {
         let previous = scheduling
         let debouncer = debouncer
-        scheduling = Task {
+        scheduling = Task { [weak self] in
             await previous?.value
             await debouncer.schedule { [weak self] in
                 await self?.save()

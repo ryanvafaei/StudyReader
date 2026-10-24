@@ -14,5 +14,9 @@ struct StudyReaderApp: App {
             LaunchView(model: launchModel)
         }
         .defaultSize(width: 1100, height: 720)
+
+        Settings {
+            SettingsRootView(launchModel: launchModel)
+        }
     }
 }

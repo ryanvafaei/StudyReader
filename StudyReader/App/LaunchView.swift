@@ -9,8 +9,12 @@ struct LaunchView: View {
             switch model.state {
             case .loading:
                 ProgressView("Opening library…")
-            case .ready(let environment):
-                RootView(environment: environment)
+            case .ready:
+                if let session = model.session {
+                    RootView(session: session)
+                } else {
+                    ProgressView("Opening library…")
+                }
             case .failed(let message):
                 ContentUnavailableView {
                     Label("Couldn't open the library", systemImage: "exclamationmark.triangle")

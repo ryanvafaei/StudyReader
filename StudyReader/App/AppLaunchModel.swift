@@ -11,6 +11,8 @@ final class AppLaunchModel {
     }
 
     private(set) var state: State = .loading
+    /// Created once, immediately before `state` becomes `.ready`. Nil until then.
+    private(set) var session: AppSession?
     private var hasStarted = false
 
     private let makeEnvironment: @Sendable () throws -> AppEnvironment
@@ -70,6 +72,7 @@ final class AppLaunchModel {
         }.value
         switch result {
         case .success(let environment):
+            session = AppSession(environment: environment)
             state = .ready(environment)
             Task { await environment.startBackgroundWork() }
         case .failure(let error):

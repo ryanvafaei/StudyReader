@@ -1,7 +1,13 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "blue" : {
+
+    },
     "Categories" : {
+
+    },
+    "Categories couldn't load." : {
 
     },
     "Check that your Mac has free disk space, then reopen StudyReader." : {
@@ -10,19 +16,70 @@
     "Couldn't open the library" : {
 
     },
+    "Data" : {
+
+    },
+    "Default category for imports" : {
+
+    },
+    "General" : {
+
+    },
+    "green" : {
+
+    },
+    "Highlight automatically when I select text" : {
+
+    },
+    "Highlight colors" : {
+
+    },
     "Highlights" : {
+
+    },
+    "Invert PDF colors in dark mode" : {
+
+    },
+    "Label" : {
+
+    },
+    "Label for %@ highlights" : {
 
     },
     "Library" : {
 
     },
+    "Library location" : {
+
+    },
+    "Open it with the newer version of StudyReader." : {
+
+    },
     "Opening library…" : {
+
+    },
+    "pink" : {
+
+    },
+    "purple" : {
 
     },
     "Quit and reopen StudyReader. If this keeps happening, back up the StudyReader folder before trying anything else." : {
 
     },
+    "Quit other copies of StudyReader, then reopen it." : {
+
+    },
+    "Reading" : {
+
+    },
     "Restore the StudyReader folder from a backup, then reopen StudyReader." : {
+
+    },
+    "Reveal in Finder" : {
+
+    },
+    "Reveal library in Finder" : {
 
     },
     "Review" : {
@@ -46,16 +103,28 @@
     "StudyReader couldn't update its library to this version." : {
 
     },
+    "StudyReader couldn't write to its library." : {
+
+    },
     "Tags" : {
 
     },
     "The library database is damaged." : {
 
     },
+    "The library is in use by another copy of StudyReader." : {
+
+    },
     "Themed Reviews" : {
 
     },
+    "This library was updated by a newer version of StudyReader." : {
+
+    },
     "This section isn't built yet." : {
+
+    },
+    "yellow" : {
 
     }
   },
