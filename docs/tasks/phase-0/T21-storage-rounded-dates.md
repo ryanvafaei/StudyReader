@@ -68,3 +68,4 @@ Keep `NowTests/systemNowIsCurrent` unchanged. It must still pass (the rounding i
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 143/143, 1/1024 s grid math exact, round trip verified through real storage path.

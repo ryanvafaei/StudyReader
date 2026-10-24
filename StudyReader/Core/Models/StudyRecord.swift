@@ -20,3 +20,11 @@ extension StudyRecord {
         .timeIntervalSince1970
     }
 }
+
+extension Date {
+    /// Rounded down to a multiple of 1/1024 s. Such dates survive the REAL Unix-seconds round trip exactly
+    /// (ADR-0012), so a saved record is == to its fetched copy. Idempotent.
+    var storageRounded: Date {
+        Date(timeIntervalSinceReferenceDate: (timeIntervalSinceReferenceDate * 1024).rounded(.down) / 1024)
+    }
+}
