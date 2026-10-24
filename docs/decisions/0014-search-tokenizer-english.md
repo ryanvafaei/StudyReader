@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-24 (from bug hunt `docs/bugs/phase-0.md` M3). Amended 2026-10-24: scope narrowed to English-only by the user. Amended 2026-10-24 (T22): schema read before tokenizer registration. Amended 2026-10-24 (T28): English only; Persian/Arabic folding and rendering requirements dropped by the user, with their fixtures and tests removed.
-- The file name still says "persian-arabic" for link stability; the decision is English-only.
+- File renamed 2026-10-24 (T30) to match the English-only decision.
 
 ## Context
 The v1 tokenizer `unicode61 remove_diacritics 2` lowercases and removes Latin diacritics, but text extracted from PDFs often contains Latin ligatures (ﬁ U+FB01, ﬂ U+FB02) and soft hyphens (U+00AD) at hyphenation points. unicode61 keeps `ﬁnd` as a token that never matches `find`, and splits `photo\u{00AD}synthesis` into `photo` and `synthesis`. The fix must run on-device with SQLite FTS5 and GRDB, and must not change stored text, because anchors use UTF-16 offsets. App content is English-only for now (user decision 2026-10-24).

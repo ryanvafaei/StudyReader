@@ -3,7 +3,7 @@
 - **Phase:** 0 (fix from bug hunt `docs/bugs/phase-0.md` M2, M3 part 2, L5)
 - **Agent:** data-layer
 - **Depends on:** T16, T17, T18
-- **ADRs:** docs/decisions/0013-schema-migration-policy-v2.md (read it in full), docs/decisions/0014-search-tokenizer-persian-arabic.md (English-only despite the file name), docs/decisions/0012-data-layer-conventions.md
+- **ADRs:** docs/decisions/0013-schema-migration-policy-v2.md (read it in full), docs/decisions/0014-search-tokenizer-english.md (English-only), docs/decisions/0012-data-layer-conventions.md
 - **Visual check needed:** no
 
 ## Goal

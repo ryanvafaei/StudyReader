@@ -36,3 +36,4 @@ Commit message: `T30: Rename ADR-0014 file to an English-only name`.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. Rename shown as R, no old-name references remain, three links resolve.

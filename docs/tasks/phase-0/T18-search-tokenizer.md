@@ -4,7 +4,7 @@
 - **Agent:** data-layer
 - **Model / effort:** sonnet, high (user decision for this task; pass both on the first call. It already runs as escalated: review it with code-reviewer effort high, and after two rejections stop and ask the user)
 - **Depends on:** T17
-- **ADRs:** docs/decisions/0014-search-tokenizer-persian-arabic.md (read it in full; despite the file name it is English-only), docs/decisions/0012-data-layer-conventions.md
+- **ADRs:** docs/decisions/0014-search-tokenizer-english.md (read it in full; English-only), docs/decisions/0012-data-layer-conventions.md
 - **Visual check needed:** no
 
 ## Goal

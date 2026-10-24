@@ -27,7 +27,7 @@ T09 and T10 only need T01; they're last so the database chain isn't interrupted,
 
 ### Bug-hunt fixes (from `docs/bugs/phase-0.md`, user decisions 2026-10-24)
 
-New ADRs: [0013 frozen migrations, schema goldens, v2](../../decisions/0013-schema-migration-policy-v2.md) and [0014 search tokenizer](../../decisions/0014-search-tokenizer-persian-arabic.md). Amended: ADR-0011 (in-memory launch argument, temp cleanup) and ADR-0012 (renames, dates, canonical IDs, FTS triggers).
+New ADRs: [0013 frozen migrations, schema goldens, v2](../../decisions/0013-schema-migration-policy-v2.md) and [0014 search tokenizer](../../decisions/0014-search-tokenizer-english.md). Amended: ADR-0011 (in-memory launch argument, temp cleanup) and ADR-0012 (renames, dates, canonical IDs, FTS triggers).
 
 | # | Task | Finding | Agent | Depends on | Visual check |
 |---|---|---|---|---|---|
