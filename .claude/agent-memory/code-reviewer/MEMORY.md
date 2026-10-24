@@ -1,0 +1,1 @@
+- [FTS tokenizer review notes](project_review_notes.md) — GRDB wrapper tokenizer offsets/flags facts; ignore unrelated git status noise

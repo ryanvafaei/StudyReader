@@ -123,3 +123,4 @@ Insert rows with `INSERT INTO sample_fts(rowid, body) VALUES (?, ?)`. Match with
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort high, task ran on Sonnet/high): APPROVED. Tests 124/124, tokenizer offsets pass through, no unchecked Sendable, v1 golden unchanged.

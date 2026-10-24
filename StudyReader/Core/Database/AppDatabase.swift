@@ -32,6 +32,9 @@ struct AppDatabase: Sendable {
         var configuration = Configuration()
         configuration.foreignKeysEnabled = true
         configuration.label = "StudyReader"
+        configuration.prepareDatabase { db in
+            db.add(tokenizer: SearchTokenizer.self)
+        }
         return configuration
     }
 
