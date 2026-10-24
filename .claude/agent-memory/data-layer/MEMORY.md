@@ -11,3 +11,4 @@
 - [Highlight repository notes](highlight-repository-notes.md) — T35 HighlightRepository: FTSIntegrity must run in write, HighlightColor cases, snapshot cleanup
 - [Settings, sleeper, debouncer notes](settings-sleeper-debouncer-notes.md) — T33 SettingsStore suiteName design (UserDefaults not Sendable), ManualSleeper/Debouncer
 - [Import helpers notes](import-helpers-notes.md) — T40 MetadataDefaults, FrontMatterParser (CRLF pitfall), MarkdownImage naming/copy classification
+- [Import service notes](import-service-notes.md) — T41 ImportService files, shared test stubs/harness, folder-access and ordering behaviours

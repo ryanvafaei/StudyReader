@@ -160,3 +160,4 @@ The folder-access tests simulate the sandbox by making the image unreadable: aft
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. All 16 spec tests present; 252 tests pass. Minor: log when bookmarkData fails; no Task.isCancelled check (T48 may want it); any error then successful hash fetch reports duplicate (race only).
