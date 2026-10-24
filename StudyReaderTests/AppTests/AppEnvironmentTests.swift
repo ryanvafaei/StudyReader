@@ -148,6 +148,35 @@ struct AppEnvironmentTests {
         #expect(environment.fileStore != libraryStore)
     }
 
+    /// A preview process must never open the user's library (ADR-0011 amendment, T31).
+    @Test func previewsSelectInMemoryLibrary() {
+        let signals = AppEnvironment.testHostSignals(environment: ["XCODE_RUNNING_FOR_PREVIEWS": "1"], arguments: [], imagePaths: [])
+        #expect(signals.runningForPreviews)
+        #expect(signals.usesInMemoryLibrary)
+    }
+
+    /// Only the value "1" counts. Any other value, or no variable, leaves the preview signal off.
+    @Test func previewsVariableMustBeOne() {
+        let zero = AppEnvironment.testHostSignals(environment: ["XCODE_RUNNING_FOR_PREVIEWS": "0"], arguments: [], imagePaths: [])
+        #expect(!zero.runningForPreviews)
+
+        let absent = AppEnvironment.testHostSignals(environment: [:], arguments: ["StudyReader"], imagePaths: [])
+        #expect(!absent.runningForPreviews)
+        #expect(!absent.usesInMemoryLibrary)
+    }
+
+    @Test func chooseEnvironmentUsesInMemoryForPreviews() throws {
+        let signals = Signals(xctestEnvironment: false, inMemoryRequested: false, xctestLibraryLoaded: false, runningForPreviews: true)
+        let environment = try AppLaunchModel.chooseEnvironment(
+            for: signals,
+            live: { Issue.record("live called"); throw CancellationError() },
+            inMemory: { try AppEnvironment.inMemory() }
+        )
+        defer { TestFileStore.remove(environment.fileStore) }
+
+        #expect(environment.fileStore.rootURL.path(percentEncoded: false).hasPrefix(FileManager.default.temporaryDirectory.path(percentEncoded: false)))
+    }
+
     @Test func removeStaleInMemoryFoldersKeepsRecentOnes() throws {
         let fileManager = FileManager.default
         let base = fileManager.temporaryDirectory

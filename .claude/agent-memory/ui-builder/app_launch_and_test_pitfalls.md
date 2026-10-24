@@ -14,4 +14,5 @@ metadata:
 - test.sh filters take struct names (`StudyReaderTests/AppEnvironmentTests`), not `@Suite` display names (`AppEnvironment`). A display-name filter runs 0 tests and still prints TEST SUCCEEDED. Check the per-test "passed" lines in build/test.log.
 - Swift Testing per-test results appear in the test.log as "Test x() passed"; the xcresult has no test nodes for a display-name filter.
 - T23: `start()` is async; factory runs in `Task.detached(priority: .userInitiated) { Result { try factory() } }.value`. Tests `await model.start()` on the @MainActor suite; `AppLaunchModelTests` filter works with `scripts/test.sh`. Failure messages come from `AppLaunchModel.failureMessage(for:)`, never `localizedDescription`.
+- T31: fourth signal `runningForPreviews` (env `XCODE_RUNNING_FOR_PREVIEWS` == "1") has a default value in `TestHostSignals`, so existing memberwise call sites compile. Log line in `AppLaunchModel.chooseEnvironment` lists it. Suite count after T31: 21 tests in AppEnvironment + AppLaunchModel.
 - `Localizable.xcstrings` is empty; SwiftUI literals (`ProgressView("Opening library…")`) are extracted at build via SWIFT_EMIT_LOC_STRINGS.

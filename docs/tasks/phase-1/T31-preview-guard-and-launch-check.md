@@ -56,3 +56,4 @@ All existing `AppEnvironmentTests` and `AppLaunchModelTests` pass unchanged.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. User confirmed manual launch check (no in-memory log on Run, Preview renders main window). 169 tests pass; T27-F1 resolved.

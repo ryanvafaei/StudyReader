@@ -90,7 +90,10 @@ struct AppEnvironment: Sendable {
     /// Environment variable that forces the in-memory environment. The test action in project.yml sets it (ADR-0011).
     static let inMemoryEnvironmentVariable = "STUDYREADER_IN_MEMORY"
 
-    /// Independent signals that this process is a test host (ADR-0011). Any one of them selects the in-memory library.
+    /// Environment variable Xcode sets in preview processes (ADR-0011 amendment, T31).
+    static let previewsEnvironmentVariable = "XCODE_RUNNING_FOR_PREVIEWS"
+
+    /// Independent signals that this process is a test host or an Xcode Preview (ADR-0011). Any one of them selects the in-memory library.
     struct TestHostSignals: Sendable, Equatable {
         /// isRunningUnitTests(environment:): Xcode's XCTest environment variables.
         var xctestEnvironment: Bool
@@ -98,10 +101,12 @@ struct AppEnvironment: Sendable {
         var inMemoryRequested: Bool
         /// xctestLibraryIsLoaded(imagePaths:): Xcode's test-bundle injection library is in the process.
         var xctestLibraryLoaded: Bool
+        /// environment[previewsEnvironmentVariable] == "1". Only the value "1" counts.
+        var runningForPreviews: Bool = false
 
         /// true when any signal is set. Only when this is false may the user's library be opened.
         var usesInMemoryLibrary: Bool {
-            xctestEnvironment || inMemoryRequested || xctestLibraryLoaded
+            xctestEnvironment || inMemoryRequested || xctestLibraryLoaded || runningForPreviews
         }
     }
 
@@ -121,7 +126,7 @@ struct AppEnvironment: Sendable {
         }
     }
 
-    /// Pure: reads the three signals from the given inputs.
+    /// Pure: reads the four signals from the given inputs.
     static func testHostSignals(
         environment: [String: String],
         arguments: [String],
@@ -131,7 +136,8 @@ struct AppEnvironment: Sendable {
             xctestEnvironment: isRunningUnitTests(environment: environment),
             inMemoryRequested: environment[inMemoryEnvironmentVariable] != nil
                 || arguments.contains(inMemoryLaunchArgument),
-            xctestLibraryLoaded: xctestLibraryIsLoaded(imagePaths: imagePaths)
+            xctestLibraryLoaded: xctestLibraryIsLoaded(imagePaths: imagePaths),
+            runningForPreviews: environment[previewsEnvironmentVariable] == "1"
         )
     }
 

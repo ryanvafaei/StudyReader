@@ -40,7 +40,7 @@ final class AppLaunchModel {
         inMemory: () throws -> AppEnvironment
     ) rethrows -> AppEnvironment {
         if signals.usesInMemoryLibrary {
-            Log.app.info("Using the in-memory library (xctestEnvironment: \(signals.xctestEnvironment, privacy: .public), inMemoryRequested: \(signals.inMemoryRequested, privacy: .public), xctestLibraryLoaded: \(signals.xctestLibraryLoaded, privacy: .public))")
+            Log.app.info("Using the in-memory library (xctestEnvironment: \(signals.xctestEnvironment, privacy: .public), inMemoryRequested: \(signals.inMemoryRequested, privacy: .public), xctestLibraryLoaded: \(signals.xctestLibraryLoaded, privacy: .public), runningForPreviews: \(signals.runningForPreviews, privacy: .public))")
             return try inMemory()
         }
         return try live()

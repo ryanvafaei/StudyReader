@@ -14,14 +14,9 @@ None. All Phase 0 findings (H1, M1–M5, L1–L7 in [`phase-0.md`](phase-0.md)) 
 
 - **T22-R1. System SQLite logging can include SQL and the database path.** Severity: low. Source: the T22 code review ([T22 spec](../tasks/phase-0/T22-app-database-error.md)). On open or migration failures, the OS SQLite library prints `[logging]` lines that can contain the failing SQL and the library file's path. This output comes from the OS, not our logger, so our no-PII logging rule (ARCHITECTURE §14) can't control it. Deferred: it only reaches the local console and unified log, the UI never shows it (T23), and no task is planned.
 
-## T27 follow-up
-
-- **T27-F1. Check that a normal launch doesn't pick the in-memory library, and whether Xcode Previews are guarded.** Severity: low. Source: [T27 spec](../tasks/phase-0/T27-test-host-guard-before-live-open.md). Verify once in Console that a normal launch (Xcode Run / Finder) does not log "Using the in-memory library" (subsystem app category, `Log.app` in `AppLaunchModel.swift`). Xcode Previews are not guarded (unverified whether they run `live()`). Deferred: the T27 tests cover only the test host, and both checks are manual (a Console run, a Preview run); no task is planned.
-  - Revisit when: before Phase 1 import work.
-
 ## Phase 0 second pass
 
-Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, was fixed by T26. By user decision on 2026-10-24, L1 was fixed by T27 and the `DateStorageTests` part of L7 by T26; both are committed and removed here. L4 was fixed by T29 and removed here. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
+Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, was fixed by T26. By user decision on 2026-10-24, L1 was fixed by T27 and the `DateStorageTests` part of L7 by T26; both are committed and removed here. L4 was fixed by T29 and removed here. T27-F1 was resolved by T31 and removed. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
 
 - **L2. `inMemory(now:)` uses the injected clock for temp-folder cleanup.** Severity: low. [Report](phase-0-second-pass.md#l2-inmemorynow-uses-the-injected-domain-clock-to-judge-folder-age-so-a-future-fixednow-deletes-the-folders-of-tests-that-are-still-running). A future `FixedNow` makes every existing `StudyReader-InMemory/<UUID>` folder look stale, so parallel tests lose their folders.
   - Suggested fix: compute the one-hour cleanup cutoff from the real wall clock or the folders' file-system dates, independent of the injected `Now`, or clean up only in `defaultFactory`. Add the report's failing test.
