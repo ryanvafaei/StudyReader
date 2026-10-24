@@ -19,6 +19,7 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 |---|---|---|---|---|
 | 1 | [T29 FileStore stores lowercase extensions, only resolvable relative paths](T29-filestore-stored-extensions.md) (backlog L4) | data-layer | none | no |
 | 2 | [T30 Rename the ADR-0014 file to an English-only name](T30-rename-adr-0014-file.md) | orchestrator (needs `git mv`; fallback data-layer) | none | no |
+| 2a | [T75 Project build settings (dead-code stripping, string and asset symbols)](T75-project-build-settings.md) (added later; runs any time before T31; implementer leaves it uncommitted, orchestrator commits before the fresh-clone check) | ui-builder | none | no |
 | 3 | [T31 Guard Xcode Previews; confirm a normal launch opens the real library](T31-preview-guard-and-launch-check.md) (backlog T27-F1) | ui-builder | none | yes |
 | 4 | [T32 Refuse newer libraries; disk-full and busy messages](T32-newer-library-and-error-mapping.md) (backlog L5, L6) | data-layer | none | no |
 | 5 | [T33 Core support: Hashing, Sleeper, Debouncer, SettingsStore](T33-core-support-hashing-sleep-settings.md) | data-layer | T29 | no |
