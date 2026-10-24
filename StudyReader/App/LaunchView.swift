@@ -19,7 +19,7 @@ struct LaunchView: View {
                 }
             }
         }
-        .frame(minWidth: 700, minHeight: 450)
+        .frame(minWidth: MainWindowLayout.minWidth, minHeight: MainWindowLayout.minHeight)
         .task { await model.start() }
     }
 }

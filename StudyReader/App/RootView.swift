@@ -26,6 +26,6 @@ struct RootView: View {
                 ContentUnavailableView("Select a section", systemImage: "sidebar.left")
             }
         }
-        .frame(minWidth: 900, minHeight: 600)
+        .frame(minWidth: MainWindowLayout.minWidth, minHeight: MainWindowLayout.minHeight)
     }
 }
