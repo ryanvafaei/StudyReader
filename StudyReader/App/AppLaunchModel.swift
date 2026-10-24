@@ -71,6 +71,7 @@ final class AppLaunchModel {
         switch result {
         case .success(let environment):
             state = .ready(environment)
+            Task { await environment.startBackgroundWork() }
         case .failure(let error):
             Log.app.error("Library failed to open: \(String(describing: type(of: error)), privacy: .public)")
             state = .failed(message: Self.failureMessage(for: error))

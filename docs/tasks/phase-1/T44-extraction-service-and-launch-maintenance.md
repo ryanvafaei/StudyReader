@@ -89,3 +89,4 @@ Extraction of one document:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. All spec assertions present; 290 tests pass; orphan sweep safe (make() only). Minor: no test that inMemory() skips the sweep; startBackgroundWork swallows errors without logging.

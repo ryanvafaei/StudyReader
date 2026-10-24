@@ -12,10 +12,13 @@ struct AppEnvironment: Sendable {
     let tagRepository: TagRepository
     let notesRepository: NotesRepository
     let highlightService: HighlightService
+    let documentTextRepository: DocumentTextRepository
+    let extractionService: ExtractionService
+    let importService: ImportService
     let settingsStore: SettingsStore
     let sleeper: any Sleeper
 
-    /// Builds the repositories from `database`.
+    /// Builds the repositories and services from `database`.
     init(
         fileStore: FileStore,
         database: AppDatabase,
@@ -39,6 +42,28 @@ struct AppEnvironment: Sendable {
             fileStore: fileStore,
             now: now
         )
+        self.documentTextRepository = DocumentTextRepository(database: database)
+        let extractionService = ExtractionService(database: database, fileStore: fileStore)
+        self.extractionService = extractionService
+        self.importService = ImportService(
+            fileStore: fileStore,
+            documents: self.documentRepository,
+            categories: self.categoryRepository,
+            covers: CoverService(fileStore: fileStore, documents: self.documentRepository),
+            settings: settingsStore,
+            now: now,
+            extractionQueue: extractionService
+        )
+    }
+
+    /// Re-queues documents whose extraction is pending or outdated (LibraryMaintenance). Call once after launch.
+    func startBackgroundWork() async {
+        let maintenance = LibraryMaintenance(database: database, fileStore: fileStore)
+        let ids = (try? await maintenance.documentIdsNeedingExtraction()) ?? []
+        for id in ids {
+            await extractionService.enqueue(documentId: id)
+        }
+        Log.files.info("Re-queued \(ids.count, privacy: .public) extractions at launch")
     }
 
     /// The user's library: FileStore.applicationSupport(), then make(fileStore:now:settingsStore:) with `.standard()`.
@@ -53,6 +78,9 @@ struct AppEnvironment: Sendable {
         settingsStore: SettingsStore = .ephemeral()
     ) throws -> AppEnvironment {
         let database = try AppDatabase.makeShared(fileStore: fileStore)
+        // Folders left by interrupted imports are removed before the library appears (ADR-0016).
+        let removed = try? LibraryMaintenance(database: database, fileStore: fileStore).removeOrphanFolders()
+        Log.files.info("Removed \(removed?.count ?? 0, privacy: .public) orphan document folders at launch")
         return AppEnvironment(fileStore: fileStore, database: database, now: now, settingsStore: settingsStore)
     }
 
