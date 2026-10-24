@@ -149,7 +149,7 @@ StudyReaderTests/                      + LibraryTests, ExtractionTests, Markdown
 ```
 
 ## User decisions (2026-10-24)
-- **Q1 (T39, T41):** password-protected PDFs: store a decrypted copy made by PDFKit after the user types the password once. Confirmed (ADR-0016).
+- **Q1 (T39, T41):** password-protected PDFs: store an unlocked copy made by PDFKit after the user types the password once (empty-password copy that opens without a prompt but keeps the encryption dictionary; see the ADR-0016 amendment). Confirmed (ADR-0016).
 - **Q2 (T51, T52, changed):** documents open as **native macOS window tabs** in the main window's tab group; the library stays the first tab; opening an open document selects its tab; tabs can be dragged out. AppKit `tabbingMode`/`tabbingIdentifier` if SwiftUI can't; BLOCKED rather than a custom tab bar (ADR-0017, SPEC F-01 AC4).
 - **Q3 (T71, T73):** "Export selection" creates a new Google Doc each time and saves no target. Confirmed (ADR-0018).
 - **Q4 (T32):** L5 and L6 ship now without a migration. Confirmed.
