@@ -1,1 +1,2 @@
 - [PDFKit facts](pdfkit_facts.md) — verified behaviours: encrypted copy writing, rotation, test filter names
+- [Markdown renderer facts](markdown_renderer_facts.md) — T43 design notes, swift-markdown API location, verified font traits

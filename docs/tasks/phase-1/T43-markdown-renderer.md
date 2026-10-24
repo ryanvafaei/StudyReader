@@ -107,3 +107,4 @@ extension NSAttributedString.Key {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. 14 MarkdownRendererTests, 281 total pass; remote images never fetched (confirmed by grep); recursion instead of MarkupWalker accepted. Docs to amend: ARCHITECTURE section 7 (MarkupWalker mention) and section 6 (heading-section rule vs H1/H2).
