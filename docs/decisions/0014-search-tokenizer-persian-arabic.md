@@ -1,7 +1,7 @@
 # ADR-0014: Search tokenizer `studyreader` (English text: ligatures, soft hyphens, case, diacritics)
 
 - Status: Accepted
-- Date: 2026-10-24 (from bug hunt `docs/bugs/phase-0.md` M3). Amended 2026-10-24: scope narrowed to English-only by the user.
+- Date: 2026-10-24 (from bug hunt `docs/bugs/phase-0.md` M3). Amended 2026-10-24: scope narrowed to English-only by the user. Amended 2026-10-24 (T22): schema read before tokenizer registration.
 - The file name still says "persian-arabic" for link stability; the decision is English-only.
 
 ## Context
@@ -15,7 +15,7 @@ The v1 tokenizer `unicode61 remove_diacritics 2` lowercases and removes Latin di
   3. Lowercase.
   An empty result emits no token.
 - FTS5 tokenizes MATCH strings with the table's tokenizer, so queries are normalized the same way. `SearchQueryParser` doesn't normalize. `snippet()` reports the original text, because offsets come from the wrapped tokenizer.
-- The tokenizer is registered in `AppDatabase.makeConfiguration()` with `prepareDatabase`, so every connection has it: writer, pool readers and tests. Migration `v2` (ADR-0013) recreates and rebuilds the four FTS tables with it.
+- The tokenizer is registered in `AppDatabase.makeConfiguration()` with `prepareDatabase`, so every connection has it: writer, pool readers and tests. The closure first reads `sqlite_master` and only then calls `db.add(tokenizer:)`. GRDB's registration calls `fatalError` when `SELECT fts5(?)` can't be prepared, so a damaged file would crash the app. Reading the schema first makes it throw SQLITE_NOTADB/SQLITE_CORRUPT instead (amended 2026-10-24, T22). Migration `v2` (ADR-0013) recreates and rebuilds the four FTS tables with it.
 - Normalization is part of the index format. Any change to `SearchTokenNormalizer` or to the joiner list needs a new migration that runs `'rebuild'` on all four FTS tables. `SearchTokenizerTests` pins the outputs.
 
 ## Alternatives considered

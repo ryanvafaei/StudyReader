@@ -88,4 +88,5 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - T12 fixes bug hunt H1. ADR-0012 was amended first, so T12 has tests only.
 - T13–T23 fix M1–M5 and L1–L7. The user decided on 2026-10-24: a new `v2` migration (v1 stays frozen), fix everything now, and do the L6 renames.
 - M3 was narrowed on 2026-10-24 to English-only search (ligatures, soft hyphens). The Persian/Arabic cases in the bug report are intentionally not fixed.
+- T22 was re-planned on 2026-10-24 after a BLOCKED report. T18's tokenizer registration made GRDB `fatalError` on a damaged library. Now `prepareDatabase` reads `sqlite_master` before `db.add(tokenizer:)`, so damaged files throw `.damaged`. New tests: `corruptPagesAreReported`, `configurationThrowsOnDamagedFile`.
 - Bug-hunt policy from Phase 1 on: see [`docs/bugs/backlog.md`](../../bugs/backlog.md).
