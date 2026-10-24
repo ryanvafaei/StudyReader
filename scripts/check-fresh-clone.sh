@@ -10,7 +10,7 @@ git clone -q . "$dest"
 cd "$dest"
 xcodegen generate --quiet
 set +e
-xcodebuild -project StudyReader.xcodeproj -scheme StudyReader -destination 'platform=macOS' \
+xcodebuild -project StudyReader.xcodeproj -scheme StudyReader -destination 'platform=macOS' -allowProvisioningUpdates \
   -derivedDataPath "$dest/build" build > "$dest/build.log" 2>&1
 status=$?
 set -e

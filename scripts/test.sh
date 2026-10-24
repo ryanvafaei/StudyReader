@@ -10,7 +10,7 @@ xcodegen generate --use-cache --quiet
 filters=()
 for t in "$@"; do filters+=("-only-testing:$t"); done
 set +e
-xcodebuild -project StudyReader.xcodeproj -scheme StudyReader -destination 'platform=macOS' \
+xcodebuild -project StudyReader.xcodeproj -scheme StudyReader -destination 'platform=macOS' -allowProvisioningUpdates \
   -derivedDataPath build/DerivedData test ${filters[@]+"${filters[@]}"} > build/test.log 2>&1
 status=$?
 set -e

@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 mkdir -p build
 xcodegen generate --use-cache --quiet
 set +e
-xcodebuild -project StudyReader.xcodeproj -scheme StudyReader -destination 'platform=macOS' \
+xcodebuild -project StudyReader.xcodeproj -scheme StudyReader -destination 'platform=macOS' -allowProvisioningUpdates \
   -derivedDataPath build/DerivedData build > build/build.log 2>&1
 status=$?
 set -e

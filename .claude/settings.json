@@ -42,7 +42,9 @@
       "Edit(./scripts/**)",
       "Write(./scripts/**)",
       "Edit(./.claude/settings.json)",
-      "Write(./.claude/settings.json)"
+      "Write(./.claude/settings.json)",
+      "Edit(./Secrets/**)",
+      "Write(./Secrets/**)"
     ]
   },
   "env": {
@@ -55,6 +57,11 @@
       "./scripts/test.sh",
       "./scripts/test.sh *",
       "./scripts/check-fresh-clone.sh"
-    ]
+    ],
+    "filesystem": {
+      "denyRead": [
+        "/Users/ali/Documents/Projects/StudyReader/Secrets"
+      ]
+    }
   }
 }
