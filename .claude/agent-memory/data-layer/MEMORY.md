@@ -5,4 +5,5 @@
 - [Repository pattern notes](repository-pattern-notes.md) — CategoryRepository/DocumentRepository pattern, GRDB ValueObservation and #expect(throws) usage (T07)
 - [PDF fixture builder notes](pdf-fixture-builder-notes.md) — T09 PDFFixtureBuilder file locations, PDFKit font-trait API pitfalls
 - [Search tokenizer notes](search-tokenizer-notes.md) — T18 studyreader FTS5 tokenizer: files, registration, test approach
+- [Migration v2 notes](migration-v2-notes.md) — T19 v2 files, golden flow, #expect(try) and writes-in-read pitfalls
 - [Markdown fixtures notes](markdown-fixtures-notes.md) — T10 markdown fixture files, MarkdownFixtures loader, Equatable pitfall with #expect(throws:)

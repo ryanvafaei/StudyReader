@@ -44,6 +44,9 @@ struct AppDatabase: Sendable {
         migrator.registerMigration("v1") { db in
             try SchemaV1.create(db)
         }
+        migrator.registerMigration("v2") { db in
+            try SchemaV2.migrate(db)
+        }
         return migrator
     }
 }

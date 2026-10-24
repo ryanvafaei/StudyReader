@@ -7,9 +7,13 @@ import Testing
         try SchemaSnapshot.expectMatchesGolden(migration: "v1")
     }
 
+    @Test func v2IsFrozen() throws {
+        try SchemaSnapshot.expectMatchesGolden(migration: "v2")
+    }
+
     /// Append-only (ADR-0013): later migrations add to the end of this list.
     @Test func registeredMigrationsInOrder() {
-        #expect(AppDatabase.migrator.migrations == ["v1"])
+        #expect(AppDatabase.migrator.migrations == ["v1", "v2"])
     }
 
     @Test func dumpIsDeterministic() throws {

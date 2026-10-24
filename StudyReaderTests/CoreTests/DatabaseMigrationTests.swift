@@ -86,7 +86,7 @@ struct DatabaseMigrationTests {
             )
         }
         #expect(count == 5)
-        #expect(applied == ["v1"])
+        #expect(applied == ["v1", "v2"])
         #expect(documents == 1)
     }
 

@@ -204,3 +204,5 @@ After this task is committed, the user's library gets `v2` on the next launch. T
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): CHANGES REQUESTED. Migration correct; MigrationV2Tests.foldedSearchOnLiveTables prefix check on highlight_fts is inverted (quoted literal '*', asserts 0 instead of 1).
+- 2026-10-24, Sonnet (effort high; Haiku re-run at high): APPROVED. Prefix check fixed (real prefix, asserts 1); tests 133/133; migration, triggers, v2 golden re-confirmed.
