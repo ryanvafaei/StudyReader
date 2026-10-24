@@ -2,10 +2,14 @@ import Foundation
 
 enum FileStoreError: Error, Equatable, LocalizedError {
     case invalidDocumentId(String)
+    case invalidHighlightId(String)
+    case invalidFileExtension(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidDocumentId: "Invalid document identifier."
+        case .invalidHighlightId: "Invalid highlight identifier."
+        case .invalidFileExtension: "Invalid file extension."
         }
     }
 }
@@ -39,34 +43,53 @@ struct FileStore: Sendable, Equatable {
         rootURL.appending(path: "Documents", directoryHint: .isDirectory)
     }
 
-    func documentFolderURL(documentId: String) -> URL {
-        documentsURL.appending(path: documentId, directoryHint: .isDirectory)
+    /// true when `UUID(uuidString: id)?.uuidString == id` (canonical uppercase form, as `UUID().uuidString` makes).
+    static func isCanonicalId(_ id: String) -> Bool {
+        UUID(uuidString: id)?.uuidString == id
     }
 
-    func originalFileURL(documentId: String, fileExtension: String) -> URL {
-        documentFolderURL(documentId: documentId)
-            .appending(path: "original.\(fileExtension)", directoryHint: .notDirectory)
+    func documentFolderURL(documentId: String) throws -> URL {
+        try Self.validateDocumentId(documentId)
+        return documentsURL.appending(path: documentId, directoryHint: .isDirectory)
     }
 
-    func coverURL(documentId: String) -> URL {
-        documentFolderURL(documentId: documentId)
+    func originalFileURL(documentId: String, fileExtension: String) throws -> URL {
+        let folder = try documentFolderURL(documentId: documentId)
+        try Self.validateFileExtension(fileExtension)
+        return folder.appending(path: "original.\(fileExtension)", directoryHint: .notDirectory)
+    }
+
+    func coverURL(documentId: String) throws -> URL {
+        try documentFolderURL(documentId: documentId)
             .appending(path: "cover.png", directoryHint: .notDirectory)
     }
 
-    func imagesFolderURL(documentId: String) -> URL {
-        documentFolderURL(documentId: documentId)
+    func imagesFolderURL(documentId: String) throws -> URL {
+        try documentFolderURL(documentId: documentId)
             .appending(path: "images", directoryHint: .isDirectory)
     }
 
-    func snapshotURL(documentId: String, highlightId: String) -> URL {
-        documentFolderURL(documentId: documentId)
+    func snapshotURL(documentId: String, highlightId: String) throws -> URL {
+        let folder = try documentFolderURL(documentId: documentId)
+        try Self.validateHighlightId(highlightId)
+        return folder
             .appending(path: "snapshots", directoryHint: .isDirectory)
             .appending(path: "\(highlightId).png", directoryHint: .notDirectory)
     }
 
     /// Resolves a database-stored path (relative to `documentsURL`, e.g. `"<id>/original.pdf"`).
-    func url(forRelativePath relativePath: String) -> URL {
-        documentsURL.appending(path: relativePath, directoryHint: .notDirectory)
+    /// Returns nil for anything that is not `<canonical id>/…` inside `Documents/`.
+    func url(forRelativePath relativePath: String) -> URL? {
+        guard !relativePath.isEmpty, !relativePath.hasPrefix("/") else { return nil }
+        let components = relativePath.split(separator: "/", omittingEmptySubsequences: false)
+        guard components.allSatisfy({ $0 != "" && $0 != "." && $0 != ".." }),
+              let first = components.first,
+              Self.isCanonicalId(String(first))
+        else { return nil }
+        let resolved = documentsURL.appending(path: relativePath, directoryHint: .notDirectory)
+        let target = Self.trimmedPath(resolved)
+        guard target.hasPrefix(Self.trimmedPath(documentsURL) + "/") else { return nil }
+        return resolved.standardizedFileURL
     }
 
     /// Inverse of `url(forRelativePath:)`. Returns nil when `url` is not inside `documentsURL`.
@@ -88,21 +111,20 @@ struct FileStore: Sendable, Equatable {
     /// Creates `Documents/<id>/` and returns it.
     @discardableResult
     func createDocumentFolder(documentId: String) throws -> URL {
-        try Self.validate(documentId)
-        let folder = documentFolderURL(documentId: documentId)
+        let folder = try documentFolderURL(documentId: documentId)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder
     }
 
     /// Removes `Documents/<id>/` recursively. A missing folder is not an error.
     func deleteDocumentFolder(documentId: String) throws {
-        try Self.validate(documentId)
-        let folder = documentFolderURL(documentId: documentId)
+        let folder = try documentFolderURL(documentId: documentId)
         guard FileManager.default.fileExists(atPath: folder.path(percentEncoded: false)) else { return }
         try FileManager.default.removeItem(at: folder)
     }
 
-    /// Names of `Documents/` subfolders that are UUIDs, sorted. Empty when `Documents/` is missing.
+    /// Names of `Documents/` subfolders that are canonical document IDs, sorted.
+    /// Empty when `Documents/` is missing.
     func documentFolderIds() throws -> [String] {
         let documentsPath = documentsURL.path(percentEncoded: false)
         guard FileManager.default.fileExists(atPath: documentsPath) else { return [] }
@@ -114,7 +136,7 @@ struct FileStore: Sendable, Equatable {
         return try entries
             .filter { entry in
                 let isDirectory = try entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false
-                return isDirectory && UUID(uuidString: entry.lastPathComponent) != nil
+                return isDirectory && Self.isCanonicalId(entry.lastPathComponent)
             }
             .map(\.lastPathComponent)
             .sorted()
@@ -122,10 +144,22 @@ struct FileStore: Sendable, Equatable {
 
     // MARK: - Helpers
 
-    private static func validate(_ documentId: String) throws {
-        guard UUID(uuidString: documentId) != nil else {
-            throw FileStoreError.invalidDocumentId(documentId)
+    private static func validateDocumentId(_ id: String) throws {
+        guard isCanonicalId(id) else { throw FileStoreError.invalidDocumentId(id) }
+    }
+
+    private static func validateHighlightId(_ id: String) throws {
+        guard isCanonicalId(id) else { throw FileStoreError.invalidHighlightId(id) }
+    }
+
+    /// 1–10 ASCII characters, each `a`–`z` or `0`–`9`.
+    private static func validateFileExtension(_ fileExtension: String) throws {
+        let bytes = fileExtension.utf8
+        let isValid = (1...10).contains(bytes.count) && bytes.allSatisfy { byte in
+            (byte >= UInt8(ascii: "a") && byte <= UInt8(ascii: "z"))
+                || (byte >= UInt8(ascii: "0") && byte <= UInt8(ascii: "9"))
         }
+        guard isValid else { throw FileStoreError.invalidFileExtension(fileExtension) }
     }
 
     /// Standardized path without a trailing slash, so prefix comparisons are stable.

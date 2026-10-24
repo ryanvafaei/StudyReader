@@ -7,7 +7,8 @@ metadata:
 
 - `Core/Support/Now.swift`, `Core/Support/Logging.swift`, `Core/Files/FileStore.swift` hold the clock, `Log` categories, and the only path builder. Test helpers live in `StudyReaderTests/Support/` (`FixedNow`, `TestFileStore.make()`).
 - `FixedNow` stores `Mutex<Date>` (Synchronization module); no `@unchecked Sendable` needed.
-- `FileStore` validates document ids with `UUID(uuidString:)` only on create/delete; path builders don't validate.
+- T20: every FileStore builder validates via `FileStore.isCanonicalId` (`UUID(uuidString:)?.uuidString == id`), so builders now `throws` and callers need `try`. `url(forRelativePath:)` returns `URL?`. Lowercase IDs are rejected everywhere, so test fixtures must use canonical uppercase IDs (digit-only IDs are fine).
+- Extension rule validates over `utf8` bytes (1–10, a–z/0–9), not Characters: Character ranges accept combining sequences like "a\u{301}".
 - `FileStore.relativePath(for:)` trims trailing slashes on both sides before the prefix check (directory URLs can carry them).
 - `#expect(throws: FileStoreError.invalidDocumentId(id)) { ... }` compiles and works with the Swift Testing in use.
 - Full suite on T02 was 13 tests in 4 suites; test output has noisy `com.apple.linkd` lines, filter them out with grep.

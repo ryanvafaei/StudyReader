@@ -103,3 +103,4 @@ New tests:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, Sonnet (effort medium): APPROVED. Tests 138/138, traversal defences verified by reading, spec interfaces match.

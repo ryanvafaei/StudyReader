@@ -6,7 +6,7 @@ import Testing
     private static let docId = "6F1C2B7E-3D4A-4B8E-9C1D-2A3B4C5D6E7F"
     private static let highlightId = "9A8B7C6D-5E4F-4A3B-8C2D-1E0F9A8B7C6D"
 
-    @Test func pathsFollowLayout() {
+    @Test func pathsFollowLayout() throws {
         let store = TestFileStore.make()
         defer { TestFileStore.remove(store) }
         let root = store.rootURL.standardizedFileURL.path(percentEncoded: false)
@@ -14,34 +14,97 @@ import Testing
         #expect(store.databaseURL.lastPathComponent == "StudyReader.sqlite")
         #expect(store.databaseURL.standardizedFileURL.path(percentEncoded: false).hasPrefix(root))
 
-        let original = store.originalFileURL(documentId: Self.docId, fileExtension: "pdf")
+        let original = try store.originalFileURL(documentId: Self.docId, fileExtension: "pdf")
         #expect(original.lastPathComponent == "original.pdf")
         #expect(original.deletingLastPathComponent().lastPathComponent == Self.docId)
         #expect(original.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "Documents")
 
-        #expect(store.coverURL(documentId: Self.docId).lastPathComponent == "cover.png")
-        #expect(store.imagesFolderURL(documentId: Self.docId).lastPathComponent == "images")
+        #expect(try store.coverURL(documentId: Self.docId).lastPathComponent == "cover.png")
+        #expect(try store.imagesFolderURL(documentId: Self.docId).lastPathComponent == "images")
 
-        let snapshot = store.snapshotURL(documentId: Self.docId, highlightId: Self.highlightId)
+        let snapshot = try store.snapshotURL(documentId: Self.docId, highlightId: Self.highlightId)
         #expect(snapshot.lastPathComponent == "\(Self.highlightId).png")
         #expect(snapshot.deletingLastPathComponent().lastPathComponent == "snapshots")
 
         #expect(original.standardizedFileURL.path(percentEncoded: false).hasPrefix(root))
-        #expect(store.coverURL(documentId: Self.docId).standardizedFileURL.path(percentEncoded: false).hasPrefix(root))
+        #expect(try store.coverURL(documentId: Self.docId).standardizedFileURL.path(percentEncoded: false).hasPrefix(root))
         #expect(snapshot.standardizedFileURL.path(percentEncoded: false).hasPrefix(root))
     }
 
-    @Test func relativePathRoundTrip() {
+    @Test func relativePathRoundTrip() throws {
         let store = TestFileStore.make()
         defer { TestFileStore.remove(store) }
-        let original = store.originalFileURL(documentId: Self.docId, fileExtension: "pdf")
+        let original = try store.originalFileURL(documentId: Self.docId, fileExtension: "pdf")
 
         #expect(store.relativePath(for: original) == "\(Self.docId)/original.pdf")
-        #expect(store.url(forRelativePath: "\(Self.docId)/original.pdf").standardizedFileURL
-            == original.standardizedFileURL)
+        let resolved = try #require(store.url(forRelativePath: "\(Self.docId)/original.pdf"))
+        #expect(resolved.standardizedFileURL == original.standardizedFileURL)
 
         let outside = store.rootURL.appending(path: "StudyReader.sqlite", directoryHint: .notDirectory)
         #expect(store.relativePath(for: outside) == nil)
+    }
+
+    @Test func rejectsEscapingPaths() {
+        let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
+        let escaping = [
+            "../StudyReader.sqlite",
+            "A/../../../x",
+            "\(Self.docId)/../../StudyReader.sqlite",
+            "\(Self.docId)/./original.pdf",
+            "/etc/passwd",
+            "",
+            "\(Self.docId)" + "/",
+            "\(Self.docId.lowercased())/original.pdf",
+            "not-a-uuid/original.pdf",
+        ]
+        for path in escaping {
+            #expect(store.url(forRelativePath: path) == nil, "\(path) should be rejected")
+        }
+
+        #expect(store.url(forRelativePath: "\(Self.docId)/original.pdf") != nil)
+        #expect(store.url(forRelativePath: "\(Self.docId)/snapshots/\(Self.highlightId).png") != nil)
+    }
+
+    @Test func rejectsNonCanonicalIds() throws {
+        let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
+        try store.createRootDirectories()
+
+        #expect(throws: FileStoreError.invalidDocumentId(Self.docId.lowercased())) {
+            try store.documentFolderURL(documentId: Self.docId.lowercased())
+        }
+        #expect(throws: FileStoreError.invalidDocumentId("..")) {
+            try store.coverURL(documentId: "..")
+        }
+        #expect(throws: FileStoreError.invalidDocumentId("")) {
+            try store.imagesFolderURL(documentId: "")
+        }
+        #expect(throws: FileStoreError.invalidDocumentId(Self.docId.lowercased())) {
+            try store.createDocumentFolder(documentId: Self.docId.lowercased())
+        }
+        #expect(throws: FileStoreError.invalidHighlightId("../../../../evil")) {
+            try store.snapshotURL(documentId: Self.docId, highlightId: "../../../../evil")
+        }
+        #expect(throws: FileStoreError.invalidHighlightId(Self.highlightId.lowercased())) {
+            try store.snapshotURL(documentId: Self.docId, highlightId: Self.highlightId.lowercased())
+        }
+    }
+
+    @Test func rejectsInvalidFileExtensions() throws {
+        let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
+        let invalid = ["", "../x", "PDF", "p d f", "abcdefghijk", "pdf/"]
+        for fileExtension in invalid {
+            #expect(throws: FileStoreError.invalidFileExtension(fileExtension)) {
+                try store.originalFileURL(documentId: Self.docId, fileExtension: fileExtension)
+            }
+        }
+
+        for fileExtension in ["pdf", "md", "markdown"] {
+            let url = try store.originalFileURL(documentId: Self.docId, fileExtension: fileExtension)
+            #expect(url.lastPathComponent == "original.\(fileExtension)")
+        }
     }
 
     @Test func createRootDirectoriesIsIdempotent() throws {
@@ -64,7 +127,7 @@ import Testing
         defer { TestFileStore.remove(store) }
         try store.createRootDirectories()
         let folder = try store.createDocumentFolder(documentId: Self.docId)
-        let file = store.originalFileURL(documentId: Self.docId, fileExtension: "pdf")
+        let file = try store.originalFileURL(documentId: Self.docId, fileExtension: "pdf")
         try Data("pdf".utf8).write(to: file)
         #expect(FileManager.default.fileExists(atPath: file.path(percentEncoded: false)))
 
@@ -78,7 +141,7 @@ import Testing
         let store = TestFileStore.make()
         defer { TestFileStore.remove(store) }
         try store.createRootDirectories()
-        let invalidIds = ["", "..", "a/b", "not-a-uuid"]
+        let invalidIds = ["", "..", "a/b", "not-a-uuid", Self.docId.lowercased()]
 
         for id in invalidIds {
             #expect(throws: FileStoreError.invalidDocumentId(id)) {
@@ -108,5 +171,27 @@ import Testing
         try Data().write(to: store.documentsURL.appending(path: "stray.txt", directoryHint: .notDirectory))
 
         #expect(try store.documentFolderIds() == [earlierId, laterId].sorted())
+    }
+
+    @Test func documentFolderIdsSkipsNonCanonicalNames() throws {
+        let store = TestFileStore.make()
+        defer { TestFileStore.remove(store) }
+        try store.createRootDirectories()
+        try store.createDocumentFolder(documentId: Self.docId)
+        try FileManager.default.createDirectory(
+            at: store.documentsURL.appending(path: "00000000-0000-4000-8000-00000000000a", directoryHint: .isDirectory),
+            withIntermediateDirectories: true
+        )
+
+        #expect(try store.documentFolderIds() == [Self.docId])
+    }
+
+    @Test func isCanonicalIdRules() {
+        #expect(FileStore.isCanonicalId(Self.docId))
+        #expect(FileStore.isCanonicalId(UUID().uuidString))
+        #expect(!FileStore.isCanonicalId(Self.docId.lowercased()))
+        #expect(!FileStore.isCanonicalId("{\(Self.docId)}"))
+        #expect(!FileStore.isCanonicalId(""))
+        #expect(!FileStore.isCanonicalId("\(Self.docId) "))
     }
 }
