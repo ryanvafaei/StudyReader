@@ -3,6 +3,7 @@ name: ui-builder
 description: Implements SwiftUI and app-shell tasks - project.yml, app structure, menus, library window, import UI, metadata sheet, reader chrome and side panels, highlights browser, review screens, settings. Use for tasks assigned to ui-builder in docs/tasks/.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: haiku
+effort: medium
 memory: project
 skills:
   - implementation-rules

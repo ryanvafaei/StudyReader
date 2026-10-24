@@ -3,6 +3,7 @@ name: code-reviewer
 description: Reviews one implemented task against its spec, CLAUDE.md, and test results, then approves or requests changes. Use after test-runner on every task, before committing. Read-only.
 tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: medium
 memory: project
 color: pink
 ---

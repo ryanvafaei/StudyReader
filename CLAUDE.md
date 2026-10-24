@@ -29,10 +29,13 @@ Native macOS app for studying course material: read PDFs and Markdown, highlight
 
 ## Commands
 
-- Generate project: `xcodegen generate --use-cache --quiet`
-- Build: `xcodegen generate --use-cache --quiet && xcodebuild -project StudyReader.xcodeproj -scheme StudyReader -destination 'platform=macOS' build`
-- Test: same with `test` instead of `build`
-- Single test: add `-only-testing:StudyReaderTests/<Suite>/<test>`
+Always use these scripts, exactly as written (no pipes, redirects, `cd`, or chained commands). They run outside the Claude Code sandbox so Xcode can write its caches and download packages; nobody edits `scripts/` or `.claude/settings.json` except the user.
+
+- Build: `./scripts/build.sh` (log: `build/build.log`)
+- Test all: `./scripts/test.sh` (log: `build/test.log`)
+- Test some: `./scripts/test.sh StudyReaderTests/<Suite>[/<test>] …`
+- Fresh-clone check (committed files only): `./scripts/check-fresh-clone.sh`
+- Never call `xcodebuild` directly and never `rm -rf` the generated project; `xcodegen generate` (no cache) regenerates it.
 
 ## Architecture rules (details in ARCHITECTURE.md)
 
@@ -53,14 +56,16 @@ Native macOS app for studying course material: read PDFs and Markdown, highlight
 
 The main session coordinates and does not write feature code itself. Agents are in `.claude/agents/`.
 
-| Agent | Model | Role |
-|---|---|---|
-| architect | Opus | Phase plan, task specs in `docs/tasks/phase-N/`, ADRs |
-| data-layer, ui-builder, review-engine | Haiku | Implement tasks assigned to them |
-| pdf-engine, integrations | Sonnet | Implement tasks assigned to them |
-| test-runner | Haiku | Build + full tests, failures only |
-| code-reviewer | Sonnet | Approve or request changes, per task |
-| bug-hunter | Opus | End-of-phase bug hunt, report in `docs/bugs/` |
+| Agent | Model | Effort | Role |
+|---|---|---|---|
+| architect | Opus | high | Phase plan, task specs in `docs/tasks/phase-N/`, ADRs |
+| data-layer, ui-builder, review-engine | Haiku | medium | Implement tasks assigned to them |
+| pdf-engine, integrations | Sonnet | high | Implement tasks assigned to them |
+| test-runner | Haiku | low | Build + full tests, failures only |
+| code-reviewer | Sonnet | medium | Approve or request changes, per task |
+| bug-hunter | Opus | high | End-of-phase bug hunt, report in `docs/bugs/` |
+
+Effort comes from each agent's file. Override it per call only as the escalation rule says. Never set `CLAUDE_CODE_EFFORT_LEVEL` (it overrides every agent).
 
 ### Per phase
 1. architect plans the phase. Show the user the task list and open questions before implementing.
@@ -68,14 +73,17 @@ The main session coordinates and does not write feature code itself. Agents are 
    1. Delegate to the task's agent with the spec path. Wait for its report.
    2. Run test-runner. Wait for the result.
    3. Run code-reviewer with the spec path, the implementer's report, and the test result.
-   4. Append one line to the spec's "Review log": date, model used, verdict, short reason.
+   4. Append one line to the spec's "Review log": date, model and effort used, verdict, short reason.
    5. APPROVED: commit (one task per commit, message `TNN: <title>`). If the report says "Visual check needed: yes", ask the user to check before moving on.
-   6. CHANGES REQUESTED: send the review issues back to the same agent and repeat from step 2.
-3. When all tasks are approved, run bug-hunter. Turn its critical and high findings into fix tasks and run them through the same loop.
+   6. CHANGES REQUESTED: follow the escalation rule below, then repeat from step 2.
+3. When all tasks are approved, have test-runner run `./scripts/check-fresh-clone.sh`, then run bug-hunter. Turn its critical and high findings into fix tasks and run them through the same loop.
 
 ### Escalation rule
-- A task on a Haiku agent that gets CHANGES REQUESTED twice: re-run it on the same agent with the model set to `sonnet` for that call. Give it the spec and both review reports.
-- A task on Sonnet (pdf-engine, integrations, or an escalated task) that gets CHANGES REQUESTED twice: stop, summarize the problem, and ask the user how to proceed.
+Count CHANGES REQUESTED verdicts per task (from its Review log).
+- Haiku agent, 1st rejection: re-run the same agent with effort `high` for that call. Give it the spec and the review report.
+- Haiku agent, 2nd rejection: re-run the same agent with model `sonnet` and effort `high` for that call. Give it the spec and both review reports.
+- Any review of a task that was escalated: run code-reviewer with effort `high` for that call.
+- Sonnet agent (pdf-engine, integrations, or an escalated task) rejected twice: stop, summarize the problem, and ask the user how to proceed.
 - An implementer reporting BLOCKED: answer from the spec or ADRs if possible; otherwise ask the user. Don't guess.
 
 ### General rules

@@ -401,7 +401,7 @@ Across pages:
 4. **Repeated headers/footers:** among the first 2 and last 2 lines of each page, a line whose digit-normalized form (digits → `#`) appears on ≥ 50% of pages (min 3 pages) is removed everywhere. Lone page-number lines are removed.
 
 Paragraph joining within a page:
-5. Line ending in `-` and next line starting lowercase → join without the hyphen.
+5. Line ending in U+00AD (soft hyphen) → always join with the next line, without the soft hyphen. Line ending in `-` or U+2010 (hyphen) and next line starting lowercase → join without the hyphen. (Amended 2026-10-24 for backlog L3: in PDFs a soft hyphen only appears at a line break, and the tokenizer only joins it inside a word.)
 6. Line not ending in `.?!:;` and next line starting lowercase → join with a space.
 7. Otherwise → paragraph break (`\n\n`).
 
@@ -466,9 +466,11 @@ _{Author} · {Category}_
   - Tags: #tag1 #tag2
 
 - **{Color label}** · p. {page}
-  [Image highlight]
+  [Image highlight, page {page}]
   - Note: {note}
 ```
+
+(The image placeholder text follows SPEC F-21; amended 2026-10-24. Exact rules and a worked example: `docs/tasks/phase-1/T70-export-repository-and-renderer.md`.)
 
 - Documents ordered by title; highlights by `positionKey`.
 - Group-by-tag variant: `## #{tag}` sections, each highlight followed by `_— {Document title}, p. {page}_`. Untagged last under `## Untagged`.

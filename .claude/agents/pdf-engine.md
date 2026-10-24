@@ -3,6 +3,7 @@ name: pdf-engine
 description: Implements reader engines - PDFKit reader view, PDF highlight anchoring and drawing, snapshot (image) highlights, auto-highlighting, dark-mode inversion, PDF text extraction, the shared NSTextView text engine (PDF text view and Markdown), Markdown renderer, text anchoring and re-anchoring, rich-text extraction. Use for tasks assigned to pdf-engine in docs/tasks/.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+effort: high
 memory: project
 skills:
   - implementation-rules

@@ -3,6 +3,7 @@ name: integrations
 description: Implements external and on-device AI integrations - Google sign-in and Google Docs export for Gemini Notebook (GoogleSignIn + Drive API), keep-in-sync scheduler, on-device embeddings for Find Similar Highlights, Apple Intelligence Mastery suggestions. Use for tasks assigned to integrations in docs/tasks/.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+effort: high
 memory: project
 skills:
   - implementation-rules

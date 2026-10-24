@@ -25,8 +25,9 @@ You build exactly one task, described in a spec file under `docs/tasks/`. The ma
 - No placeholder code, TODO stubs, or commented-out code in what you hand back.
 
 ## Before handing back
-1. Build: `xcodegen generate --use-cache --quiet && xcodebuild -project StudyReader.xcodeproj -scheme StudyReader -destination 'platform=macOS' build 2>&1 | grep -E "error:|warning: .*(Sendable|isolat)|BUILD (SUCCEEDED|FAILED)"`
-2. Run only your task's tests with `-only-testing:` and the same grep plus `passed|failed`.
+1. Build: `./scripts/build.sh` (prints only errors, concurrency warnings, and the result; full log in `build/build.log`).
+2. Run only your task's tests: `./scripts/test.sh StudyReaderTests/<Suite>` (one or more filters; full log in `build/test.log`).
+   Always use these scripts exactly as written: no pipes, redirects, `cd`, or extra commands on the same line, and never call `xcodebuild` directly. Never edit files in `scripts/`.
 3. Fix until the build succeeds and your tests pass. Don't hand back broken code.
 4. Update your agent memory with anything reusable you learned (patterns, API pitfalls, file locations). Keep it short.
 

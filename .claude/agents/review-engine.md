@@ -3,6 +3,7 @@ name: review-engine
 description: Implements spaced-repetition logic - FSRS-6 scheduler wrapper, frequency policy, card creation, daily and themed review builders, review actions, Mastery cloze and Q&A cards, flashcards model. Use for tasks assigned to review-engine in docs/tasks/.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: haiku
+effort: medium
 memory: project
 skills:
   - implementation-rules

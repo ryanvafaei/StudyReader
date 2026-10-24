@@ -3,6 +3,12 @@
   "model": "sonnet",
   "permissions": {
     "allow": [
+      "Bash(./scripts/check-fresh-clone.sh *)",
+      "Bash(./scripts/check-fresh-clone.sh)",
+      "Bash(./scripts/test.sh *)",
+      "Bash(./scripts/test.sh)",
+      "Bash(./scripts/build.sh *)",
+      "Bash(./scripts/build.sh)",
       "Bash(xcodegen *)",
       "Bash(xcodebuild *)",
       "Bash(xcrun *)",
@@ -23,8 +29,7 @@
       "Bash(rg *)",
       "Bash(wc *)",
       "Bash(head *)",
-      "Bash(tail *)",
-      "Bash(tee /tmp/studyreader-test.log)"
+      "Bash(tail *)"
     ],
     "deny": [
       "Bash(git push *)",
@@ -33,10 +38,23 @@
       "Bash(rm -rf *)",
       "Read(./Secrets/**)",
       "Read(./.env)",
-      "Read(./.env.*)"
+      "Read(./.env.*)",
+      "Edit(./scripts/**)",
+      "Write(./scripts/**)",
+      "Edit(./.claude/settings.json)",
+      "Write(./.claude/settings.json)"
     ]
   },
   "env": {
     "CLAUDE_CODE_FORK_SUBAGENT": "0"
+  },
+  "sandbox": {
+    "excludedCommands": [
+      "./scripts/build.sh",
+      "./scripts/build.sh *",
+      "./scripts/test.sh",
+      "./scripts/test.sh *",
+      "./scripts/check-fresh-clone.sh"
+    ]
   }
 }
