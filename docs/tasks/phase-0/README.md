@@ -55,7 +55,7 @@ Points of care:
 
 ### Second bug hunt fixes (from [`phase-0-second-pass.md`](../../bugs/phase-0-second-pass.md), 2026-10-24)
 
-Amended: ADR-0012 ("Dates in SQL" bullet), ARCHITECTURE §4 and §10.2, and ADR-0011 (test-host signals, L1 rewording). L1 (T27) and the `DateStorageTests` part of L7 (in T26) were planned by user decision. L2–L6 and the rest of L7 are in [`docs/bugs/backlog.md`](../../bugs/backlog.md).
+Amended: ADR-0012 ("Dates in SQL" bullet), ARCHITECTURE §4 and §10.2, and ADR-0011 (test-host signals, L1 rewording). L1 (T27) and the `DateStorageTests` part of L7 (in T26) were planned by user decision. Both tasks are committed. L2–L6, the rest of L7 and the T27 follow-up (T27-F1) are in [`docs/bugs/backlog.md`](../../bugs/backlog.md).
 
 | # | Task | Finding | Agent | Depends on | Visual check |
 |---|---|---|---|---|---|
@@ -108,4 +108,5 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - The T22 review noted that system SQLite `[logging]` output on open or migration failures can include SQL and the database path. It comes from the OS, not our logger. It's accepted and listed in the backlog, with no task.
 - The second Phase 0 bug hunt (2026-10-24, [`phase-0-second-pass.md`](../../bugs/phase-0-second-pass.md)) found 0 critical, 0 high, 1 medium and 7 low. Under the backlog policy, only M1 became a task, because it gets more expensive later: every date filter in Phases 1–3 builds on it. T26 adds `Date.databaseUnixSeconds` and guard tests, and ADR-0012 now forbids binding a bare `Date` in SQL. L1–L7 went to the backlog, each with a "revisit when" trigger.
 - Later on 2026-10-24 the user decided to plan two backlog items now. L1 became T27: three independent test-host signals (Xcode's XCTest variables, `STUDYREADER_IN_MEMORY` from the `project.yml` test action, and the injected XCTest library) are read once in `StudyReaderApp.init()`, before any library opens. Any one of them selects the in-memory library, and each has its own guard test. ADR-0011 was reworded: the old guard only reported a broken detection after the real library had been opened. The `DateStorageTests` part of L7 was folded into T26 (`recordRoundTripIsExact` now ends with `FTSIntegrity.check`). The rest of L7 stays in the backlog.
+- T26 and T27 are committed. L1 and the `DateStorageTests` part of L7 were removed from the backlog. The T27 follow-up went to the backlog as T27-F1 (low): check once in Console that a normal launch doesn't log "Using the in-memory library", and find out whether Xcode Previews run `live()`, since they aren't guarded. Revisit before Phase 1 import work.
 - Bug-hunt policy from Phase 1 on: see [`docs/bugs/backlog.md`](../../bugs/backlog.md).

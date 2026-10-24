@@ -14,14 +14,15 @@ None. All Phase 0 findings (H1, M1–M5, L1–L7 in [`phase-0.md`](phase-0.md)) 
 
 - **T22-R1. System SQLite logging can include SQL and the database path.** Severity: low. Source: the T22 code review ([T22 spec](../tasks/phase-0/T22-app-database-error.md)). On open or migration failures, the OS SQLite library prints `[logging]` lines that can contain the failing SQL and the library file's path. This output comes from the OS, not our logger, so our no-PII logging rule (ARCHITECTURE §14) can't control it. Deferred: it only reaches the local console and unified log, the UI never shows it (T23), and no task is planned.
 
+## T27 follow-up
+
+- **T27-F1. Check that a normal launch doesn't pick the in-memory library, and whether Xcode Previews are guarded.** Severity: low. Source: [T27 spec](../tasks/phase-0/T27-test-host-guard-before-live-open.md). Verify once in Console that a normal launch (Xcode Run / Finder) does not log "Using the in-memory library" (subsystem app category, `Log.app` in `AppLaunchModel.swift`). Xcode Previews are not guarded (unverified whether they run `live()`). Deferred: the T27 tests cover only the test host, and both checks are manual (a Console run, a Preview run); no task is planned.
+  - Revisit when: before Phase 1 import work.
+
 ## Phase 0 second pass
 
-Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, is fixed by T26. On 2026-10-24 the user also decided to plan L1 now (T27) and to fold the `DateStorageTests` part of L7 into T26. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
+Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, was fixed by T26. By user decision on 2026-10-24, L1 was fixed by T27 and the `DateStorageTests` part of L7 by T26; both are committed and removed here. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
 
-- **L1. Test-host guard only detects broken detection after the real library was opened.** **Planned: [T27](../tasks/phase-0/T27-test-host-guard-before-live-open.md)** (three independent signals read at launch, ADR-0011 reworded). Remove this entry when T27 is committed. Severity: low. [Report](phase-0-second-pass.md#l1-the-test-host-guard-detects-a-broken-detection-only-after-the-host-has-already-opened-the-real-library-and-adr-0011-says-the-opposite). If Xcode's XCTest environment variables change, the test host's `LaunchView` runs `live()` and migrates the real library before `hostedProcessIsDetected` fails, and ADR-0011 wrongly says it "fails a test instead of opening the real library".
-  - Suggested fix: in `AppEnvironment.defaultFactory`, add a second, independent signal checked before `live()` (`NSClassFromString("XCTestCase") != nil` or a loaded `.xctest` bundle in `Bundle.allBundles`), plus a test for it. Reword ADR-0011 line 19 to match what the code guarantees.
-  - Suggested agent: ui-builder (code), architect (ADR-0011 wording).
-  - Revisit when: before Phase 1 starts, and at the latest before any `v3` migration is written. A broken detection would then apply an uncommitted `v3` to the user's library, and GRDB never reruns it.
 - **L2. `inMemory(now:)` uses the injected clock for temp-folder cleanup.** Severity: low. [Report](phase-0-second-pass.md#l2-inmemorynow-uses-the-injected-domain-clock-to-judge-folder-age-so-a-future-fixednow-deletes-the-folders-of-tests-that-are-still-running). A future `FixedNow` makes every existing `StudyReader-InMemory/<UUID>` folder look stale, so parallel tests lose their folders.
   - Suggested fix: compute the one-hour cleanup cutoff from the real wall clock or the folders' file-system dates, independent of the injected `Now`, or clean up only in `defaultFactory`. Add the report's failing test.
   - Suggested agent: ui-builder.
@@ -42,7 +43,7 @@ Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its onl
   - Suggested fix: in `AppDatabaseError.wrap`, map FULL and IOERR to a disk-space case at both stages, and map BUSY and LOCKED to a "close other copies of StudyReader" suggestion. Test each mapping with `DatabaseError(resultCode:)`.
   - Suggested agent: data-layer.
   - Revisit when: before first release. If L5 is fixed first, do both in one task, since both add `AppDatabaseError` cases and user texts.
-- **L7. Some tests that write FTS-indexed tables don't end with `FTSIntegrity.check`.** Severity: low. **Partly covered: the `DateStorageTests/recordRoundTripIsExact` part is in [T26](../tasks/phase-0/T26-date-query-arguments.md)** (user decision 2026-10-24); when T26 is committed, drop `DateStorageTests` from this entry. [Report](phase-0-second-pass.md#l7-several-tests-that-write-fts-indexed-tables-dont-end-with-ftsintegritycheck-although-architecture-15-says-every-one-does). Still open: `UpsertConventionTests`, `ReviewExportRecordTests` and `RecordCodingTests` break the ARCHITECTURE §15 rule. A manual check found the index consistent.
+- **L7. Some tests that write FTS-indexed tables don't end with `FTSIntegrity.check`.** Severity: low. [Report](phase-0-second-pass.md#l7-several-tests-that-write-fts-indexed-tables-dont-end-with-ftsintegritycheck-although-architecture-15-says-every-one-does). `UpsertConventionTests`, `ReviewExportRecordTests` and `RecordCodingTests` break the ARCHITECTURE §15 rule. A manual check found the index consistent. (The `DateStorageTests` part was fixed by [T26](../tasks/phase-0/T26-date-query-arguments.md).)
   - Suggested fix: add `try FTSIntegrity.check(db)` at the end of the write closures in those three suites. Don't narrow the ARCHITECTURE sentence.
   - Suggested agent: data-layer.
   - Revisit when: opportunistic, for example the next task that touches one of those test files. Phase 1 specs that write FTS tables must keep requiring the check.
