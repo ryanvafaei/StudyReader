@@ -2,7 +2,7 @@
 - [Model value types notes](model-value-types-notes.md) — column enums, Anchor, JSON column value types: files and Codable pitfalls
 - [Database schema v1 notes](database-schema-v1-notes.md) — AppDatabase/SchemaV1 layout, GRDB FTS5 usage, Row/#expect test pitfalls
 - [Record types notes](record-types-notes.md) — GRDB record structs, StudyRecord date-strategy requirement form, capture pitfalls (T05)
-- [Repository pattern notes](repository-pattern-notes.md) — CategoryRepository/DocumentRepository pattern, GRDB ValueObservation and #expect(throws) usage (T07)
+- [Repository pattern notes](repository-pattern-notes.md) — CategoryRepository/DocumentRepository pattern, observations, T34 delete/update pitfalls (FileStore UUID case)
 - [PDF fixture builder notes](pdf-fixture-builder-notes.md) — T09 PDFFixtureBuilder file locations, PDFKit font-trait API pitfalls
 - [Search tokenizer notes](search-tokenizer-notes.md) — T18 studyreader FTS5 tokenizer: files, registration, test approach
 - [Migration v2 notes](migration-v2-notes.md) — T19 v2 files, golden flow, #expect(try) and writes-in-read pitfalls

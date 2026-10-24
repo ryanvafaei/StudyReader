@@ -113,3 +113,4 @@ Check the `DocumentCategory` property names in `Core/Models/DocumentCategory.swi
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): APPROVED. 193 tests pass. Minor: some tests use different data than the spec; FTSIntegrity check missing at end of fetchByHash/observeUsageCounts.
