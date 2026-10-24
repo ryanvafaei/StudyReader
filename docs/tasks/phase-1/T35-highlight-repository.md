@@ -71,3 +71,5 @@ The browser query (filters, sorts, list items) is T68, in a separate file.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-24, code-reviewer (sonnet, medium): CHANGES REQUESTED. Tests miss spec assertions: AC2 ordering (3 keys + createdAt tie-break), highlight_fts check after updateNote and distinct updatedAt, updateColor step in observeForDocumentEmits, delete(id:) of a text highlight.
+- 2026-10-24, code-reviewer (sonnet, high): APPROVED. Tests now cover all four findings and would catch broken ordering/FTS re-index (judged by reading, no mutations); 199 tests pass.

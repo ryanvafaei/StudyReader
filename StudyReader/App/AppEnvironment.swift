@@ -8,6 +8,7 @@ struct AppEnvironment: Sendable {
     let now: any Now
     let categoryRepository: CategoryRepository
     let documentRepository: DocumentRepository
+    let highlightRepository: HighlightRepository
     let settingsStore: SettingsStore
     let sleeper: any Sleeper
 
@@ -26,6 +27,7 @@ struct AppEnvironment: Sendable {
         self.sleeper = sleeper
         self.categoryRepository = CategoryRepository(database: database)
         self.documentRepository = DocumentRepository(database: database)
+        self.highlightRepository = HighlightRepository(database: database)
     }
 
     /// The user's library: FileStore.applicationSupport(), then make(fileStore:now:settingsStore:) with `.standard()`.
