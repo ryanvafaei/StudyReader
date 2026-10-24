@@ -42,6 +42,7 @@ New ADRs: [0013 frozen migrations, schema goldens, v2](../../decisions/0013-sche
 | 21 | [T21 Storage-rounded dates](T21-storage-rounded-dates.md) | L4 | data-layer | T13 | no |
 | 22 | [T22 Typed `AppDatabaseError`](T22-app-database-error.md) | L3 (data) | data-layer | T19 | no |
 | 23 | [T23 Async launch off the main actor, safe error messages](T23-async-launch-and-error-message.md) | L2, L3 (UI) | ui-builder | T15, T22 | yes |
+| 24 | [T24 Give LaunchView a minimum size](T24-launch-view-minimum-size.md) | T23 visual check | ui-builder | T23 | yes |
 
 Run them in this order, one at a time. The order keeps files that several tasks touch in sequence: `AppEnvironment`/`AppLaunchModel` go T14 → T15 → T23, `AppDatabase.swift` goes T18 → T19 → T22, and `FileStoreTests` goes T14 → T20.
 
@@ -79,7 +80,7 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - Phase 0 has no SPEC feature ACs of its own. It prepares fixtures and types named by F-02, F-03, F-05, F-06, F-07, F-08, F-11, F-12 ACs in Phase 1.
 
 ## Phase done when
-- All 23 tasks are approved and committed (`TNN: <title>`).
+- All 24 tasks are approved and committed (`TNN: <title>`).
 - Full test suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes. The app launches, and its library is at migration `v2`.
 - bug-hunter has run, and its critical/high findings are fixed. Every bug-hunt finding (H1, M1–M5, L1–L7) is covered by T12–T23 (M3 in its narrowed, English-only scope).
 
@@ -89,4 +90,6 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 - T13–T23 fix M1–M5 and L1–L7. The user decided on 2026-10-24: a new `v2` migration (v1 stays frozen), fix everything now, and do the L6 renames.
 - M3 was narrowed on 2026-10-24 to English-only search (ligatures, soft hyphens). The Persian/Arabic cases in the bug report are intentionally not fixed.
 - T22 was re-planned on 2026-10-24 after a BLOCKED report. T18's tokenizer registration made GRDB `fatalError` on a damaged library. Now `prepareDatabase` reads `sqlite_master` before `db.add(tokenizer:)`, so damaged files throw `.damaged`. New tests: `corruptPagesAreReported`, `configurationThrowsOnDamagedFile`.
+- T24 was added on 2026-10-24 from the user's T23 visual check. `LaunchView` had no frame, so the loading and failed states and both previews rendered tiny, and the "Failed" preview showed only a truncated title. T24 adds a 700 × 450 minimum on the view's root and leaves scene sizing alone.
+- The T22 review noted that system SQLite `[logging]` output on open or migration failures can include SQL and the database path. It comes from the OS, not our logger. It's accepted and listed in the backlog, with no task.
 - Bug-hunt policy from Phase 1 on: see [`docs/bugs/backlog.md`](../../bugs/backlog.md).

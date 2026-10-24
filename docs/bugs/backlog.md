@@ -9,3 +9,7 @@ Each entry: finding ID and title, severity, link to the bug report section, one 
 ## Phase 0
 
 None. All Phase 0 findings (H1, M1–M5, L1–L7 in [`phase-0.md`](phase-0.md)) were planned as fix tasks T12–T23 before this policy existed. M3 was narrowed to English-only search (ADR-0014); its Persian/Arabic cases were dropped deliberately, not deferred.
+
+## T22 review
+
+- **T22-R1. System SQLite logging can include SQL and the database path.** Severity: low. Source: the T22 code review ([T22 spec](../tasks/phase-0/T22-app-database-error.md)). On open or migration failures, the OS SQLite library prints `[logging]` lines that can contain the failing SQL and the library file's path. This output comes from the OS, not our logger, so our no-PII logging rule (ARCHITECTURE §14) can't control it. Deferred: it only reaches the local console and unified log, the UI never shows it (T23), and no task is planned.

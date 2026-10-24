@@ -550,6 +550,7 @@ struct ReviewScheduler: Sendable {
 
 - Domain errors are typed enums per service (`ImportError`, `ExportError`, …) with user-facing messages via `LocalizedError`.
 - Opening the library throws `AppDatabaseError` (`folderUnavailable`, `cannotOpen`, `damaged`, `migrationFailed`). The launch screen shows only its `errorDescription` and `recoverySuggestion`, and a generic message for any other error. Raw `DatabaseError` text (which can contain SQL) is never shown to the user.
+- Known and accepted for now: on open or migration failures, the system SQLite library's own `[logging]` output (in the Xcode console and unified log) can include the failing SQL and the database file path. It comes from the OS, not from our `Log`/`os.Logger` calls (see `docs/bugs/backlog.md`).
 - UI shows errors as inline banners or alerts; background failures surface in the item's status (e.g., library item "Text extraction failed — Retry").
 - `os.Logger(subsystem: Bundle.main.bundleIdentifier!, category: <feature>)`. No PII: never log highlight text, notes, file contents, tokens, or emails.
 
