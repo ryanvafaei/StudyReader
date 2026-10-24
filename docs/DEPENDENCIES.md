@@ -72,6 +72,7 @@ Needed before export works; the app builds and runs without it.
    GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.<client id>
    ```
 6. In `project.yml`, set `DEVELOPMENT_TEAM` to your Apple team ID (a free Apple ID "Personal Team" works for running locally). GoogleSignIn needs a signed app with a Keychain access group.
+   - The user's team ID is **`597KGSTZWJ`** (ADR-0011). Phases 0–1 stay ad-hoc signed; `DEVELOPMENT_TEAM` is **not** set until E1.8. The E1.8 sign-in task sets `DEVELOPMENT_TEAM: 597KGSTZWJ` together with `keychain-access-groups`.
 
 Source: [Google Sign-In for iOS and macOS: get started](https://developers.google.com/identity/sign-in/ios/start-integrating) (iOS client type for macOS, `GIDClientID`, reversed client ID URL scheme, keychain access group).
 

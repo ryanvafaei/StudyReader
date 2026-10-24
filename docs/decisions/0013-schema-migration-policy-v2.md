@@ -4,7 +4,7 @@
 - Date: 2026-10-24 (from bug hunt `docs/bugs/phase-0.md` M1, M2, L5; user decision 2026-10-24)
 
 ## Context
-Migration `v1` is applied on the user's real library (0 documents). GRDB never reruns an applied migration, so editing `SchemaV1` passes every test on fresh databases while the user's database keeps the old schema. The bug hunt found missing FK indexes (M2), a tokenizer that fails Persian/Arabic search (M3, ADR-0014), and FTS update triggers that re-index on every `UPDATE` (L5). The user chose a new `v2` migration and keeping `v1` unchanged.
+Migration `v1` is applied on the user's real library (0 documents). GRDB never reruns an applied migration, so editing `SchemaV1` passes every test on fresh databases while the user's database keeps the old schema. The bug hunt found missing FK indexes (M2), a tokenizer that misses ligature and soft-hyphen text from PDFs (M3, ADR-0014; English-only scope), and FTS update triggers that re-index on every `UPDATE` (L5). The user chose a new `v2` migration and keeping `v1` unchanged.
 
 ## Decision
 - **A migration is frozen as soon as its task is committed** (the user may launch the app at any time after a commit). Corrections always go into a new migration. `SchemaV1` and, once T19 is committed, `SchemaV2` are frozen.

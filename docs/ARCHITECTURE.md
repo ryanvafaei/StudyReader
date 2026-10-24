@@ -92,7 +92,7 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: YES
-    DEVELOPMENT_TEAM: ""                # user sets their (free) Apple team ID; needed for keychain
+    DEVELOPMENT_TEAM: ""                # stays "" until E1.8, which sets 597KGSTZWJ (ADR-0011); needed for keychain
 packages:
   GRDB:          { url: https://github.com/groue/GRDB.swift,                 from: 7.11.1 }
   swift-markdown: { url: https://github.com/swiftlang/swift-markdown,         from: 0.9.0 }
@@ -127,6 +127,7 @@ Entitlements:
 - `com.apple.security.files.user-selected.read-only` = true
 - `com.apple.security.network.client` = true
 - `keychain-access-groups` = [`$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)`] (first item; required by GoogleSignIn on macOS). Added in Phase 1 E1.8 together with `DEVELOPMENT_TEAM`, not in Phase 0 (ADR-0011).
+- Signing (ADR-0011): the user's Apple team ID is **`597KGSTZWJ`**. Phases 0–1 stay ad-hoc signed (`CODE_SIGN_IDENTITY = "-"`, `DEVELOPMENT_TEAM = ""`) until E1.8. The E1.8 sign-in task is the first and only task that sets `DEVELOPMENT_TEAM: 597KGSTZWJ` in `project.yml`; no earlier task sets it.
 
 Info.plist additions:
 - `GIDClientID` = `$(GOOGLE_CLIENT_ID)`
@@ -313,7 +314,7 @@ CREATE TABLE highlightEmbedding (
   sourceHash TEXT NOT NULL);                  -- SHA-256 of embedded text, to detect staleness
 ```
 
-Full-text search uses FTS5 external-content tables with tokenizer `studyreader` (ADR-0014). `studyreader` is a GRDB wrapper around `unicode61 remove_diacritics 2` that keeps ZWNJ and Arabic marks inside words, then normalizes each token: NFKC, strip joiners and marks, fold Arabic yeh/kaf to the Persian letters, lowercase. The tokenizer is registered on every connection in `AppDatabase.makeConfiguration()`. Since `v2`, hand-written triggers `<fts>_ai`, `<fts>_ad` and `<fts>_au` keep the tables in sync. The update trigger fires only `AFTER UPDATE OF` the indexed columns (ADR-0013). `v1` created these tables with `unicode61` and GRDB `synchronize(withTable:)` triggers, and `v2` dropped and rebuilt them.
+Full-text search uses FTS5 external-content tables with tokenizer `studyreader` (ADR-0014). `studyreader` is a GRDB wrapper around `unicode61 remove_diacritics 2` that keeps the soft hyphen (U+00AD) inside words, then normalizes each token: NFKC (unfolds ligatures such as ﬁ), remove soft hyphens, lowercase. It is English-only; Persian/Arabic folding was deliberately left out and would need a new tokenizer version and migration. The tokenizer is registered on every connection in `AppDatabase.makeConfiguration()`. Since `v2`, hand-written triggers `<fts>_ai`, `<fts>_ad` and `<fts>_au` keep the tables in sync. The update trigger fires only `AFTER UPDATE OF` the indexed columns (ADR-0013). `v1` created these tables with `unicode61` and GRDB `synchronize(withTable:)` triggers, and `v2` dropped and rebuilt them.
 - `documentText_fts(text)` ← `documentText`
 - `highlight_fts(text, editedText, note)` ← `highlight`
 - `documentNote_fts(body)` ← `documentNote`
@@ -428,7 +429,7 @@ Front matter is stripped before parsing; `title`/`author` returned separately.
 ## 8. Search
 
 - `SearchQueryParser` converts user input to an FTS5 MATCH expression: bare words → `"word"` (AND-joined); `word*` → `"word"*`; `"exact phrase"` kept; `-word` → `NOT "word"`. All user text is quoted/escaped; never interpolate raw input.
-- The parser does no Unicode normalization. FTS5 runs MATCH strings through the `studyreader` tokenizer, so `میخواهم` matches `می‌خواهم`, `کتاب` matches `كتاب`/`كِتَاب`, and `cafe` matches `café` (ADR-0014). `snippet()` returns the original stored text.
+- The parser does no Unicode normalization. FTS5 runs MATCH strings through the `studyreader` tokenizer, so `photosynthesis` matches `photo\u{00AD}synthesis` (soft hyphen), `find` matches `ﬁnd` (ligature), and `cafe` matches `Café` (ADR-0014). `snippet()` returns the original stored text.
 - `SearchService.search(query, filters, limit)` runs four FTS queries (documentText, highlight, documentNote, document), each with `bm25()` ranking and `snippet(…, '**', '**', '…', 12)`, joins to apply filters (tag, category, file type), and returns grouped results with locations:
   - documentText hit → (documentId, pageIndex / unitIndex)
   - highlight hit → (documentId, highlightId)

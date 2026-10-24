@@ -446,6 +446,8 @@ Each phase ends with all its AC passing, bug-hunter run, and critical/high bugs 
 | E1.7 Highlights browser | F-13 (without Similar/Mastery) | ui-builder |
 | E1.8 Google export | F-21 | integrations, ui-builder |
 
+E1.8 signing note (ADR-0011): Apple team ID **`597KGSTZWJ`**. Phases 0–1 stay ad-hoc signed and `DEVELOPMENT_TEAM` is not set before E1.8. E1.8's sign-in task sets `DEVELOPMENT_TEAM: 597KGSTZWJ` and adds `keychain-access-groups`.
+
 Done when: import a lecture PDF, highlight it, add notes/tags, search it, export highlights to a Google Doc, and add that Doc to Gemini Notebook.
 
 ### Phase 2 — Review

@@ -1,2 +1,2 @@
-- [Project conventions](project_conventions.md) — names (HighlightAnchor, ReviewCardState), ADR-0011..0014 rules: migrations, studyreader FTS, dates, IDs, DI, tests
+- [Project conventions](project_conventions.md) — names, ADR-0011..0014 rules: migrations, English-only studyreader FTS, team ID, backlog policy, tests
 - [Phase status](project_phase_status.md) — phases planned (Phase 0 T01–T23), deferred items, open user questions

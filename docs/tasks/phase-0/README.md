@@ -36,7 +36,7 @@ New ADRs: [0013 frozen migrations, schema goldens, v2](../../decisions/0013-sche
 | 15 | [T15 Guard test-host detection, add `-StudyReaderInMemory`](T15-test-host-detection-guard.md) | M4 | ui-builder | T14 | no |
 | 16 | [T16 Schema golden for v1 and populated v1 fixture database](T16-schema-goldens-and-v1-fixture.md) | M1 | data-layer | T14 | no |
 | 17 | [T17 FTS integrity helper and REPLACE conflict-policy guard](T17-fts-integrity-and-conflict-guard.md) | M5 | data-layer | T16 | no |
-| 18 | [T18 `studyreader` FTS5 tokenizer (Persian/Arabic)](T18-search-tokenizer.md) | M3 (1/2) | data-layer | T17 | no |
+| 18 | [T18 `studyreader` FTS5 tokenizer (ligatures, soft hyphens; English-only)](T18-search-tokenizer.md) | M3 (1/2) | data-layer (model sonnet, effort high) | T17 | no |
 | 19 | [T19 Migration v2: FK indexes, tokenizer FTS tables, filtered triggers](T19-migration-v2.md) | M2, M3 (2/2), L5 | data-layer | T16, T17, T18 | no |
 | 20 | [T20 FileStore validates IDs, extensions, relative paths](T20-filestore-path-validation.md) | L1 | data-layer | T14 | no |
 | 21 | [T21 Storage-rounded dates](T21-storage-rounded-dates.md) | L4 | data-layer | T13 | no |
@@ -48,7 +48,8 @@ Run them in this order, one at a time. The order keeps files that several tasks 
 Points of care:
 - **T19 changes the user's real library** on the next app launch (v1 → v2). That is the intended upgrade. After T19 is committed, `SchemaV2` is frozen. Any later schema fix needs `v3`.
 - T16 and T19 generate golden files from test output (`Fixtures/schema/v1.sql`, `v2.sql`). The implementer reads the `*.actual.sql` path printed by the failing test (under the app container's `tmp`). Goldens are never hand-written or regenerated after commit.
-- T18 is the riskiest Haiku task: a GRDB custom FTS5 tokenizer class under Swift 6. If it's rejected twice, the escalation rule moves it to Sonnet.
+- T18 (a GRDB custom FTS5 tokenizer class under Swift 6) runs as data-layer with model `sonnet` and effort `high` from the first call (user decision 2026-10-24). Treat it as escalated: review it with code-reviewer effort `high`, and if it's rejected twice, stop and ask the user.
+- Search is English-only (ADR-0014, user decision 2026-10-24): the tokenizer handles NFKC (ligatures), soft hyphens, case and Latin diacritics. Persian/Arabic folding was deliberately dropped; adding it later needs a new tokenizer version and migration.
 
 ## Module map after Phase 0
 
@@ -65,7 +66,7 @@ StudyReader/Core/Database/       AppDatabase, AppDatabaseError, SchemaV1 (frozen
 StudyReader/Core/Repositories/   CategoryRepository, DocumentRepository
 StudyReader/Resources/           Info.plist + StudyReader.entitlements (generated), Localizable.xcstrings, Assets.xcassets
 StudyReaderTests/Support/        FixedNow, TestFileStore (+ remove), TestData, PDFFixtureBuilder, MarkdownFixtures,
-                                 SchemaSnapshot, V1FixtureDatabase, FTSIntegrity, ArabicScriptSamples
+                                 SchemaSnapshot, V1FixtureDatabase, FTSIntegrity, SearchSamples
 StudyReaderTests/Fixtures/       markdown/*.md, schema/v1.sql, schema/v2.sql  (folder reference; private/ is git-ignored)
 StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 ```
@@ -80,9 +81,11 @@ StudyReaderTests/AppTests/, CoreTests/, SupportTests/
 ## Phase done when
 - All 23 tasks are approved and committed (`TNN: <title>`).
 - Full test suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes. The app launches, and its library is at migration `v2`.
-- bug-hunter has run, and its critical/high findings are fixed. Every bug-hunt finding (H1, M1–M5, L1–L7) is covered by T12–T23.
+- bug-hunter has run, and its critical/high findings are fixed. Every bug-hunt finding (H1, M1–M5, L1–L7) is covered by T12–T23 (M3 in its narrowed, English-only scope).
 
 ## Fix history
 - T11 (bundle version) shipped.
 - T12 fixes bug hunt H1. ADR-0012 was amended first, so T12 has tests only.
 - T13–T23 fix M1–M5 and L1–L7. The user decided on 2026-10-24: a new `v2` migration (v1 stays frozen), fix everything now, and do the L6 renames.
+- M3 was narrowed on 2026-10-24 to English-only search (ligatures, soft hyphens). The Persian/Arabic cases in the bug report are intentionally not fixed.
+- Bug-hunt policy from Phase 1 on: see [`docs/bugs/backlog.md`](../../bugs/backlog.md).

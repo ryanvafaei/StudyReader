@@ -1,17 +1,18 @@
-# T18: `studyreader` FTS5 tokenizer for Persian and Arabic search
+# T18: `studyreader` FTS5 tokenizer (ligatures, soft hyphens, case, diacritics)
 
-- **Phase:** 0 (fix from bug hunt `docs/bugs/phase-0.md` M3, part 1 of 2)
+- **Phase:** 0 (fix from bug hunt `docs/bugs/phase-0.md` M3, part 1 of 2; scope narrowed to English-only, user decision 2026-10-24)
 - **Agent:** data-layer
+- **Model / effort:** sonnet, high (user decision for this task; pass both on the first call. It already runs as escalated: review it with code-reviewer effort high, and after two rejections stop and ask the user)
 - **Depends on:** T17
-- **ADRs:** docs/decisions/0014-search-tokenizer-persian-arabic.md (read it in full), docs/decisions/0012-data-layer-conventions.md
+- **ADRs:** docs/decisions/0014-search-tokenizer-persian-arabic.md (read it in full; despite the file name it is English-only), docs/decisions/0012-data-layer-conventions.md
 - **Visual check needed:** no
 
 ## Goal
 Add the custom FTS5 tokenizer from ADR-0014 and register it on every database connection. After this task, an FTS table created with `tokenize='studyreader'` matches:
-- `میخواهم` against `می‌خواهم`;
-- `کتاب` against `كتاب`, `كِتَاب`, `ﻛﺘﺎﺏ` and `کتـاب`;
-- `علی` against `علي` and `على`.
-Latin diacritic folding keeps working. The real FTS tables switch to this tokenizer in T19 (migration v2). This task doesn't touch the schema.
+- `photosynthesis` against `photo\u{00AD}synthesis` (soft hyphen U+00AD);
+- `find` against `ﬁnd` (ligature U+FB01) and `flow` against `ﬂow` (U+FB02);
+- `resume` and `RESUME` against `Résumé` (precomposed) and `résumé` (decomposed, NFD).
+The real FTS tables switch to this tokenizer in T19 (migration v2). This task doesn't touch the schema. There is no Persian/Arabic folding (ADR-0014).
 
 Read first: ADR-0014, and the GRDB sources (read-only, already checked out):
 - `build/SourcePackages/checkouts/GRDB.swift/GRDB/FTS/FTS5WrapperTokenizer.swift`;
@@ -28,17 +29,15 @@ Read first: ADR-0014, and the GRDB sources (read-only, already checked out):
 /// Token normalization for full-text search (ADR-0014). Index text and MATCH queries both pass through it.
 /// Changing anything here changes the index format: it needs a new migration that rebuilds all FTS tables.
 enum SearchTokenNormalizer {
-    /// Kept inside tokens by unicode61, then removed by normalize(_:):
-    /// U+00AD soft hyphen, U+0640 tatweel, U+064B…U+065F Arabic marks, U+0670 superscript alef, U+200C ZWNJ.
-    static let joinerScalars: [Unicode.Scalar]
+    /// Kept inside tokens by unicode61, then removed by normalize(_:): U+00AD soft hyphen.
+    static let joinerScalars: [Unicode.Scalar] = ["\u{00AD}"]
 
     /// joinerScalars as one String, for the unicode61 `tokenchars` argument.
     static var tokenCharacters: String { get }   // String(String.UnicodeScalarView(joinerScalars))
 
-    /// 1. NFKC (`precomposedStringWithCompatibilityMapping`).
-    /// 2. Drop every scalar that is in joinerScalars or has `properties.isWhitespace`.
-    /// 3. Map U+064A → U+06CC, U+0649 → U+06CC, U+0643 → U+06A9, U+06C0 → U+0647.
-    /// 4. lowercased().
+    /// 1. NFKC (`precomposedStringWithCompatibilityMapping`), which unfolds ligatures (U+FB01 → "fi").
+    /// 2. Drop every scalar that is in joinerScalars.
+    /// 3. lowercased().
     /// Returns "" when nothing is left.
     static func normalize(_ token: String) -> String
 }
@@ -67,7 +66,7 @@ final class SearchTokenizer: FTS5WrapperTokenizer {
     }
 }
 ```
-Build `joinerScalars` from the code points in the comment. Use `Unicode.Scalar(UInt32)!` only on these constant literals, or build the range with `(0x064B...0x065F).compactMap(Unicode.Scalar.init)`. Keep them in ascending order.
+Don't add any other normalization step (no whitespace stripping, no diacritic stripping in Swift, no script-specific folding). unicode61 already removes Latin diacritics before `accept` is called.
 
 `AppDatabase.makeConfiguration()` adds, before `return`:
 ```swift
@@ -77,45 +76,41 @@ configuration.prepareDatabase { db in
 ```
 Every connection gets the tokenizer: the pool writer, pool readers, in-memory queues, and test queues built with `makeConfiguration()`. Don't change anything else in `AppDatabase`.
 
-If Swift 6 strict concurrency complains about the class or the `prepareDatabase` closure, don't add `@unchecked Sendable` or `nonisolated(unsafe)`. Report BLOCKED with the exact diagnostic.
+If Swift 6 strict concurrency complains about the class or the `prepareDatabase` closure, don't add `@unchecked Sendable` or `nonisolated(unsafe)`. Report BLOCKED with the exact diagnostic. If a test below fails because unicode61 itself doesn't behave as described (for example the NFD row), don't change the normalizer to compensate. Report BLOCKED with the actual tokens.
 
 ## Tests (`@Suite struct SearchTokenizerTests`, filter `StudyReaderTests/SearchTokenizerTests`)
-Use the `ArabicScriptSamples` constants from T16 (`S` below). Never type Arabic-script literals.
+Use the `SearchSamples` constants from T16 (`S` below). Never type ligatures, soft hyphens or combining marks as literal characters; use the constants or `\u{...}` escapes.
 
 Normalizer unit tests:
-- `normalizeStripsZWNJ`: `normalize(S.wantWithZWNJ) == S.wantWithoutZWNJ`.
-- `normalizeStripsHarakatAndTatweel`: `normalize(S.bookWithHarakat) == S.bookPersian` and `normalize(S.bookWithTatweel) == S.bookPersian`.
-- `normalizeFoldsArabicYehAndKaf`:
-  - `normalize(S.bookArabicKaf) == S.bookPersian`;
-  - `normalize(S.aliArabicYeh) == S.aliPersianYeh`;
-  - `normalize(S.aliAlefMaksura) == S.aliPersianYeh`.
-- `normalizeMapsPresentationFormsAndLigatures`: `normalize(S.bookPresentationForms) == S.bookPersian` and `normalize("\u{FB01}nd") == "find"`.
-- `normalizeKeepsPlainTokens`: `normalize("resume") == "resume"`, `normalize(S.bookPersian) == S.bookPersian`, `normalize("42") == "42"`.
-- `normalizeDropsMarkOnlyTokens`: `normalize("\u{200C}") == ""`, `normalize("\u{064E}") == ""`, `normalize("") == ""`.
-- `tokenCharactersListsJoiners`: `SearchTokenNormalizer.tokenCharacters.unicodeScalars.map(\.value)` is `[0x00AD, 0x0640] + Array(0x064B...0x065F) + [0x0670, 0x200C]`.
+- `normalizeUnfoldsLigatures`: `normalize(S.findLigature) == "find"` and `normalize(S.flowLigature) == "flow"`.
+- `normalizeRemovesSoftHyphen`: `normalize(S.photosynthesisSoftHyphen) == S.photosynthesisPlain`.
+- `normalizeLowercases`: `normalize("ATP") == "atp"` and `normalize("\u{FB01}ND") == "find"` (lowercasing runs after NFKC).
+- `normalizeComposesButKeepsDiacritics`: `normalize(S.resumeDecomposed) == "r\u{00E9}sum\u{00E9}"`. Diacritic removal is unicode61's job, not the normalizer's; this pins NFKC composition.
+- `normalizeKeepsPlainTokens`: `normalize("resume") == "resume"`, `normalize(S.photosynthesisPlain) == S.photosynthesisPlain`, `normalize("42") == "42"`.
+- `normalizeDropsSoftHyphenOnlyTokens`: `normalize("\u{00AD}") == ""`, `normalize("\u{00AD}\u{00AD}") == ""`, `normalize("") == ""`.
+- `tokenCharactersListsJoiners`: `SearchTokenNormalizer.tokenCharacters.unicodeScalars.map(\.value) == [0x00AD]`.
 
 FTS behaviour tests use a scratch table in `AppDatabase.makeInMemory()`:
 ```sql
 CREATE VIRTUAL TABLE sample_fts USING fts5(body, tokenize='studyreader')
 ```
 Insert rows with `INSERT INTO sample_fts(rowid, body) VALUES (?, ?)`. Match with `SELECT rowid FROM sample_fts WHERE sample_fts MATCH ? ORDER BY rowid`. Pass the query as an argument wrapped in double quotes (`"\"" + term + "\""`), the same way `SearchQueryParser` will quote words.
-- `persianQueryMatchesArabicFormsAndZWNJ`: row 1 = `S.bookArabicKaf + " " + S.wantWithZWNJ`. Queries `S.bookPersian`, `S.wantWithoutZWNJ` and `S.wantWithZWNJ` each return `[1]`. This is the M3 failing test.
-- `variantsAllMatchPersianQuery`: rows 1…4 = `S.bookWithHarakat`, `S.bookPresentationForms`, `S.bookWithTatweel`, `S.bookPersian`. Query `S.bookPersian` returns `[1, 2, 3, 4]`. Query `S.bookArabicKaf` also returns `[1, 2, 3, 4]`.
-- `yehVariantsMatch`: rows 1…3 = `S.aliArabicYeh`, `S.aliAlefMaksura`, `S.aliPersianYeh`. Query `S.aliPersianYeh` returns `[1, 2, 3]`.
-- `prefixQueryIsNormalized`: row 1 = `S.wantWithZWNJ`. The query string `"\"" + S.wantPrefix + "\"*"` returns `[1]`.
+- `softHyphenatedWordMatchesTypedWord`: row 1 = `S.photosynthesisSoftHyphen + " occurs in chloroplasts"`. Queries `S.photosynthesisPlain`, `"PHOTOSYNTHESIS"` and `S.photosynthesisSoftHyphen` each return `[1]`. Query `"photo"` returns `[]` (the soft hyphen joins, it doesn't split). This is the M3 failing test.
+- `ligatureWordsMatchTypedWords`: row 1 = `S.findLigature + " the " + S.flowLigature`. Queries `"find"`, `"FIND"` and `"flow"` each return `[1]`.
+- `prefixQueryIsNormalized`: row 1 = `S.photosynthesisSoftHyphen`. The query string `"\"" + S.photosynthesisPrefix + "\"*"` returns `[1]`.
 - `latinBehaviourUnchanged`:
-  - row 1 = `"Café résumé"`, with `résumé` written as NFD: `"re\u{0301}sume\u{0301}"`;
-  - row 2 = `"\u{FB01}nd the answer"`.
-  - Queries `cafe`, `CAFE` and `resume` return `[1]`, and `find` returns `[2]`;
+  - row 1 = `"Caf\u{00E9} " + S.resumeDecomposed`;
+  - row 2 = `S.resumeCapitalPrecomposed + " answer"`.
+  - Queries `cafe` and `CAFE` return `[1]`; `resume` and `RESUME` return `[1, 2]`;
   - query `answer*`, written as `"\"answer\"*"`, returns `[2]`.
-- `snippetShowsOriginalText`: row 1 = `S.bookArabicKaf + " " + S.wantWithZWNJ`. `SELECT snippet(sample_fts, 0, '[', ']', '…', 8) FROM sample_fts WHERE sample_fts MATCH ?` with query `S.bookPersian` returns a string that contains `"[" + S.bookArabicKaf + "]"` and contains `S.wantWithZWNJ` unchanged.
-- `registeredOnPoolReaders`: `let store = TestFileStore.make(); defer { TestFileStore.remove(store) }`. Then `let database = try AppDatabase.makeShared(fileStore: store)`. In `database.writer.write`, create `sample_fts` and insert row 1 = `S.bookArabicKaf`. Then in `database.reader.read`, a pool reader connection, query `S.bookPersian` and get `[1]`.
+- `snippetShowsOriginalText`: row 1 = `S.findLigature + " " + S.photosynthesisSoftHyphen`. `SELECT snippet(sample_fts, 0, '[', ']', '…', 8) FROM sample_fts WHERE sample_fts MATCH ?` with query `S.photosynthesisPlain` returns a string that contains `"[" + S.photosynthesisSoftHyphen + "]"` and contains `S.findLigature` unchanged.
+- `registeredOnPoolReaders`: `let store = TestFileStore.make(); defer { TestFileStore.remove(store) }`. Then `let database = try AppDatabase.makeShared(fileStore: store)`. In `database.writer.write`, create `sample_fts` and insert row 1 = `S.photosynthesisSoftHyphen`. Then in `database.reader.read`, a pool reader connection, query `S.photosynthesisPlain` and get `[1]`.
 - `existingTablesUnaffected`: after `makeInMemory()`, `SchemaSnapshotTests`' v1 golden still matches. Call `try SchemaSnapshot.expectMatchesGolden(migration: "v1")`, which proves that registering the tokenizer doesn't change the schema.
 
 ## Acceptance criteria
-1. ZWNJ, harakat, tatweel, yeh/kaf forms, presentation forms and ligatures normalize as ADR-0014 specifies. → tests `SearchTokenizerTests/normalizeStripsZWNJ`, `normalizeStripsHarakatAndTatweel`, `normalizeFoldsArabicYehAndKaf`, `normalizeMapsPresentationFormsAndLigatures`, `normalizeKeepsPlainTokens`, `normalizeDropsMarkOnlyTokens`, `tokenCharactersListsJoiners`
-2. In an FTS table using `studyreader`, Persian-keyboard queries find Arabic-form and ZWNJ text. → tests `SearchTokenizerTests/persianQueryMatchesArabicFormsAndZWNJ`, `variantsAllMatchPersianQuery`, `yehVariantsMatch`, `prefixQueryIsNormalized`
-3. Latin search behaviour is unchanged, and the ligature folds. → test `SearchTokenizerTests/latinBehaviourUnchanged`
+1. Ligatures unfold, soft hyphens are removed, tokens are lowercased, and nothing else changes, as ADR-0014 specifies. → tests `SearchTokenizerTests/normalizeUnfoldsLigatures`, `normalizeRemovesSoftHyphen`, `normalizeLowercases`, `normalizeComposesButKeepsDiacritics`, `normalizeKeepsPlainTokens`, `normalizeDropsSoftHyphenOnlyTokens`, `tokenCharactersListsJoiners`
+2. In an FTS table using `studyreader`, typed words find soft-hyphenated and ligature text, including prefix queries. → tests `SearchTokenizerTests/softHyphenatedWordMatchesTypedWord`, `ligatureWordsMatchTypedWords`, `prefixQueryIsNormalized`
+3. Case-insensitive matching and Latin diacritic folding (precomposed and NFD) still work. → test `SearchTokenizerTests/latinBehaviourUnchanged`
 4. Snippets show the original stored text. → test `SearchTokenizerTests/snippetShowsOriginalText`
 5. The tokenizer is available on pool reader connections. → test `SearchTokenizerTests/registeredOnPoolReaders`
 6. The v1 schema is unchanged. → tests `SearchTokenizerTests/existingTablesUnaffected`, `SchemaSnapshotTests/v1IsFrozen`
@@ -124,7 +119,7 @@ Insert rows with `INSERT INTO sample_fts(rowid, body) VALUES (?, ?)`. Match with
 ## Out of scope
 - Changing the real FTS tables or adding migration `v2` (T19).
 - `SearchQueryParser` or `SearchService` (Phase 1). The parser doesn't normalize.
-- Folding alef forms, teh marbuta or digits (ADR-0014 "Not folded").
+- Any Persian/Arabic folding (ZWNJ, Arabic marks, letter forms). ADR-0014 dropped it deliberately; adding it later needs a new tokenizer version and migration.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->

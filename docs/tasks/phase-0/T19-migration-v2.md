@@ -3,7 +3,7 @@
 - **Phase:** 0 (fix from bug hunt `docs/bugs/phase-0.md` M2, M3 part 2, L5)
 - **Agent:** data-layer
 - **Depends on:** T16, T17, T18
-- **ADRs:** docs/decisions/0013-schema-migration-policy-v2.md (read it in full), docs/decisions/0014-search-tokenizer-persian-arabic.md, docs/decisions/0012-data-layer-conventions.md
+- **ADRs:** docs/decisions/0013-schema-migration-policy-v2.md (read it in full), docs/decisions/0014-search-tokenizer-persian-arabic.md (English-only despite the file name), docs/decisions/0012-data-layer-conventions.md
 - **Visual check needed:** no
 
 ## Goal
@@ -15,7 +15,7 @@ Add migration `v2`. It applies to the user's real library (now at `v1`, 0 docume
 
 `SchemaV1.swift` must not change. When this task is committed, `SchemaV2` is frozen too (ADR-0013).
 
-Read first: ADR-0013, `StudyReader/Core/Database/AppDatabase.swift`, `SchemaV1.swift` (read-only), `StudyReaderTests/Support/SchemaSnapshot.swift`, `V1FixtureDatabase.swift`, `FTSIntegrity.swift`, `ArabicScriptSamples.swift`.
+Read first: ADR-0013, `StudyReader/Core/Database/AppDatabase.swift`, `SchemaV1.swift` (read-only), `StudyReaderTests/Support/SchemaSnapshot.swift`, `V1FixtureDatabase.swift`, `FTSIntegrity.swift`, `SearchSamples.swift`.
 
 ## Files to touch
 - `StudyReader/Core/Database/SchemaV2.swift` (new)
@@ -138,7 +138,7 @@ Generate `Fixtures/schema/v2.sql` with T16's Step 3 procedure: add the test, run
 - change `registeredMigrationsInOrder` to `["v1", "v2"]`;
 - keep `v1IsFrozen`.
 
-`MigrationV2Tests` (`@Suite struct MigrationV2Tests`). Fresh databases use `AppDatabase.makeInMemory()`. Use `S` for `ArabicScriptSamples` and `F` for `V1FixtureDatabase`.
+`MigrationV2Tests` (`@Suite struct MigrationV2Tests`). Fresh databases use `AppDatabase.makeInMemory()`. Use `S` for `SearchSamples` and `F` for `V1FixtureDatabase`. Quote every MATCH term as `"\"" + term + "\""` (prefix queries as `"\"" + term + "\"*"`).
 - `foreignKeyLookupsUseIndexes`: for each pair, run `EXPLAIN QUERY PLAN <query>` and join the `detail` column of all rows. The result contains `"INDEX <name>"`. This matches both `USING INDEX` and `USING COVERING INDEX`.
   - `SELECT * FROM reviewLog WHERE cardId = 'x'` → `reviewLog_card`
   - `SELECT * FROM reviewLog WHERE themedReviewId = 'x'` → `reviewLog_themedReview`
@@ -154,28 +154,29 @@ Generate `Fixtures/schema/v2.sql` with T16's Step 3 procedure: add the test, run
   db.trace()   // stop tracing
   ```
   Expect no traced string to contain `document_fts_au` or `highlight_fts_au`. Then trace a second batch: `UPDATE document SET title = 'Renamed'` and `UPDATE highlight SET note = 'n'`. Each trigger name now appears in at least one traced string. Trigger invocations are traced as `-- TRIGGER <name>`. End with `FTSIntegrity.check`. `import Synchronization` for `Mutex`.
-- `persianSearchOnLiveTables` (M3 acceptance):
-  - Insert `TestData.document(author: S.aliArabicYeh)`, `TestData.highlight(documentId:, text: S.bookArabicKaf + " " + S.wantWithZWNJ)`, a `DocumentText` with text `S.bookWithHarakat`, and a `DocumentNote` with body `S.bookPresentationForms`.
-  - Each of these returns the row: `highlight_fts MATCH "\"" + S.bookPersian + "\""`, `highlight_fts MATCH` `S.wantWithoutZWNJ` (quoted the same way), `document_fts MATCH` `S.aliPersianYeh`, `documentText_fts MATCH` `S.bookPersian`, `documentNote_fts MATCH` `S.bookPersian`.
+- `foldedSearchOnLiveTables` (M3 acceptance):
+  - Insert `TestData.document(author: S.authorWithDiacritics)`, `TestData.highlight(documentId:, text: S.findLigature + " " + S.photosynthesisSoftHyphen)`, a `DocumentText` with text `S.resumeDecomposed`, and a `DocumentNote` with body `S.flowLigature`.
+  - Each of these returns the row: `highlight_fts MATCH` `"find"`, `highlight_fts MATCH` `S.photosynthesisPlain`, `highlight_fts MATCH` prefix `S.photosynthesisPrefix`, `document_fts MATCH` `"nunez"` and `"NUNEZ"`, `documentText_fts MATCH` `"resume"`, `documentNote_fts MATCH` `"flow"`.
   - End with `FTSIntegrity.check`.
 - `ftsStaysInSyncThroughWrites`: on a fresh database, insert, update (indexed and non-indexed columns) and delete rows in all four content tables through records. Cascade-delete a document. The FTS counts match what remains, and `FTSIntegrity.check` passes after each phase.
 - `upgradesPopulatedV1Database`:
   - `let queue = try F.make()`, then `let database = try AppDatabase(queue)`, which runs v2.
   - `appliedMigrations == ["v1", "v2"]`.
   - Every table in `F.expectedRowCounts` has the same count.
-  - `Highlight.fetchOne(db, key: F.highlightPersian)?.text == F.persianHighlightText`.
-  - Pre-existing rows are searchable:
-    - `highlight_fts` `S.bookPersian` → the rowid of `F.highlightPersian`;
+  - `Highlight.fetchOne(db, key: F.highlightMarkdown)?.text == F.markdownHighlightText`.
+  - Pre-existing rows are searchable with the new tokenizer (the first two and the fourth fail with the v1 tokenizer, so they prove the `'rebuild'` ran):
+    - `highlight_fts` `"find"` → the rowid of `F.highlightMarkdown`;
+    - `highlight_fts` `S.photosynthesisPlain` → the rowid of `F.highlightMarkdown`;
     - `highlight_fts` `"exam"` → the rowid of `F.highlightLatin` (note column);
+    - `documentText_fts` `S.photosynthesisPlain` → 2 rows (the PDF unit and the soft-hyphenated Markdown unit);
     - `documentText_fts` `"chloroplasts"` → 1 row;
-    - `documentText_fts` `S.wantWithoutZWNJ` → 1 row;
-    - `document_fts` `S.aliPersianYeh` → the rowid of `F.documentMarkdown`;
+    - `document_fts` `"nunez"` → the rowid of `F.documentMarkdown`;
     - `documentNote_fts` `"midterm"` → 1 row.
   - `FTSIntegrity.check` passes.
 - `upgradesOnDiskV1Library` (the user's path):
   - `let store = TestFileStore.make(); defer { TestFileStore.remove(store) }`, then `try F.makeOnDisk(fileStore: store)`.
   - `let database = try AppDatabase.makeShared(fileStore: store)`.
-  - applied is `["v1", "v2"]`, `PRAGMA journal_mode` is `wal`, and `highlight_fts` `S.bookPersian` returns 1 row through `database.reader.read`, a pool reader.
+  - applied is `["v1", "v2"]`, `PRAGMA journal_mode` is `wal`, and `highlight_fts` `"find"` returns 1 row through `database.reader.read`, a pool reader.
 - `deletingDocumentWithManyLogsCascades`: one document, one highlight, one card, 2,000 `reviewLog` rows (raw SQL in one transaction), then delete the document. `reviewLog` is empty, and `FTSIntegrity.check` passes. No timing assertion.
 
 `DatabaseMigrationTests/reopeningDoesNotRemigrate`: change `applied == ["v1"]` to `["v1", "v2"]`. Change nothing else in that file. The suite's display name "Database migration v1" stays.
@@ -184,7 +185,7 @@ Generate `Fixtures/schema/v2.sql` with T16's Step 3 procedure: add the test, run
 1. FK lookups on the four child columns use the new indexes. → test `MigrationV2Tests/foreignKeyLookupsUseIndexes`
 2. All four FTS tables use `studyreader`, and no GRDB sync triggers remain. → test `MigrationV2Tests/ftsTablesUseSearchTokenizer`
 3. Updating non-indexed columns doesn't fire FTS update triggers; updating indexed columns does. → test `MigrationV2Tests/metadataUpdatesDoNotReindex`
-4. Persian and Arabic-form queries find rows in all four live FTS tables. → test `MigrationV2Tests/persianSearchOnLiveTables`
+4. Typed queries find ligature, soft-hyphen, diacritic and mixed-case text in all four live FTS tables. → test `MigrationV2Tests/foldedSearchOnLiveTables`
 5. FTS stays consistent through inserts, updates, deletes and cascades. → test `MigrationV2Tests/ftsStaysInSyncThroughWrites`
 6. A populated v1 database upgrades with no data loss, and its existing rows are searchable with the new tokenizer, in memory and on disk (pool/WAL). → tests `MigrationV2Tests/upgradesPopulatedV1Database`, `MigrationV2Tests/upgradesOnDiskV1Library`
 7. A cascade over many review logs works. → test `MigrationV2Tests/deletingDocumentWithManyLogsCascades`

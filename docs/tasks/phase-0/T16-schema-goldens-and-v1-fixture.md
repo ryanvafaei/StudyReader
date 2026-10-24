@@ -10,46 +10,40 @@
 Migration `v1` is applied on the user's real library. Today, an edit to `SchemaV1` passes every test while the user's database never changes. This task:
 - pins the v1 schema with a golden dump and a test;
 - adds `V1FixtureDatabase`, a populated v1-only database built from frozen raw SQL, which T19 and later migrations use for upgrade tests;
-- adds `ArabicScriptSamples`, exact Persian/Arabic test strings used by T18 and T19.
+- adds `SearchSamples`, exact search test strings (ligatures, soft hyphens, diacritics) used by T18 and T19. App content is English-only for now (ADR-0014); there are no Persian/Arabic samples.
 
 Tests and test support only. **Don't edit any file in `StudyReader/`**, and in particular not `SchemaV1.swift`.
 
 ## Files to touch
 - `StudyReaderTests/Support/SchemaSnapshot.swift` (new)
 - `StudyReaderTests/Support/V1FixtureDatabase.swift` (new)
-- `StudyReaderTests/Support/ArabicScriptSamples.swift` (new)
+- `StudyReaderTests/Support/SearchSamples.swift` (new)
 - `StudyReaderTests/Fixtures/schema/v1.sql` (new; generated, see Step 3)
 - `StudyReaderTests/CoreTests/SchemaSnapshotTests.swift` (new)
 - `StudyReaderTests/CoreTests/V1FixtureDatabaseTests.swift` (new)
 
 `StudyReaderTests/Fixtures` is a folder reference (ADR-0011), so the new `schema/` subfolder is bundled without any `project.yml` change.
 
-## Step 1: `ArabicScriptSamples.swift` (copy exactly; escapes keep invisible and look-alike characters exact)
+## Step 1: `SearchSamples.swift` (copy exactly; escapes keep invisible and look-alike characters exact)
 ```swift
-/// Arabic-script test strings as Unicode escapes (ADR-0014). Never retype these as literal characters.
-enum ArabicScriptSamples {
-    /// کتاب, Persian kaf U+06A9 (Persian keyboard)
-    static let bookPersian = "\u{06A9}\u{062A}\u{0627}\u{0628}"
-    /// كتاب, Arabic kaf U+0643 (common in PDFs)
-    static let bookArabicKaf = "\u{0643}\u{062A}\u{0627}\u{0628}"
-    /// كِتَاب, Arabic kaf plus kasra U+0650 and fatha U+064E
-    static let bookWithHarakat = "\u{0643}\u{0650}\u{062A}\u{064E}\u{0627}\u{0628}"
-    /// ﻛﺘﺎﺏ, Arabic presentation forms (PDF text extraction)
-    static let bookPresentationForms = "\u{FEDB}\u{FE98}\u{FE8E}\u{FE8F}"
-    /// کتـاب with tatweel U+0640
-    static let bookWithTatweel = "\u{06A9}\u{062A}\u{0640}\u{0627}\u{0628}"
-    /// می‌خواهم with ZWNJ U+200C (8 UTF-16 units)
-    static let wantWithZWNJ = "\u{0645}\u{06CC}\u{200C}\u{062E}\u{0648}\u{0627}\u{0647}\u{0645}"
-    /// میخواهم typed without ZWNJ
-    static let wantWithoutZWNJ = "\u{0645}\u{06CC}\u{062E}\u{0648}\u{0627}\u{0647}\u{0645}"
-    /// میخ, a prefix of wantWithoutZWNJ
-    static let wantPrefix = "\u{0645}\u{06CC}\u{062E}"
-    /// علی, Persian yeh U+06CC
-    static let aliPersianYeh = "\u{0639}\u{0644}\u{06CC}"
-    /// علي, Arabic yeh U+064A
-    static let aliArabicYeh = "\u{0639}\u{0644}\u{064A}"
-    /// على, alef maksura U+0649
-    static let aliAlefMaksura = "\u{0639}\u{0644}\u{0649}"
+/// Search test strings as Unicode escapes (ADR-0014). Never retype these as literal characters.
+enum SearchSamples {
+    /// "photo\u{00AD}synthesis": a soft hyphen U+00AD after "photo", as PDFs store hyphenation points (15 UTF-16 units)
+    static let photosynthesisSoftHyphen = "photo\u{00AD}synthesis"
+    /// "photosynthesis" as typed (14 UTF-16 units)
+    static let photosynthesisPlain = "photosynthesis"
+    /// "photos", a prefix of photosynthesisPlain
+    static let photosynthesisPrefix = "photos"
+    /// "ﬁnd" with U+FB01 LATIN SMALL LIGATURE FI, common in PDF text extraction (3 UTF-16 units)
+    static let findLigature = "\u{FB01}nd"
+    /// "ﬂow" with U+FB02 LATIN SMALL LIGATURE FL (3 UTF-16 units)
+    static let flowLigature = "\u{FB02}ow"
+    /// "résumé" decomposed (NFD): "e" + U+0301 combining acute (8 UTF-16 units)
+    static let resumeDecomposed = "re\u{0301}sume\u{0301}"
+    /// "Résumé" precomposed with U+00E9 and a capital R (6 UTF-16 units)
+    static let resumeCapitalPrecomposed = "R\u{00E9}sum\u{00E9}"
+    /// "Núñez" precomposed with U+00FA and U+00F1 (5 UTF-16 units)
+    static let authorWithDiacritics = "N\u{00FA}\u{00F1}ez"
 }
 ```
 
@@ -107,7 +101,7 @@ enum V1FixtureDatabase {
     static let documentPDF = "A1000000-0000-4000-8000-000000000001"
     static let documentMarkdown = "A1000000-0000-4000-8000-000000000002"
     static let highlightLatin = "B1000000-0000-4000-8000-000000000001"
-    static let highlightPersian = "B1000000-0000-4000-8000-000000000002"
+    static let highlightMarkdown = "B1000000-0000-4000-8000-000000000002"
     static let tag = "C1000000-0000-4000-8000-000000000001"
     static let card = "D1000000-0000-4000-8000-000000000001"
     static let themedReview = "E1000000-0000-4000-8000-000000000001"
@@ -115,8 +109,8 @@ enum V1FixtureDatabase {
     static let logThemed = "F1000000-0000-4000-8000-000000000002"
     static let exportTarget = "A2000000-0000-4000-8000-000000000001"
 
-    /// bookArabicKaf + " " + wantWithZWNJ (13 UTF-16 units)
-    static let persianHighlightText = ArabicScriptSamples.bookArabicKaf + " " + ArabicScriptSamples.wantWithZWNJ
+    /// findLigature + " " + photosynthesisSoftHyphen (19 UTF-16 units)
+    static let markdownHighlightText = SearchSamples.findLigature + " " + SearchSamples.photosynthesisSoftHyphen
 
     static let expectedRowCounts: [String: Int] = [
         "category": 5, "document": 2, "documentText": 3, "highlight": 2, "tag": 1, "highlightTag": 1,
@@ -155,8 +149,8 @@ enum V1FixtureDatabase {
         try db.execute(sql: """
             INSERT INTO document (id, title, author, categoryId, fileType, fileHash, originalFilename, storedPath,
               extractionStatus, extractionVersion, textPosition, addedAt)
-            VALUES (?, 'Persian notes', ?, ?, 'markdown', 'v1-fixture-hash-2', 'notes.md', ?, 'done', 1, 42, 1790000100)
-            """, arguments: [documentMarkdown, ArabicScriptSamples.aliArabicYeh, notes, "\(documentMarkdown)/original.md"])
+            VALUES (?, 'Lecture notes', ?, ?, 'markdown', 'v1-fixture-hash-2', 'notes.md', ?, 'done', 1, 42, 1790000100)
+            """, arguments: [documentMarkdown, SearchSamples.authorWithDiacritics, notes, "\(documentMarkdown)/original.md"])
         try db.execute(sql: "INSERT INTO documentText (documentId, unitIndex, startOffset, text) VALUES (?, 0, 0, 'Photosynthesis occurs in chloroplasts')",
                        arguments: [documentPDF])
         try db.execute(sql: """
@@ -164,19 +158,19 @@ enum V1FixtureDatabase {
             VALUES (?, 1, 39, 'The Krebs cycle', '[{"start":4,"length":5,"bold":true,"italic":false,"mono":false}]')
             """, arguments: [documentPDF])
         try db.execute(sql: "INSERT INTO documentText (documentId, unitIndex, startOffset, text) VALUES (?, 0, 0, ?)",
-                       arguments: [documentMarkdown, ArabicScriptSamples.wantWithZWNJ])
+                       arguments: [documentMarkdown, SearchSamples.photosynthesisSoftHyphen])
         try db.execute(sql: """
             INSERT INTO highlight (id, documentId, kind, view, color, text, richText, note, pageIndex, positionKey, anchor, createdAt, updatedAt)
             VALUES (?, ?, 'text', 'pdf', 1, 'Mitochondria produce ATP', 'Mitochondria produce **ATP**', 'exam topic', 0, 500.0,
               '{"type":"pdf","pdf":{"pages":[{"pageIndex":0,"rects":[{"x":72,"y":500,"width":200,"height":14}]}],"text":"Mitochondria produce ATP","prefix":"","suffix":""}}',
               1790000200, 1790000200)
             """, arguments: [highlightLatin, documentPDF])
-        let persianAnchor = #"{"type":"text","text":{"start":0,"length":13,"text":""# + persianHighlightText
+        let markdownAnchor = #"{"type":"text","text":{"start":0,"length":19,"text":""# + markdownHighlightText
             + #"","prefix":"","suffix":"","sourceVersion":1}}"#
         try db.execute(sql: """
             INSERT INTO highlight (id, documentId, kind, view, color, text, richText, positionKey, anchor, createdAt, updatedAt)
             VALUES (?, ?, 'text', 'markdown', 0, ?, ?, 0, ?, 1790000250, 1790000250)
-            """, arguments: [highlightPersian, documentMarkdown, persianHighlightText, persianHighlightText, persianAnchor])
+            """, arguments: [highlightMarkdown, documentMarkdown, markdownHighlightText, markdownHighlightText, markdownAnchor])
         try db.execute(sql: "INSERT INTO tag (id, name, createdAt) VALUES (?, 'Exam', 1790000300)", arguments: [tag])
         try db.execute(sql: "INSERT INTO highlightTag (highlightId, tagId) VALUES (?, ?)", arguments: [highlightLatin, tag])
         try db.execute(sql: "INSERT INTO documentTag (documentId, tagId) VALUES (?, ?)", arguments: [documentPDF, tag])
@@ -217,11 +211,11 @@ enum V1FixtureDatabase {
 `V1FixtureDatabaseTests` (`@Suite struct V1FixtureDatabaseTests`):
 - `fixtureHasOnlyV1Applied`: `make()`, then `AppDatabase.migrator.appliedMigrations(db) == ["v1"]`.
 - `fixtureHasExpectedRowCounts`: for each entry of `expectedRowCounts`, `SELECT COUNT(*) FROM <table>` equals the value.
-- `fixtureRowsDecodeAsRecords`: fetch all rows of all 13 record types (`DocumentCategory`, `LibraryDocument`, `DocumentText`, `Highlight`, `LibraryTag`, `HighlightTag`, `DocumentTag`, `DocumentNote`, `ReviewCard`, `ReviewLogEntry`, `ThemedReview`, `ExportTarget`, `HighlightEmbedding`). Each count matches `expectedRowCounts`. `Highlight.fetchOne(db, key: highlightPersian)?.anchor` equals `.text(TextAnchor(start: 0, length: 13, text: persianHighlightText, prefix: "", suffix: "", sourceVersion: 1))`, and `persianHighlightText.utf16.count == 13`.
+- `fixtureRowsDecodeAsRecords`: fetch all rows of all 13 record types (`DocumentCategory`, `LibraryDocument`, `DocumentText`, `Highlight`, `LibraryTag`, `HighlightTag`, `DocumentTag`, `DocumentNote`, `ReviewCard`, `ReviewLogEntry`, `ThemedReview`, `ExportTarget`, `HighlightEmbedding`). Each count matches `expectedRowCounts`. `Highlight.fetchOne(db, key: highlightMarkdown)?.anchor` equals `.text(TextAnchor(start: 0, length: 19, text: markdownHighlightText, prefix: "", suffix: "", sourceVersion: 1))`, and `markdownHighlightText.utf16.count == 19`.
 - `onDiskFixtureReopensAtV1`: `let store = TestFileStore.make(); defer { TestFileStore.remove(store) }`, then `makeOnDisk(fileStore: store)`. Open `DatabaseQueue(path:configuration: AppDatabase.makeConfiguration())` on `store.databaseURL`. Don't use `AppDatabase.makeShared`, because that would migrate. Expect applied `== ["v1"]` and 2 documents.
 
 ## Interfaces to produce
-`SchemaSnapshot.dump/dumpAfterMigrating/golden/writeActual/expectMatchesGolden`, `V1FixtureDatabase.make/makeOnDisk/populate/expectedRowCounts` and its ID constants, `persianHighlightText`, `ArabicScriptSamples.*`, all exactly as above. T18 and T19 use them.
+`SchemaSnapshot.dump/dumpAfterMigrating/golden/writeActual/expectMatchesGolden`, `V1FixtureDatabase.make/makeOnDisk/populate/expectedRowCounts` and its ID constants, `markdownHighlightText`, `SearchSamples.*`, all exactly as above. T18 and T19 use them.
 
 ## Acceptance criteria
 1. The v1 schema matches the committed golden, generated from test output. → test `SchemaSnapshotTests/v1IsFrozen`
