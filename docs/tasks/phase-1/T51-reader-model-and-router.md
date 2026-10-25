@@ -159,3 +159,4 @@ final class ReaderModel {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-25, Sonnet (code-reviewer, effort medium): APPROVED. 353 tests pass, 0 warnings. No visual check (no views). Minor: a pending router location stays if load() fails; onlyLatestPositionIsSaved checks only the final position.

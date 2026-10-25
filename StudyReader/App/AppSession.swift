@@ -7,6 +7,7 @@ final class AppSession {
     let environment: AppEnvironment
     let settings: AppSettings
     let importCoordinator: ImportCoordinator
+    let router = ReaderRouter()
 
     init(environment: AppEnvironment) {
         self.environment = environment
