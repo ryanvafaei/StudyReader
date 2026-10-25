@@ -62,6 +62,8 @@
 	<string>$(GOOGLE_CLIENT_ID)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.education</string>
+	<key>LSMultipleInstancesProhibited</key>
+	<true/>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>

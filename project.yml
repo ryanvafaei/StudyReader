@@ -55,6 +55,8 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSApplicationCategoryType: public.app-category.education
+        # Dock and Finder "Open With" activate the running copy instead of starting a second library window (T48 fix).
+        LSMultipleInstancesProhibited: true
         GIDClientID: "$(GOOGLE_CLIENT_ID)"
         CFBundleURLTypes:
           - CFBundleURLName: GoogleSignIn

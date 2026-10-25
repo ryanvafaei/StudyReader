@@ -1,6 +1,57 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ is larger than 500 MB. Import it anyway?" : {
+
+    },
+    "Allow" : {
+
+    },
+    "Allow access to this folder so StudyReader can copy the images." : {
+
+    },
+    "Drop to import" : {
+
+    },
+    "Enter the password for %@." : {
+
+    },
+    "Import" : {
+
+    },
+    "Import files or folders" : {
+
+    },
+    "Import finished" : {
+
+    },
+    "Import…" : {
+
+    },
+    "Importing" : {
+
+    },
+    "Large File" : {
+
+    },
+    "Password" : {
+
+    },
+    "Password Required" : {
+
+    },
+    "Skip" : {
+
+    },
+    "Skip this file" : {
+
+    },
+    "Unlock" : {
+
+    },
+    "Unlock with this password" : {
+
+    },
     "%@ · %@" : {
       "localizations" : {
         "en" : {

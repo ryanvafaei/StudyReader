@@ -78,6 +78,8 @@ struct AppEnvironment: Sendable {
         settingsStore: SettingsStore = .ephemeral()
     ) throws -> AppEnvironment {
         let database = try AppDatabase.makeShared(fileStore: fileStore)
+        // Private: the path contains the user's home folder. Redacted in the persisted log.
+        Log.files.info("Library root \(fileStore.rootURL.path(percentEncoded: false), privacy: .private)")
         // Folders left by interrupted imports are removed before the library appears (ADR-0016).
         let removed = try? LibraryMaintenance(database: database, fileStore: fileStore).removeOrphanFolders()
         Log.files.info("Removed \(removed?.count ?? 0, privacy: .public) orphan document folders at launch")

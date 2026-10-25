@@ -6,9 +6,11 @@ import Observation
 final class AppSession {
     let environment: AppEnvironment
     let settings: AppSettings
+    let importCoordinator: ImportCoordinator
 
     init(environment: AppEnvironment) {
         self.environment = environment
         self.settings = AppSettings(store: environment.settingsStore)
+        self.importCoordinator = ImportCoordinator(importService: environment.importService)
     }
 }

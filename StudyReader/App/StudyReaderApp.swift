@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct StudyReaderApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var launchModel = AppLaunchModel()
 
     init() {
@@ -14,11 +15,12 @@ struct StudyReaderApp: App {
             LaunchView(model: launchModel)
         }
         .defaultSize(width: 1100, height: 720)
-        #if DEBUG
         .commands {
+            AppCommands()
+            #if DEBUG
             DebugCommands(launchModel: launchModel)
+            #endif
         }
-        #endif
 
         Settings {
             SettingsRootView(launchModel: launchModel)

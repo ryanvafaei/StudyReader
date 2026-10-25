@@ -4,12 +4,15 @@ import SwiftUI
 /// Holds only view state (selection, pending delete). Everything else lives in `LibraryModel`.
 struct LibraryView: View {
     let session: AppSession
+    /// Opens the import picker (File > Import, or the toolbar button).
+    let onImport: () -> Void
     @State private var model: LibraryModel
     @State private var selection: String?
     @State private var pendingDelete: LibraryItem?
 
-    init(session: AppSession) {
+    init(session: AppSession, onImport: @escaping () -> Void) {
         self.session = session
+        self.onImport = onImport
         _model = State(initialValue: LibraryModel(environment: session.environment))
     }
 
@@ -140,6 +143,21 @@ struct LibraryView: View {
 
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            HStack(spacing: 8) {
+                if session.importCoordinator.isImporting {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Importing")
+                }
+                Button(action: onImport) {
+                    Label("Import", systemImage: "plus")
+                }
+                .help("Import files or folders")
+                .accessibilityLabel("Import files or folders")
+            }
+        }
+
         ToolbarItem(placement: .primaryAction) {
             Menu {
                 Picker("Sort", selection: $model.sort) {

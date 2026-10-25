@@ -18,7 +18,7 @@ struct SampleLibrary: Sendable {
         self.environment = environment
     }
 
-    /// Creates each sample that doesn't exist yet. Returns the number created (0 when all six exist).
+    /// Creates each sample that doesn't exist yet. Returns the number created (0 when all seven exist).
     func seed() async throws -> Int {
         var created = 0
         for sample in Self.samples {
@@ -147,25 +147,26 @@ struct SampleLibrary: Sendable {
     private static func writeOriginal(_ sample: Sample, to url: URL) throws {
         switch sample.fileType {
         case .pdf:
-            try writePDF(pages: sample.pages, to: url)
+            try writePDF(of: sample, to: url)
         case .markdown:
             try markdownText(of: sample).write(to: url, atomically: true, encoding: .utf8)
         }
     }
 
-    /// Plain PDF with one text line per entry, drawn with CoreText (thread-safe, no PDFKit).
-    private static func writePDF(pages: [[String]], to url: URL) throws {
-        var mediaBox = CGRect(x: 0, y: 0, width: 612, height: 792)
+    /// Plain PDF with one text line per entry, drawn with CoreText (thread-safe, no PDFKit). Page size, font size
+    /// and line spacing come from the sample.
+    private static func writePDF(of sample: Sample, to url: URL) throws {
+        var mediaBox = CGRect(origin: .zero, size: sample.pageSize)
         guard let context = CGContext(url as CFURL, mediaBox: &mediaBox, nil) else {
             throw SampleLibraryError.pdfContextUnavailable
         }
-        let font = CTFontCreateWithName("Helvetica" as CFString, 14, nil)
+        let font = CTFontCreateWithName("Helvetica" as CFString, sample.fontSize, nil)
         let attributes: [NSAttributedString.Key: Any] = [NSAttributedString.Key(kCTFontAttributeName as String): font]
-        for lines in pages {
+        for lines in sample.pages {
             context.beginPDFPage(nil)
             for (line, text) in lines.enumerated() {
                 let attributed = NSAttributedString(string: text, attributes: attributes) as CFAttributedString
-                context.textPosition = CGPoint(x: 72, y: baseline(line))
+                context.textPosition = CGPoint(x: 72, y: baseline(line, in: sample))
                 CTLineDraw(CTLineCreateWithAttributedString(attributed), context)
             }
             context.endPDFPage()
@@ -200,13 +201,18 @@ struct SampleLibrary: Sendable {
         return result
     }
 
-    /// PDF line i sits at this baseline; `lineRect` covers the same line.
-    private static func baseline(_ line: Int) -> CGFloat {
-        700 - CGFloat(line) * 26
+    /// PDF line i sits at this baseline, 92 pt below the top edge; `lineRect` covers the same line.
+    private static func baseline(_ line: Int, in sample: Sample) -> CGFloat {
+        sample.pageSize.height - 92 - CGFloat(line) * sample.lineStep
     }
 
-    private static func lineRect(_ line: Int) -> CGRect {
-        CGRect(x: 72, y: baseline(line) - 5, width: 468, height: 22)
+    private static func lineRect(_ line: Int, in sample: Sample) -> CGRect {
+        CGRect(
+            x: 72,
+            y: baseline(line, in: sample) - 5,
+            width: sample.pageSize.width - 144,
+            height: sample.lineStep - 4
+        )
     }
 
     private static func highlight(for spec: SampleHighlight, in sample: Sample, now: Date) -> Highlight? {
@@ -214,7 +220,7 @@ struct SampleLibrary: Sendable {
         case let .pdfLine(page, line):
             let text = sample.pages[page][line]
             let anchor = PDFAnchor(
-                pages: [PDFAnchor.PageRects(pageIndex: page, rects: [CGRectCodable(lineRect(line))])],
+                pages: [PDFAnchor.PageRects(pageIndex: page, rects: [CGRectCodable(lineRect(line, in: sample))])],
                 text: text,
                 prefix: "",
                 suffix: ""
@@ -298,10 +304,16 @@ struct SampleLibrary: Sendable {
         /// nil means the document has never been opened.
         let openedDaysAgo: Int?
         let highlights: [SampleHighlight]
+        /// PDF page size in points. Defaults to US Letter portrait.
+        var pageSize = CGSize(width: 612, height: 792)
+        /// PDF body font size in points.
+        var fontSize: CGFloat = 14
+        /// Distance between PDF text lines in points.
+        var lineStep: CGFloat = 26
     }
 
-    /// Six documents: PDF and Markdown, with and without covers, varied tags, highlights and progress.
-    /// Covers the states: never opened, done, failed, pending, and missing original (no bookmark).
+    /// Seven documents: PDF and Markdown, portrait and landscape, with and without covers, varied tags, highlights
+    /// and progress. Covers the states: never opened, done, failed, pending, and missing original (no bookmark).
     private static let samples: [Sample] = [
         Sample(
             id: "5A4D0000-0000-4000-8000-000000000001",
@@ -459,6 +471,41 @@ struct SampleLibrary: Sendable {
             highlights: [
                 SampleHighlight(color: .purple, spot: .pdfLine(page: 0, line: 1))
             ]
+        ),
+        Sample(
+            id: "5A4D0000-0000-4000-8000-000000000007",
+            title: "Slides: Membrane Transport",
+            author: "Dr. A. Rivera",
+            category: .lectureSlides,
+            fileType: .pdf,
+            pages: [
+                [
+                    "Diffusion moves molecules down a gradient.",
+                    "Small nonpolar molecules cross the bilayer easily."
+                ],
+                [
+                    "Channels let ions pass through the membrane.",
+                    "Pumps spend ATP to move ions against a gradient."
+                ],
+                [
+                    "Endocytosis brings material into the cell.",
+                    "Exocytosis releases material from vesicles."
+                ]
+            ],
+            paragraphs: [],
+            tags: ["exam"],
+            hasOriginal: true,
+            hasCover: true,
+            extraction: .done,
+            progress: 0.2,
+            openedDaysAgo: 4,
+            highlights: [
+                SampleHighlight(color: .yellow, spot: .pdfLine(page: 1, line: 0))
+            ],
+            // 16:9 slide deck. The cover is aspect-fit inside the shared 3:4 frame, so it shows the whole slide.
+            pageSize: CGSize(width: 960, height: 540),
+            fontSize: 28,
+            lineStep: 52
         )
     ]
 }

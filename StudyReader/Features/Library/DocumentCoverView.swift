@@ -16,18 +16,30 @@ struct DocumentCoverView: View {
         self.fileStore = fileStore
     }
 
+    /// Every cover shares one 3:4 portrait frame. The frame is a `Color.clear` base, so its size comes only from the
+    /// proposed width, never from the image. Content is drawn in an overlay: a landscape cover is aspect-fit in the
+    /// middle, and a blurred, dimmed copy of it fills the rest of the frame.
     var body: some View {
-        ZStack {
-            if let coverImage {
-                Image(nsImage: coverImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } else {
-                GeneratedCoverView(title: document.title, fileType: document.fileType)
+        Color.clear
+            .aspectRatio(3.0 / 4.0, contentMode: .fit)
+            .overlay {
+                if let coverImage {
+                    ZStack {
+                        Image(nsImage: coverImage)
+                            .resizable()
+                            .scaledToFill()
+                            .blur(radius: 24)
+                            .overlay(Color(nsColor: .windowBackgroundColor).opacity(0.35))
+                            .clipped()
+                        Image(nsImage: coverImage)
+                            .resizable()
+                            .scaledToFit()
+                    }
+                } else {
+                    GeneratedCoverView(title: document.title, fileType: document.fileType)
+                }
             }
-        }
-        .aspectRatio(3.0 / 4.0, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         .accessibilityHidden(true)
         .task(id: document.coverPath) {
             coverImage = loadCoverImage()

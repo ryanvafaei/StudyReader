@@ -76,3 +76,4 @@ final class ImportCoordinator: ImportInteraction {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-25, Sonnet (code-reviewer, effort medium): CHANGES REQUESTED once: Library root log line was privacy .public (ARCHITECTURE §14). Fixed with .private (ui-builder re-run at effort high); line confirmed in diff. Otherwise APPROVED: first review APPROVED; fixes for Open With (LSMultipleInstancesProhibited, ExternalURLRouter) and landscape covers reviewed. 328 tests pass, 0 warnings. Visual checks for Open With and landscape cover deferred to the T52 checkpoint (VISUAL_CHECKS.md).
