@@ -18,4 +18,5 @@ metadata:
 - `Localizable.xcstrings` is empty; SwiftUI literals (`ProgressView("Opening library…")`) are extracted at build via SWIFT_EMIT_LOC_STRINGS.
 - T45 fix: a `Picker` bound to a `String?` needs `.tag(Optional(id))` on each row, or the rows won't match the selection. Put the fallback in a pure static func on the model so tests can cover it.
 - Log lines with file paths (library root, home folder in path) use `privacy: .private`, never `.public` (T48 review fix, ARCHITECTURE §14).
+- T50: `FileStore.isCanonicalId` needs uppercase UUID strings (`UUID.uuidString` form). Lowercase test IDs fail with `invalidDocumentId`. Use uppercase literals in suites that create document folders.
 - T45 fix: `Task { }` stored in a property that calls back into the model: put `[weak self]` on the outer Task too, or the inner weak capture triggers the "differs from implicitly-captured strong reference" warning.

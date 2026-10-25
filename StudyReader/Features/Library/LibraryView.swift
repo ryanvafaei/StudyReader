@@ -9,6 +9,7 @@ struct LibraryView: View {
     @State private var model: LibraryModel
     @State private var selection: String?
     @State private var pendingDelete: LibraryItem?
+    @State private var editing: MetadataRequest?
 
     init(session: AppSession, onImport: @escaping () -> Void) {
         self.session = session
@@ -25,8 +26,11 @@ struct LibraryView: View {
             .task { await model.observeTags() }
             .focusedSceneValue(
                 \.libraryActions,
-                LibraryActions(selectedDocumentId: currentSelection, editMetadata: nil, exportHighlights: nil)
+                LibraryActions(selectedDocumentId: currentSelection, editMetadata: beginEditing, exportHighlights: nil)
             )
+            .sheet(item: $editing) { request in
+                MetadataSheet(session: session, request: request)
+            }
             .confirmationDialog(
                 "Delete \"\(pendingDelete?.document.title ?? "")\"?",
                 isPresented: isConfirmingDelete,
@@ -231,12 +235,17 @@ struct LibraryView: View {
     private func menu(for item: LibraryItem) -> LibraryItemMenu {
         LibraryItemMenu(
             item: item,
-            // T50 wires the metadata sheet through `libraryActions`. Until then the item stays disabled.
-            editMetadata: nil,
+            editMetadata: beginEditing,
             onOpen: { openDocument(item.id) },
             onReveal: { model.revealOriginal(of: item.document) },
             onDelete: { pendingDelete = item }
         )
+    }
+
+    /// Opens the Edit Metadata sheet for one document (context menu or ⇧⌘M). The library has no reader page,
+    /// so "Use Current Page" stays hidden here.
+    private func beginEditing(_ id: String) {
+        editing = MetadataRequest(documentId: id, currentPageIndex: nil)
     }
 
     /// Opens the document in a reader window. The reader arrives with T52, so this does nothing until then.

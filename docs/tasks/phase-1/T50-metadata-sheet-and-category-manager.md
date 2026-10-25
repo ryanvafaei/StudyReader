@@ -80,3 +80,4 @@ final class CategoryManagerModel {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-25, Sonnet (code-reviewer, effort medium): APPROVED. 340 tests pass, 0 warnings. Visual check batched (VISUAL_CHECKS.md). Minor: chooseCoverImage has no direct test; DEBUG sample extension skipped.

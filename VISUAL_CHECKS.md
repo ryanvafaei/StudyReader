@@ -17,6 +17,11 @@ Anything the user reports becomes a small fix task, committed separately.
 | T49 | Sidebar > Tags: empty state; list with "N highlights, M documents" counts; Rename… (duplicate name shows inline error), Merge into…, Delete… dialogs; error alert; VoiceOver rows | Debug > Seed Sample Library ("Sample · midterm" / "Sample · mid-term" are the rename and merge candidates) |
 | T49 | Tag field (hosted from T50/T62/T69): suggestions, arrow keys reach the field via .onKeyPress (unverified), Return adds, "#Exam" reuses "Exam", chips wrap | Check when a host screen exists |
 
+| T50 | Library: Edit Metadata… from context menu and ⇧⌘M (disabled with no selection); sheet saves title/author/category, Cancel discards them (tags save immediately); empty title shows inline error; Image… / Reset Cover update the card; "Use Current Page" hidden in the library sheet | A PDF, a Markdown file, a PNG/JPG |
+| T50 | Sidebar > Categories: built-ins show a lock, no rename/delete; New Category…, Rename…, Delete… (documents move to Other; Settings default resets to "Lecture slides" if it was the deleted one) | none |
+| T50 | Tag manager end-to-end with tags added from the sheet (T49 step 16) | none |
+| T50 | Light/dark: sheet, cover placeholder, error text | none |
+
 ## Passed
 
 - T45 Settings window (user, 2026-10-24)

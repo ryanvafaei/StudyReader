@@ -1,6 +1,78 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Save" : {
+
+    },
+    "Edit Metadata" : {
+
+    },
+    "Cover" : {
+
+    },
+    "Choose Image…" : {
+
+    },
+    "Use Current Page" : {
+
+    },
+    "Reset Cover" : {
+
+    },
+    "Choose cover image" : {
+
+    },
+    "Use current page as cover" : {
+
+    },
+    "Reset cover to automatic" : {
+
+    },
+    "Save metadata" : {
+
+    },
+    "This document no longer exists." : {
+
+    },
+    "The document couldn't be updated. Try again." : {
+
+    },
+    "No categories yet" : {
+
+    },
+    "New Category…" : {
+
+    },
+    "New Category" : {
+
+    },
+    "Add a category" : {
+
+    },
+    "Built-in category" : {
+
+    },
+    "Category name" : {
+
+    },
+    "Rename Category" : {
+
+    },
+    "Add" : {
+
+    },
+    "Couldn't update categories" : {
+
+    },
+    "Delete category \"%@\"?" : {
+
+    },
+    "Its %@ move to Other." : {
+
+    },
+    "The categories couldn't be updated. Try again." : {
+
+    },
     "%@ is larger than 500 MB. Import it anyway?" : {
 
     },
