@@ -24,6 +24,8 @@ struct RootView: View {
         } detail: {
             if model.selection == .library {
                 LibraryView(session: session, onImport: { isShowingImporter = true })
+            } else if model.selection == .tags {
+                TagManagerView(session: session)
             } else if let item = model.selection {
                 ContentUnavailableView(
                     item.title,

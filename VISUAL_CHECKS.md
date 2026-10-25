@@ -14,6 +14,9 @@ Anything the user reports becomes a small fix task, committed separately.
 | T48 | Landscape (16:9) cover fills a fixed portrait frame, aspect-fit over a neutral/blurred background, sharp at 2x; the light-blue card fill is just the selection state | Debug > Seed Sample Library |
 | T48 | Minor: large-file alert with two large files in one batch | Files over 500 MB (optional) |
 
+| T49 | Sidebar > Tags: empty state; list with "N highlights, M documents" counts; Rename… (duplicate name shows inline error), Merge into…, Delete… dialogs; error alert; VoiceOver rows | Debug > Seed Sample Library ("Sample · midterm" / "Sample · mid-term" are the rename and merge candidates) |
+| T49 | Tag field (hosted from T50/T62/T69): suggestions, arrow keys reach the field via .onKeyPress (unverified), Return adds, "#Exam" reuses "Exam", chips wrap | Check when a host screen exists |
+
 ## Passed
 
 - T45 Settings window (user, 2026-10-24)

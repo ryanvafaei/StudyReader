@@ -339,7 +339,7 @@ struct SampleLibrary: Sendable {
                 ]
             ],
             paragraphs: [],
-            tags: ["exam"],
+            tags: ["exam", "midterm"],
             hasOriginal: true,
             hasCover: true,
             extraction: .done,
@@ -390,7 +390,7 @@ struct SampleLibrary: Sendable {
                 "Stochastic gradient descent estimates the gradient from a small batch of examples.",
                 "Momentum keeps a running average of past gradients to smooth the path."
             ],
-            tags: ["exam", "reviewed"],
+            tags: ["exam", "reviewed", "mid-term"],
             hasOriginal: true,
             hasCover: false,
             extraction: .done,

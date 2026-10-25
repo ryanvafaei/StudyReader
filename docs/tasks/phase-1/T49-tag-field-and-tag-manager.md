@@ -74,3 +74,4 @@ Views:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-25, Sonnet (code-reviewer, effort medium): APPROVED. 333 tests pass, 0 warnings. Visual check batched (VISUAL_CHECKS.md). Minor: model.usage not polled in tests, merge-title xcstrings key missing, arrow keys on TextField unverified.

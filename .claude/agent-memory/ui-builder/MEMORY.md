@@ -1,2 +1,3 @@
 - [XcodeGen and FSRS pitfalls](xcodegen_and_fsrs_pitfalls.md) — empty Fixtures folder breaks build; FSRSDefaults has no defaultWv6 in 5.0.0
 - [App launch and test pitfalls](app_launch_and_test_pitfalls.md) — AppEnvironment/AppLaunchModel wiring (T08); LocalizedError import, preview construction
+- [Tag field and manager notes](tag_field_and_manager_notes.md) — T49: nonisolated static default args; catalog keys added by hand; tag test patterns

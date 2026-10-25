@@ -298,7 +298,70 @@
     "StudyReader couldn't write to its library." : {
 
     },
+    "#%@" : {
+
+    },
+    "%@, %@" : {
+
+    },
+    "%lld documents" : {
+
+    },
+    "1 document" : {
+
+    },
+    "Add tag" : {
+
+    },
+    "Add tag %@" : {
+
+    },
+    "Add tags to highlights or documents, or write #tag in a highlight note." : {
+
+    },
+    "Couldn't update tags" : {
+
+    },
+    "Delete tag \"%@\"?" : {
+
+    },
+    "Highlights and documents with \"%@\" get \"%@\" instead. The tag \"%@\" is deleted. Nothing else is removed." : {
+
+    },
+    "It is removed from %@ and %@. They aren't deleted." : {
+
+    },
+    "Merge" : {
+
+    },
+    "Merge into…" : {
+
+    },
+    "No tags yet" : {
+
+    },
+    "Remove tag %@" : {
+
+    },
+    "Rename" : {
+
+    },
+    "Rename tag" : {
+
+    },
+    "Rename…" : {
+
+    },
     "Tag" : {
+
+    },
+    "Tag name" : {
+
+    },
+    "The tag couldn't be changed. Try again." : {
+
+    },
+    "The tags couldn't be updated. Try again." : {
 
     },
     "Tags" : {
