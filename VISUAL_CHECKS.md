@@ -22,6 +22,8 @@ Anything the user reports becomes a small fix task, committed separately.
 | T50 | Tag manager end-to-end with tags added from the sheet (T49 step 16) | none |
 | T50 | Light/dark: sheet, cover placeholder, error text | none |
 
+| T52 | Reader opens as a native tab in the library window's tab group; double-click/Return/Open; reopening an open document selects its tab (no duplicate); tab drag-out; toolbar, right inspector, error state, banner, position persisted on close; menu commands (⇧⌘M, ⌘F, zoom, ⌥⌘H, Snapshot) enabled/disabled correctly; "WINDOW TAB FAILURE" console message; restore after quit; Open With and drop with reader tabs open | Debug > Seed Sample Library |
+
 ## Passed
 
 - T45 Settings window (user, 2026-10-24)

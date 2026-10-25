@@ -22,6 +22,11 @@ struct StudyReaderApp: App {
             #endif
         }
 
+        // One window per open document; each joins the main window's tab group (ADR-0017, T52).
+        WindowGroup(id: ReaderRouter.windowId, for: String.self) { $documentId in
+            ReaderWindowRoot(documentId: documentId, launchModel: launchModel)
+        }
+
         Settings {
             SettingsRootView(launchModel: launchModel)
         }

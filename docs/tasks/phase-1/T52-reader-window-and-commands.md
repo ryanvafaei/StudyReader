@@ -102,3 +102,4 @@ struct WindowAccessor: NSViewRepresentable {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-25, Sonnet (code-reviewer, effort medium): APPROVED. 355 tests pass, 0 warnings. Visual check batched at the T52 checkpoint (VISUAL_CHECKS.md). Risks to watch: re-opening an open document may not select its tab; state mutation in viewDidMoveToWindow; Zoom In bound to = only; possible duplicate ⌘F.

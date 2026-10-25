@@ -61,6 +61,8 @@ struct RootView: View {
         }
         .importPrompts(session.importCoordinator)
         .focusedSceneValue(\.importActions, ImportActions(importFiles: { isShowingImporter = true }))
+        // The library window is the first tab of the group that reader windows join (ADR-0017, T52).
+        .background(WindowAccessor { ReaderTabbing.configureMain($0) })
         .task {
             // Dock and Open With URLs that arrived before this window existed are handed over here.
             ExternalURLRouter.shared.attach { urls in

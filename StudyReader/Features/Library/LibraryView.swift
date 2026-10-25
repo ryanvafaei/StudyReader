@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var selection: String?
     @State private var pendingDelete: LibraryItem?
     @State private var editing: MetadataRequest?
+    @Environment(\.openWindow) private var openWindow
 
     init(session: AppSession, onImport: @escaping () -> Void) {
         self.session = session
@@ -100,6 +101,12 @@ struct LibraryView: View {
                 }
             }
             .padding(16)
+        }
+        .focusable()
+        .onKeyPress(.return) {
+            guard let currentSelection else { return .ignored }
+            openDocument(currentSelection)
+            return .handled
         }
     }
 
@@ -248,9 +255,9 @@ struct LibraryView: View {
         editing = MetadataRequest(documentId: id, currentPageIndex: nil)
     }
 
-    /// Opens the document in a reader window. The reader arrives with T52, so this does nothing until then.
+    /// Opens the document in its reader tab; an already open document's tab is selected instead (ADR-0017).
     private func openDocument(_ id: String) {
-        // T52: open the reader window for this document.
+        session.router.open(documentId: id, using: openWindow)
     }
 
     private func retry(_ id: String) {

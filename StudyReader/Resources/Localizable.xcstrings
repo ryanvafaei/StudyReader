@@ -486,6 +486,81 @@
     },
     "yellow" : {
 
+    },
+    "Actual Size" : {
+
+    },
+    "Document" : {
+
+    },
+    "Edit Metadata…" : {
+
+    },
+    "Find in Document" : {
+
+    },
+    "Find in document" : {
+
+    },
+    "Fit Width" : {
+
+    },
+    "Highlight color" : {
+
+    },
+    "Highlight color for new highlights" : {
+
+    },
+    "Highlights" : {
+
+    },
+    "Highlights Panel" : {
+
+    },
+    "Highlights panel" : {
+
+    },
+    "Markdown reader arrives in T55" : {
+
+    },
+    "No document" : {
+
+    },
+    "Notes" : {
+
+    },
+    "Opening library…" : {
+
+    },
+    "Panel" : {
+
+    },
+    "Panel content arrives in T63" : {
+
+    },
+    "PDF reader arrives in T53" : {
+
+    },
+    "Show or hide the Highlights and Notes panel" : {
+
+    },
+    "Show Thumbnails" : {
+
+    },
+    "Single Page" : {
+
+    },
+    "Snapshot" : {
+
+    },
+    "Take a snapshot of the page or section" : {
+
+    },
+    "Zoom In" : {
+
+    },
+    "Zoom Out" : {
+
     }
   },
   "version" : "1.0"

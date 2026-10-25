@@ -18,6 +18,8 @@ final class ReaderModel {
 
     private(set) var state: LoadState = .loading
     private(set) var document: LibraryDocument?
+    /// Shown as the tab's subtitle (ADR-0017). Nil when the category can't be read.
+    private(set) var categoryName: String?
     private(set) var fileURL: URL?
     /// Live, ordered like HighlightRepository.fetchForDocument.
     private(set) var highlights: [Highlight] = []
@@ -58,6 +60,7 @@ final class ReaderModel {
                 return
             }
             document = loaded
+            categoryName = (try? await environment.categoryRepository.fetch(id: loaded.categoryId))?.name
             fileURL = url
             initialPosition = loaded.pdfPosition
             initialOffset = loaded.textPosition
@@ -175,6 +178,17 @@ final class ReaderModel {
         } catch {
             transientMessage = Self.failureMessage(for: error)
         }
+    }
+
+    /// Shows or hides the right panel on `tab`: the toolbar toggle and ⌥⌘H both use it.
+    func toggleRightPanel(tab: ReaderPanelTab) {
+        rightPanelTab = tab
+        isRightPanelVisible.toggle()
+    }
+
+    /// Clears the banner once it has been shown for a while (the view times it).
+    func clearTransientMessage() {
+        transientMessage = nil
     }
 
     func showPopover(highlightId: String, anchorRect: CGRect, focus: PopoverFocus = .none) {
