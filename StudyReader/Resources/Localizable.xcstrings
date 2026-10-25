@@ -1,7 +1,47 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%lld %%" : {
+
+    },
+    "%lld highlights" : {
+
+    },
+    "%lld percent read" : {
+
+    },
+    "1 highlight" : {
+
+    },
+    "Added" : {
+
+    },
+    "Any Category" : {
+
+    },
+    "Any File Type" : {
+
+    },
+    "Any Tag" : {
+
+    },
+    "Author" : {
+
+    },
     "blue" : {
+
+    },
+    "Cancel" : {
 
     },
     "Categories" : {
@@ -10,7 +50,13 @@
     "Categories couldn't load." : {
 
     },
+    "Category" : {
+
+    },
     "Check that your Mac has free disk space, then reopen StudyReader." : {
+
+    },
+    "Clear Filters" : {
 
     },
     "Couldn't open the library" : {
@@ -19,13 +65,43 @@
     "Data" : {
 
     },
+    "Date Added" : {
+
+    },
     "Default category for imports" : {
+
+    },
+    "Delete" : {
+
+    },
+    "Delete \"%@\"?" : {
+
+    },
+    "Delete…" : {
+
+    },
+    "Edit Metadata…" : {
+
+    },
+    "File Type" : {
+
+    },
+    "Filter" : {
+
+    },
+    "Filter documents" : {
 
     },
     "General" : {
 
     },
     "green" : {
+
+    },
+    "Grid" : {
+
+    },
+    "Has Highlights" : {
 
     },
     "Highlight automatically when I select text" : {
@@ -37,6 +113,9 @@
     "Highlights" : {
 
     },
+    "Indexing…" : {
+
+    },
     "Invert PDF colors in dark mode" : {
 
     },
@@ -46,10 +125,48 @@
     "Label for %@ highlights" : {
 
     },
+    "Last Opened" : {
+
+    },
+    "Layout" : {
+
+    },
     "Library" : {
 
     },
     "Library location" : {
+
+    },
+    "library.empty.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop PDF or Markdown files here, or choose File > Import…"
+          }
+        }
+      }
+    },
+    "List" : {
+
+    },
+    "Markdown" : {
+
+    },
+    "Never opened" : {
+
+    },
+    "No documents match these filters" : {
+
+    },
+    "No documents yet" : {
+
+    },
+    "OK" : {
+
+    },
+    "Open" : {
 
     },
     "Open it with the newer version of StudyReader." : {
@@ -58,7 +175,13 @@
     "Opening library…" : {
 
     },
+    "PDF" : {
+
+    },
     "pink" : {
+
+    },
+    "Progress" : {
 
     },
     "purple" : {
@@ -76,16 +199,34 @@
     "Restore the StudyReader folder from a backup, then reopen StudyReader." : {
 
     },
+    "Retry" : {
+
+    },
+    "Retry text extraction" : {
+
+    },
     "Reveal in Finder" : {
 
     },
     "Reveal library in Finder" : {
 
     },
+    "Reveal Original in Finder" : {
+
+    },
     "Review" : {
 
     },
     "Select a section" : {
+
+    },
+    "Show as grid or list" : {
+
+    },
+    "Sort" : {
+
+    },
+    "Sort documents" : {
 
     },
     "StudyReader" : {
@@ -106,7 +247,13 @@
     "StudyReader couldn't write to its library." : {
 
     },
+    "Tag" : {
+
+    },
     "Tags" : {
+
+    },
+    "Text extraction failed" : {
 
     },
     "The library couldn't be updated. Try again." : {
@@ -118,13 +265,22 @@
     "The library is in use by another copy of StudyReader." : {
 
     },
+    "The original file is no longer available." : {
+
+    },
     "Themed Reviews" : {
 
     },
     "This library was updated by a newer version of StudyReader." : {
 
     },
+    "This removes the document, its highlights, notes and review cards from StudyReader. The original file isn't touched." : {
+
+    },
     "This section isn't built yet." : {
+
+    },
+    "Title" : {
 
     },
     "yellow" : {

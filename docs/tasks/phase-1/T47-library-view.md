@@ -58,3 +58,4 @@ Layout and behaviour:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-25, Sonnet (code-reviewer, effort medium): APPROVED after user visual check (incl. DEBUG sample library, cover status overlay, compact list status, onChange fix). 315 tests pass, 0 warnings. Minor: DocumentCoverView.categoryName unused; grid right-click/Return selection and a11y traits deferred to T52.

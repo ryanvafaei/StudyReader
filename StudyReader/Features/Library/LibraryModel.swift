@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -36,16 +37,26 @@ final class LibraryModel {
 
     var filter = LibraryFilter()
 
+    /// Categories for the filter menu, from `CategoryRepository.observeAll()`.
+    private(set) var categories: [DocumentCategory] = []
+
+    /// Tags for the filter menu, from `TagRepository.observeAll()`.
+    private(set) var tags: [LibraryTag] = []
+
     /// User-facing message from the last failed observation, delete or retry. Nil after a successful delete.
     private(set) var errorMessage: String?
 
     @ObservationIgnored private let documents: DocumentRepository
+    @ObservationIgnored private let categoryRepository: CategoryRepository
+    @ObservationIgnored private let tagRepository: TagRepository
     @ObservationIgnored private let fileStore: FileStore
     @ObservationIgnored private let extractionService: ExtractionService
     @ObservationIgnored private let settingsStore: SettingsStore
 
     init(environment: AppEnvironment) {
         self.documents = environment.documentRepository
+        self.categoryRepository = environment.categoryRepository
+        self.tagRepository = environment.tagRepository
         self.fileStore = environment.fileStore
         self.extractionService = environment.extractionService
         self.settingsStore = environment.settingsStore
@@ -65,10 +76,34 @@ final class LibraryModel {
         }
     }
 
+    /// Runs the category list for the filter menu until cancelled.
+    func observeCategories() async {
+        do {
+            for try await observed in categoryRepository.observeAll() {
+                categories = observed
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = Self.message(for: error)
+        }
+    }
+
+    /// Runs the tag list for the filter menu until cancelled.
+    func observeTags() async {
+        do {
+            for try await observed in tagRepository.observeAll() {
+                tags = observed
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = Self.message(for: error)
+        }
+    }
+
     /// Deletes the document row and its folder. The observed list drops the row on its own.
     func delete(documentId: String) async {
         do {
-            try await documents.delete(id: documentId, fileStore: fileStore)
+            _ = try await documents.delete(id: documentId, fileStore: fileStore)
             errorMessage = nil
         } catch {
             errorMessage = Self.message(for: error)
@@ -78,6 +113,43 @@ final class LibraryModel {
     /// Queues the document for text extraction again.
     func retryExtraction(documentId: String) async {
         await extractionService.enqueue(documentId: documentId)
+    }
+
+    /// The selected id when that document is still listed, otherwise nil. The view reads this instead of
+    /// clearing its selection on every list change, so bulk updates don't write state back into the view.
+    func existingSelection(_ id: String?) -> String? {
+        guard let id, items.contains(where: { $0.id == id }) else { return nil }
+        return id
+    }
+
+    /// Clears the alert message once the user has seen it.
+    func dismissError() {
+        errorMessage = nil
+    }
+
+    /// Resolves the bookmark of the original file without mounting volumes or showing UI.
+    /// Returns nil when the document has no bookmark or the file is no longer there.
+    func resolveOriginal(of document: LibraryDocument) -> URL? {
+        guard let bookmark = document.originalBookmark else { return nil }
+        var isStale = false
+        guard let url = try? URL(
+            resolvingBookmarkData: bookmark,
+            options: [.withoutUI, .withoutMounting],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        ), FileManager.default.fileExists(atPath: url.path) else {
+            return nil
+        }
+        return url
+    }
+
+    /// Selects the original file in Finder. Sets `errorMessage` when the original can't be found.
+    func revealOriginal(of document: LibraryDocument) {
+        guard let url = resolveOriginal(of: document) else {
+            errorMessage = String(localized: "The original file is no longer available.")
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     /// Ties are always broken by `id` ascending, so the order is total.

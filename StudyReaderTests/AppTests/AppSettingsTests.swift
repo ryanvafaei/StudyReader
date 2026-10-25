@@ -12,8 +12,6 @@ struct AppSettingsTests {
         store.currentColor = .blue
         store.invertPDFInDarkMode = false
         store.googleExportFolderId = "folder-123"
-        store.libraryLayout = .list
-        store.librarySort = .title
         store.setColorLabel("Exam prep", for: .green)
 
         let settings = AppSettings(store: store)
@@ -23,8 +21,6 @@ struct AppSettingsTests {
         #expect(settings.currentColor == .blue)
         #expect(settings.invertPDFInDarkMode == false)
         #expect(settings.googleExportFolderId == "folder-123")
-        #expect(settings.libraryLayout == .list)
-        #expect(settings.librarySort == .title)
         #expect(settings.label(for: .green) == "Exam prep")
         #expect(settings.colorLabels.count == 5)
         #expect(settings.colorLabels[1] == "Exam prep")
@@ -41,8 +37,6 @@ struct AppSettingsTests {
         settings.currentColor = .pink
         settings.invertPDFInDarkMode = false
         settings.googleExportFolderId = "folder-456"
-        settings.libraryLayout = .list
-        settings.librarySort = .lastOpened
 
         // A fresh store over the same suite sees every new value.
         let reread = SettingsStore(suiteName: store.suiteName)
@@ -51,8 +45,6 @@ struct AppSettingsTests {
         #expect(reread.currentColor == .pink)
         #expect(reread.invertPDFInDarkMode == false)
         #expect(reread.googleExportFolderId == "folder-456")
-        #expect(reread.libraryLayout == .list)
-        #expect(reread.librarySort == .lastOpened)
 
         settings.googleExportFolderId = nil
         #expect(SettingsStore(suiteName: store.suiteName).googleExportFolderId == nil)

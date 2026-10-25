@@ -18,7 +18,9 @@ struct RootView: View {
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 210)
         } detail: {
-            if let item = model.selection {
+            if model.selection == .library {
+                LibraryView(session: session)
+            } else if let item = model.selection {
                 ContentUnavailableView(
                     item.title,
                     systemImage: item.systemImage,

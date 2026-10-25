@@ -247,6 +247,38 @@ struct LibraryModelTests {
         #expect(!FileManager.default.fileExists(atPath: folder.path(percentEncoded: false)))
     }
 
+    @Test("selection survives while its document is listed and is dropped once it is gone")
+    func existingSelectionFollowsTheList() async throws {
+        let fileStore = TestFileStore.make()
+        let settings = TestSettings.make()
+        defer {
+            TestFileStore.remove(fileStore)
+            TestSettings.remove(settings)
+        }
+        let env = try AppEnvironment.make(fileStore: fileStore, settingsStore: settings)
+        let kept = TestData.document(id: "10000000-0000-0000-0000-0000000000b1", title: "Kept")
+        let gone = TestData.document(id: "10000000-0000-0000-0000-0000000000b2", title: "Gone")
+        try await env.documentRepository.insert(kept)
+        try await env.documentRepository.insert(gone)
+
+        let model = LibraryModel(environment: env)
+        let task = Task { await model.observe() }
+        try await waitUntil { model.items.count == 2 }
+
+        #expect(model.existingSelection(kept.id) == kept.id)
+        #expect(model.existingSelection(gone.id) == gone.id)
+        #expect(model.existingSelection("10000000-0000-0000-0000-0000000000ff") == nil)
+        #expect(model.existingSelection(nil) == nil)
+
+        await model.delete(documentId: gone.id)
+        try await waitUntil { model.items.count == 1 }
+        task.cancel()
+        await task.value
+
+        #expect(model.existingSelection(gone.id) == nil)
+        #expect(model.existingSelection(kept.id) == kept.id)
+    }
+
     /// Polls the observed model until `condition` holds, for at most about ten seconds.
     private func waitUntil(_ condition: () -> Bool) async throws {
         for _ in 0..<2_000 {
