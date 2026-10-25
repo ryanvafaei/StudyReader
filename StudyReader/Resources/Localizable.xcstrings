@@ -1,142 +1,7 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Save" : {
-
-    },
-    "Edit Metadata" : {
-
-    },
-    "Cover" : {
-
-    },
-    "Choose Image…" : {
-
-    },
-    "Use Current Page" : {
-
-    },
-    "Reset Cover" : {
-
-    },
-    "Choose cover image" : {
-
-    },
-    "Use current page as cover" : {
-
-    },
-    "Reset cover to automatic" : {
-
-    },
-    "Save metadata" : {
-
-    },
-    "This document no longer exists." : {
-
-    },
-    "The document couldn't be updated. Try again." : {
-
-    },
-    "No categories yet" : {
-
-    },
-    "New Category…" : {
-
-    },
-    "New Category" : {
-
-    },
-    "Add a category" : {
-
-    },
-    "Built-in category" : {
-
-    },
-    "Category name" : {
-
-    },
-    "Rename Category" : {
-
-    },
-    "Add" : {
-
-    },
-    "Couldn't update categories" : {
-
-    },
-    "Delete category \"%@\"?" : {
-
-    },
-    "Its %@ move to Other." : {
-
-    },
-    "The categories couldn't be updated. Try again." : {
-
-    },
-    "%@ is larger than 500 MB. Import it anyway?" : {
-
-    },
-    "Allow" : {
-
-    },
-    "Allow access to this folder so StudyReader can copy the images." : {
-
-    },
-    "Drop to import" : {
-
-    },
-    "Enter the password for %@." : {
-
-    },
-    "Import" : {
-
-    },
-    "Import files or folders" : {
-
-    },
-    "Import finished" : {
-
-    },
-    "Import…" : {
-
-    },
-    "Importing" : {
-
-    },
-    "Highlights couldn't be loaded." : {
-
-    },
-    "The document couldn't be opened." : {
-
-    },
-    "The document file is missing." : {
-
-    },
-    "The highlight couldn't be saved." : {
-
-    },
-    "This document is no longer in the library." : {
-
-    },
-    "Large File" : {
-
-    },
-    "Password" : {
-
-    },
-    "Password Required" : {
-
-    },
-    "Skip" : {
-
-    },
-    "Skip this file" : {
-
-    },
-    "Unlock" : {
-
-    },
-    "Unlock with this password" : {
+    "#%@" : {
 
     },
     "%@ · %@" : {
@@ -149,7 +14,16 @@
         }
       }
     },
+    "%@ is larger than 500 MB. Import it anyway?" : {
+
+    },
+    "%@, %@" : {
+
+    },
     "%lld %%" : {
+
+    },
+    "%lld documents" : {
 
     },
     "%lld highlights" : {
@@ -158,10 +32,37 @@
     "%lld percent read" : {
 
     },
+    "1 document" : {
+
+    },
     "1 highlight" : {
 
     },
+    "Actual Size" : {
+
+    },
+    "Add" : {
+
+    },
+    "Add a category" : {
+
+    },
+    "Add tag" : {
+
+    },
+    "Add tag %@" : {
+
+    },
+    "Add tags to highlights or documents, or write #tag in a highlight note." : {
+
+    },
     "Added" : {
+
+    },
+    "Allow" : {
+
+    },
+    "Allow access to this folder so StudyReader can copy the images." : {
 
     },
     "Any Category" : {
@@ -179,6 +80,9 @@
     "blue" : {
 
     },
+    "Built-in category" : {
+
+    },
     "Cancel" : {
 
     },
@@ -191,13 +95,31 @@
     "Category" : {
 
     },
+    "Category name" : {
+
+    },
     "Check that your Mac has free disk space, then reopen StudyReader." : {
+
+    },
+    "Choose cover image" : {
+
+    },
+    "Choose Image…" : {
 
     },
     "Clear Filters" : {
 
     },
     "Couldn't open the library" : {
+
+    },
+    "Couldn't update categories" : {
+
+    },
+    "Couldn't update tags" : {
+
+    },
+    "Cover" : {
 
     },
     "Data" : {
@@ -215,10 +137,28 @@
     "Delete \"%@\"?" : {
 
     },
+    "Delete category \"%@\"?" : {
+
+    },
+    "Delete tag \"%@\"?" : {
+
+    },
     "Delete…" : {
 
     },
+    "Document" : {
+
+    },
+    "Drop to import" : {
+
+    },
+    "Edit Metadata" : {
+
+    },
     "Edit Metadata…" : {
+
+    },
+    "Enter the password for %@." : {
 
     },
     "File Type" : {
@@ -228,6 +168,15 @@
 
     },
     "Filter documents" : {
+
+    },
+    "Find in document" : {
+
+    },
+    "Find in Document" : {
+
+    },
+    "Fit Width" : {
 
     },
     "General" : {
@@ -245,10 +194,43 @@
     "Highlight automatically when I select text" : {
 
     },
+    "Highlight color" : {
+
+    },
+    "Highlight color for new highlights" : {
+
+    },
     "Highlight colors" : {
 
     },
     "Highlights" : {
+
+    },
+    "Highlights and documents with \"%@\" get \"%@\" instead. The tag \"%@\" is deleted. Nothing else is removed." : {
+
+    },
+    "Highlights couldn't be loaded." : {
+
+    },
+    "Highlights panel" : {
+
+    },
+    "Highlights Panel" : {
+
+    },
+    "Import" : {
+
+    },
+    "Import files or folders" : {
+
+    },
+    "Import finished" : {
+
+    },
+    "Import…" : {
+
+    },
+    "Importing" : {
 
     },
     "Indexing…" : {
@@ -257,10 +239,19 @@
     "Invert PDF colors in dark mode" : {
 
     },
+    "It is removed from %@ and %@. They aren't deleted." : {
+
+    },
+    "Its %@ move to Other." : {
+
+    },
     "Label" : {
 
     },
     "Label for %@ highlights" : {
+
+    },
+    "Large File" : {
 
     },
     "Last Opened" : {
@@ -292,13 +283,50 @@
     "Markdown" : {
 
     },
+    "Markdown reader arrives in T55" : {
+
+    },
+    "Merge" : {
+
+    },
+    "Merge \"%@\" into \"%@\"?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Merge \"%1$@\" into \"%2$@\"?"
+          }
+        }
+      }
+    },
+    "Merge into…" : {
+
+    },
     "Never opened" : {
+
+    },
+    "New Category" : {
+
+    },
+    "New Category…" : {
+
+    },
+    "No categories yet" : {
+
+    },
+    "No document" : {
 
     },
     "No documents match these filters" : {
 
     },
     "No documents yet" : {
+
+    },
+    "No tags yet" : {
+
+    },
+    "Notes" : {
 
     },
     "OK" : {
@@ -313,7 +341,22 @@
     "Opening library…" : {
 
     },
+    "Panel" : {
+
+    },
+    "Panel content arrives in T63" : {
+
+    },
+    "Password" : {
+
+    },
+    "Password Required" : {
+
+    },
     "PDF" : {
+
+    },
+    "PDF reader arrives in T53" : {
 
     },
     "pink" : {
@@ -332,6 +375,27 @@
 
     },
     "Reading" : {
+
+    },
+    "Remove tag %@" : {
+
+    },
+    "Rename" : {
+
+    },
+    "Rename Category" : {
+
+    },
+    "Rename tag" : {
+
+    },
+    "Rename…" : {
+
+    },
+    "Reset Cover" : {
+
+    },
+    "Reset cover to automatic" : {
 
     },
     "Restore the StudyReader folder from a backup, then reopen StudyReader." : {
@@ -355,10 +419,34 @@
     "Review" : {
 
     },
+    "Save" : {
+
+    },
+    "Save metadata" : {
+
+    },
     "Select a section" : {
 
     },
     "Show as grid or list" : {
+
+    },
+    "Show or hide the Highlights and Notes panel" : {
+
+    },
+    "Show Thumbnails" : {
+
+    },
+    "Single Page" : {
+
+    },
+    "Skip" : {
+
+    },
+    "Skip this file" : {
+
+    },
+    "Snapshot" : {
 
     },
     "Sort" : {
@@ -385,76 +473,34 @@
     "StudyReader couldn't write to its library." : {
 
     },
-    "#%@" : {
-
-    },
-    "%@, %@" : {
-
-    },
-    "%lld documents" : {
-
-    },
-    "1 document" : {
-
-    },
-    "Add tag" : {
-
-    },
-    "Add tag %@" : {
-
-    },
-    "Add tags to highlights or documents, or write #tag in a highlight note." : {
-
-    },
-    "Couldn't update tags" : {
-
-    },
-    "Delete tag \"%@\"?" : {
-
-    },
-    "Highlights and documents with \"%@\" get \"%@\" instead. The tag \"%@\" is deleted. Nothing else is removed." : {
-
-    },
-    "It is removed from %@ and %@. They aren't deleted." : {
-
-    },
-    "Merge" : {
-
-    },
-    "Merge into…" : {
-
-    },
-    "No tags yet" : {
-
-    },
-    "Remove tag %@" : {
-
-    },
-    "Rename" : {
-
-    },
-    "Rename tag" : {
-
-    },
-    "Rename…" : {
-
-    },
     "Tag" : {
 
     },
     "Tag name" : {
 
     },
-    "The tag couldn't be changed. Try again." : {
-
-    },
-    "The tags couldn't be updated. Try again." : {
-
-    },
     "Tags" : {
 
     },
+    "Take a snapshot of the page or section" : {
+
+    },
     "Text extraction failed" : {
+
+    },
+    "The categories couldn't be updated. Try again." : {
+
+    },
+    "The document couldn't be opened." : {
+
+    },
+    "The document couldn't be updated. Try again." : {
+
+    },
+    "The document file is missing." : {
+
+    },
+    "The highlight couldn't be saved." : {
 
     },
     "The library couldn't be updated. Try again." : {
@@ -469,7 +515,19 @@
     "The original file is no longer available." : {
 
     },
+    "The tag couldn't be changed. Try again." : {
+
+    },
+    "The tags couldn't be updated. Try again." : {
+
+    },
     "Themed Reviews" : {
+
+    },
+    "This document is no longer in the library." : {
+
+    },
+    "This document no longer exists." : {
 
     },
     "This library was updated by a newer version of StudyReader." : {
@@ -484,76 +542,19 @@
     "Title" : {
 
     },
+    "Unlock" : {
+
+    },
+    "Unlock with this password" : {
+
+    },
+    "Use Current Page" : {
+
+    },
+    "Use current page as cover" : {
+
+    },
     "yellow" : {
-
-    },
-    "Actual Size" : {
-
-    },
-    "Document" : {
-
-    },
-    "Edit Metadata…" : {
-
-    },
-    "Find in Document" : {
-
-    },
-    "Find in document" : {
-
-    },
-    "Fit Width" : {
-
-    },
-    "Highlight color" : {
-
-    },
-    "Highlight color for new highlights" : {
-
-    },
-    "Highlights" : {
-
-    },
-    "Highlights Panel" : {
-
-    },
-    "Highlights panel" : {
-
-    },
-    "Markdown reader arrives in T55" : {
-
-    },
-    "No document" : {
-
-    },
-    "Notes" : {
-
-    },
-    "Opening library…" : {
-
-    },
-    "Panel" : {
-
-    },
-    "Panel content arrives in T63" : {
-
-    },
-    "PDF reader arrives in T53" : {
-
-    },
-    "Show or hide the Highlights and Notes panel" : {
-
-    },
-    "Show Thumbnails" : {
-
-    },
-    "Single Page" : {
-
-    },
-    "Snapshot" : {
-
-    },
-    "Take a snapshot of the page or section" : {
 
     },
     "Zoom In" : {
