@@ -54,13 +54,13 @@ final class ReaderModel {
                 state = .failed(String(localized: "This document is no longer in the library."))
                 return
             }
+            document = loaded
+            categoryName = (try? await environment.categoryRepository.fetch(id: loaded.categoryId))?.name
             guard let url = environment.fileStore.url(forRelativePath: loaded.storedPath),
                   FileManager.default.fileExists(atPath: url.path) else {
                 state = .failed(String(localized: "The document file is missing."))
                 return
             }
-            document = loaded
-            categoryName = (try? await environment.categoryRepository.fetch(id: loaded.categoryId))?.name
             fileURL = url
             initialPosition = loaded.pdfPosition
             initialOffset = loaded.textPosition
@@ -73,6 +73,38 @@ final class ReaderModel {
             Log.database.error("Loading the document failed.")
             state = .failed(String(localized: "The document couldn't be opened."))
         }
+    }
+
+    /// Keeps `document` (title, author, categoryId) and `categoryName` in step with metadata edits, category renames
+    /// and category deletions (a deleted category's documents move to Other). Runs until the calling task is
+    /// cancelled. Errors are logged and end the observation; they don't change `state`.
+    func observeMetadata() async {
+        do {
+            for try await items in session.environment.documentRepository.observeItems() {
+                guard let item = items.first(where: { $0.id == documentId }) else { continue }
+                applyMetadata(item)
+            }
+        } catch {
+            Log.database.error("Observing the document metadata failed.")
+        }
+    }
+
+    /// Applies one observed item. Updates `categoryName` when it differs. Updates `document` only when title, author
+    /// or categoryId differ, so position and progress saves don't re-render the tab. Does nothing to `document`
+    /// while it is nil.
+    func applyMetadata(_ item: LibraryItem) {
+        if categoryName != item.categoryName {
+            categoryName = item.categoryName
+        }
+        guard var current = document else { return }
+        let observed = item.document
+        guard current.title != observed.title
+            || current.author != observed.author
+            || current.categoryId != observed.categoryId else { return }
+        current.title = observed.title
+        current.author = observed.author
+        current.categoryId = observed.categoryId
+        document = current
     }
 
     /// Observes this document's highlights until the calling task is cancelled.

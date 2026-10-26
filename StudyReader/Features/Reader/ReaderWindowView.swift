@@ -92,6 +92,7 @@ private struct ReaderTabContent: View {
             .focusedSceneValue(\.readerActions, ReaderActions(model: model, windowState: windowState))
             .task { await model.load() }
             .task { await model.observeHighlights() }
+            .task { await model.observeMetadata() }
             .task(id: model.transientMessage) { await hideBannerAfterDelay() }
             .onChange(of: session.router.pendingLocations[documentId]) { _, location in
                 model.receiveRouterLocation()

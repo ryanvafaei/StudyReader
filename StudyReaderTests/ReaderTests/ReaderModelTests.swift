@@ -34,6 +34,53 @@ struct ReaderModelTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func missingFileKeepsDocumentTitle() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await ReaderTestSupport.insertDocument(session, id: Self.documentId, withFile: false)
+
+        let model = ReaderModel(documentId: Self.documentId, session: session)
+        await model.load()
+
+        #expect(model.state == .failed("The document file is missing."))
+        #expect(model.fileURL == nil)
+        #expect(model.document?.title == TestData.document(id: Self.documentId).title)
+        #expect(model.categoryName != nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func subtitleFollowsCategoryRenameAndDelete() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await ReaderTestSupport.insertDocument(session, id: Self.documentId, withFile: false)
+        let environment = session.environment
+        let category = try await environment.categoryRepository.create(name: "Biology")
+        let original = try #require(await ReaderTestSupport.row(session, id: Self.documentId))
+        try await environment.documentRepository.updateMetadata(
+            id: Self.documentId,
+            title: original.title,
+            author: original.author,
+            categoryId: category.id
+        )
+
+        let model = ReaderModel(documentId: Self.documentId, session: session)
+        await model.load()
+        #expect(model.categoryName == "Biology")
+
+        let observer = Task { await model.observeMetadata() }
+        defer { observer.cancel() }
+
+        try await environment.categoryRepository.rename(id: category.id, to: "Cell Biology")
+        let renamed = await ReaderTestSupport.waitUntil { model.categoryName == "Cell Biology" }
+        #expect(renamed)
+
+        try await environment.categoryRepository.delete(id: category.id)
+        let moved = await ReaderTestSupport.waitUntil { model.categoryName == "Other" }
+        #expect(moved)
+        #expect(model.document?.categoryId == BuiltinCategory.other.id)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func autoHighlightCreatesImmediately() async throws {
         let session = try ReaderTestSupport.makeSession()
         defer { ReaderTestSupport.cleanUp(session) }
