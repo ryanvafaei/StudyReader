@@ -128,8 +128,7 @@ private struct ReaderTabContent: View {
                         Label {
                             Text(session.settings.label(for: color))
                         } icon: {
-                            Image(systemName: "circle.fill")
-                                .foregroundStyle(HighlightPalette.color(color))
+                            Image(nsImage: HighlightPalette.swatchImage(color))
                         }
                         .tag(color)
                     }

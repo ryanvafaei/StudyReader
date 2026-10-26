@@ -24,6 +24,23 @@ enum HighlightPalette {
         return NSColor(srgbRed: components.red, green: components.green, blue: components.blue, alpha: 1)
     }
 
+    /// A filled circle in `nsColor(color)` with a 0.5 pt `NSColor.separatorColor` outline, `diameter` points wide.
+    /// `isTemplate == false`, so menus draw it in its own colour in light and dark mode.
+    static func swatchImage(_ color: HighlightColor, diameter: CGFloat = 12) -> NSImage {
+        let image = NSImage(size: NSSize(width: diameter, height: diameter), flipped: false) { rect in
+            let oval = NSBezierPath(ovalIn: rect.insetBy(dx: 0.5, dy: 0.5))
+            nsColor(color).setFill()
+            oval.fill()
+            NSColor.separatorColor.setStroke()
+            oval.lineWidth = 0.5
+            oval.stroke()
+            return true
+        }
+        image.isTemplate = false
+        image.accessibilityDescription = name(color)
+        return image
+    }
+
     /// Localized color name for accessibility labels.
     static func name(_ color: HighlightColor) -> String {
         switch color {

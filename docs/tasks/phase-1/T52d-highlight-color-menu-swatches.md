@@ -38,3 +38,4 @@ Settings > Highlight colors rows (U6), the toolbar button design, palette values
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-26, code-reviewer sonnet medium: APPROVED. Non-template coloured swatch images; unit test reads the rendered centre pixel; target UI test passes on CI (run 40413930020).
