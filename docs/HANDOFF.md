@@ -22,5 +22,6 @@ Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. T
 ## Session notes (local session: add anything the cloud session needs to know)
 - Unit suite at T52: 355 tests passed, 0 warnings.
 - The user's own edits to `StudyReaderUITests/Support/` (selector helpers) are part of the UI-test setup commit; don't revert them.
-- `Secrets/Google.xcconfig` is tracked in git (commit 55cc1c9 "google credentials") although `Secrets/` is in `.gitignore`. Nothing was pushed until the user decides what to do about it (see the GitHub setup step in the session). Never read or print `Secrets/`.
+- Secrets/ was removed from git history before the first push (2026-10-26). CI gets the Google config from the GOOGLE_XCCONFIG repo secret; cloud sessions don't need it. Never read or print `Secrets/`.
+- A fresh clone and CI without the GOOGLE_XCCONFIG secret build with Google export not configured; this is expected (`Config/Base.xcconfig` uses `#include?`). `scripts/check-fresh-clone.sh` deliberately doesn't copy `Secrets/`.
 - Cleanup left from the manual T52 run: the document "Checkpoint Drop C" is in the user's real library (not in the in-memory test library).
