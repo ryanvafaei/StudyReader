@@ -18,7 +18,7 @@ The main session gives you: the task spec path, the implementer's report, and th
 3. **Correctness:** logic errors, unhandled edge cases, wrong error handling, data loss risks, off-by-one and coordinate-space mistakes.
 4. **Swift 6 concurrency:** actor isolation, `Sendable` correctness, no data races, no `@unchecked Sendable` / `nonisolated(unsafe)` without justification in the spec.
 5. **Project rules (CLAUDE.md, ARCHITECTURE.md):** no EPUB code, no `#available` for macOS < 27, no packages outside DEPENDENCIES.md §2, no `.xcodeproj` edits, thin views, repositories as the only GRDB users, injected time/network, names matching ARCHITECTURE.md, no secrets or token logging, license notice + THIRD_PARTY_NOTICES.md entry for code copied from `.references/`.
-6. **Tests quality:** tests actually assert the behaviour, not just that code runs.
+6. **Tests quality:** tests actually assert the behaviour, not just that code runs. UI tasks add XCUITests for their clear-cut flows (ADR-0019); a UI test is never weakened just to pass.
 
 Review only the diff and the code it touches (`git diff` against the last commit, plus targeted Reads). Don't review unrelated files.
 

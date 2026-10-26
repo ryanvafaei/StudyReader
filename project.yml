@@ -111,6 +111,20 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/StudyReader.app/Contents/MacOS/StudyReader"
         BUNDLE_LOADER: "$(TEST_HOST)"
+  # XCUITests for the visual checkpoints (ADR-0019). Separate scheme so ./scripts/test.sh never takes over the screen.
+  # The tests launch the app with -StudyReaderInMemory, so they never open the user's library (ADR-0011).
+  StudyReaderUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: StudyReaderUITests
+    dependencies:
+      - target: StudyReader
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ryanvafaei.StudyReaderUITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: StudyReader
 schemes:
   StudyReader:
     build:
@@ -126,3 +140,12 @@ schemes:
       shouldUseLaunchSchemeArgsEnv: false
       environmentVariables:
         STUDYREADER_IN_MEMORY: "1"
+  StudyReaderUITests:
+    build:
+      targets:
+        StudyReader: all
+        StudyReaderUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - StudyReaderUITests
