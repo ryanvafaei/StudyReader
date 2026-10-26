@@ -279,6 +279,45 @@ struct LibraryModelTests {
         #expect(model.existingSelection(kept.id) == kept.id)
     }
 
+    @Test("cover versions follow the cover file's modification date and skip documents without a cover")
+    func coverVersionsFollowTheCoverFile() throws {
+        let environment = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        let fileStore = environment.fileStore
+        defer { TestFileStore.remove(fileStore) }
+        let coveredId = "10000000-0000-0000-0000-0000000000C1"
+        let plainId = "10000000-0000-0000-0000-0000000000C2"
+        _ = try fileStore.createDocumentFolder(documentId: coveredId)
+        let coverURL = try fileStore.coverURL(documentId: coveredId)
+        let path = coverURL.path(percentEncoded: false)
+        let dateA = Date(timeIntervalSince1970: 1_790_000_000)
+        let dateB = dateA.addingTimeInterval(3_600)
+
+        try Self.pngData().write(to: coverURL)
+        try FileManager.default.setAttributes([.modificationDate: dateA], ofItemAtPath: path)
+        var covered = TestData.document(id: coveredId, title: "Covered")
+        covered.coverPath = try #require(fileStore.relativePath(for: coverURL))
+        let plain = TestData.document(id: plainId, title: "Plain")
+        let items = [
+            LibraryItem(document: covered, categoryName: "", highlightCount: 0, tagIds: []),
+            LibraryItem(document: plain, categoryName: "", highlightCount: 0, tagIds: []),
+        ]
+
+        let first = LibraryModel.coverVersions(for: items, fileStore: fileStore)
+        #expect(first == [coveredId: dateA])
+
+        // CoverService overwrites the file in place: same path, new modification date.
+        try Self.pngData().write(to: coverURL)
+        try FileManager.default.setAttributes([.modificationDate: dateB], ofItemAtPath: path)
+        let second = LibraryModel.coverVersions(for: items, fileStore: fileStore)
+        #expect(second == [coveredId: dateB])
+        #expect(second[plainId] == nil)
+    }
+
+    /// A valid 1x1 PNG. The test only needs a file with bytes to write and a modification date to read.
+    private static func pngData() throws -> Data {
+        try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="))
+    }
+
     /// Polls the observed model until `condition` holds, for at most about ten seconds.
     private func waitUntil(_ condition: () -> Bool) async throws {
         for _ in 0..<2_000 {

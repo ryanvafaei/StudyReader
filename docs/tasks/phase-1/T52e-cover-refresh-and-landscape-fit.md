@@ -69,3 +69,4 @@ Selection fill vs Markdown placeholder tint (U4), `CoverService`, `DocumentRepos
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-26, code-reviewer sonnet medium: APPROVED. Cover mtime map refreshes grid covers; landscape fit fixed at the ZStack-width root cause; LibraryCoverTests 3/3 and testChooseImageAndResetCoverUpdateTheCardCover pass on CI. Note: one stat per item per emission runs on the main actor (as the spec prescribes).

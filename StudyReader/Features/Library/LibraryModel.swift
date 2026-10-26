@@ -22,6 +22,11 @@ final class LibraryModel {
     /// Latest observed rows, in the repository's order. Sorting and filtering happen in `visibleItems`.
     private(set) var items: [LibraryItem] = []
 
+    /// Cover file modification date per document id, refreshed on every observed list change. Documents without a
+    /// cover file are absent. The grid reloads a card's cover when its date changes, because `CoverService`
+    /// overwrites `cover.png` in place and `coverPath` stays the same.
+    private(set) var coverVersions: [String: Date] = [:]
+
     /// `items` filtered by `filter`, then sorted by `sort`.
     var visibleItems: [LibraryItem] {
         Self.sorted(Self.filtered(items, by: filter), by: sort)
@@ -68,6 +73,8 @@ final class LibraryModel {
     func observe() async {
         do {
             for try await observed in documents.observeItems() {
+                // CoverService replaces the file before it updates the row, so this emission sees the new date.
+                coverVersions = Self.coverVersions(for: observed, fileStore: fileStore)
                 items = observed
             }
         } catch {
@@ -150,6 +157,20 @@ final class LibraryModel {
             return
         }
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    /// Reads `.contentModificationDateKey` of each item's cover file (`fileStore.url(forRelativePath: coverPath)`).
+    /// Items with no `coverPath`, an unresolvable path or no file are skipped. Pure apart from reading file metadata.
+    nonisolated static func coverVersions(for items: [LibraryItem], fileStore: FileStore) -> [String: Date] {
+        var versions: [String: Date] = [:]
+        for item in items {
+            guard let coverPath = item.document.coverPath,
+                  let url = fileStore.url(forRelativePath: coverPath),
+                  let modified = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            else { continue }
+            versions[item.id] = modified
+        }
+        return versions
     }
 
     /// Ties are always broken by `id` ascending, so the order is total.

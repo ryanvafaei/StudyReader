@@ -93,6 +93,7 @@ struct LibraryView: View {
                     LibraryGridCard(
                         item: item,
                         fileStore: session.environment.fileStore,
+                        coverVersion: model.coverVersions[item.id],
                         isSelected: currentSelection == item.id,
                         onRetry: { retry(item.id) }
                     )

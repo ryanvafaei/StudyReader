@@ -27,13 +27,20 @@ enum LibraryItemFormat {
 struct LibraryGridCard: View {
     let item: LibraryItem
     let fileStore: FileStore
+    /// Cover file modification date from `LibraryModel.coverVersions`; a change reloads the cover.
+    let coverVersion: Date?
     let isSelected: Bool
     let onRetry: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottom) {
-                DocumentCoverView(document: item.document, categoryName: item.categoryName, fileStore: fileStore)
+                DocumentCoverView(
+                    document: item.document,
+                    categoryName: item.categoryName,
+                    fileStore: fileStore,
+                    coverVersion: coverVersion
+                )
                 LibraryStatusBadge(status: item.document.extractionStatus, onRetry: onRetry)
                     .padding(6)
             }

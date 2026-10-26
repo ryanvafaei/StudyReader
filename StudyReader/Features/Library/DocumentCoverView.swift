@@ -7,43 +7,50 @@ struct DocumentCoverView: View {
     let document: LibraryDocument
     let categoryName: String
     let fileStore: FileStore
+    /// Cover file modification date. A change reloads the image even when `coverPath` is the same (Choose Image…
+    /// or Reset Cover overwrite `cover.png` in place). Nil when the caller doesn't track it.
+    let coverVersion: Date?
 
     @State private var coverImage: NSImage?
 
-    init(document: LibraryDocument, categoryName: String, fileStore: FileStore) {
+    init(document: LibraryDocument, categoryName: String, fileStore: FileStore, coverVersion: Date? = nil) {
         self.document = document
         self.categoryName = categoryName
         self.fileStore = fileStore
+        self.coverVersion = coverVersion
     }
 
     /// Every cover shares one 3:4 portrait frame. The frame is a `Color.clear` base, so its size comes only from the
-    /// proposed width, never from the image. Content is drawn in an overlay: a landscape cover is aspect-fit in the
-    /// middle, and a blurred, dimmed copy of it fills the rest of the frame.
+    /// proposed width, never from the image. Content is drawn in overlays: a blurred, dimmed copy fills the frame,
+    /// and the cover is aspect-fit over it, so a landscape cover sits in the middle with blur above and below.
     var body: some View {
         Color.clear
             .aspectRatio(3.0 / 4.0, contentMode: .fit)
             .overlay {
                 if let coverImage {
-                    ZStack {
-                        Image(nsImage: coverImage)
-                            .resizable()
-                            .scaledToFill()
-                            .blur(radius: 24)
-                            .overlay(Color(nsColor: .windowBackgroundColor).opacity(0.35))
-                            .clipped()
-                        Image(nsImage: coverImage)
-                            .resizable()
-                            .scaledToFit()
-                    }
+                    Color.clear
+                        .overlay {
+                            Image(nsImage: coverImage)
+                                .resizable()
+                                .scaledToFill()
+                                .blur(radius: 24)
+                                .overlay(Color(nsColor: .windowBackgroundColor).opacity(0.35))
+                        }
+                        .clipped()
+                        .overlay {
+                            Image(nsImage: coverImage)
+                                .resizable()
+                                .scaledToFit()
+                        }
                 } else {
                     GeneratedCoverView(title: document.title, fileType: document.fileType)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
-        .accessibilityHidden(true)
-        .task(id: document.coverPath) {
-            coverImage = loadCoverImage()
-        }
+            .accessibilityHidden(true)
+            .task(id: CoverReloadKey(path: document.coverPath, version: coverVersion)) {
+                coverImage = loadCoverImage()
+            }
     }
 
     private func loadCoverImage() -> NSImage? {
@@ -53,6 +60,12 @@ struct DocumentCoverView: View {
         }
         return NSImage(contentsOf: url)
     }
+}
+
+/// What the cover image depends on: the stored path and the cover file's modification date.
+private struct CoverReloadKey: Hashable {
+    let path: String?
+    let version: Date?
 }
 
 /// Fallback cover: a rounded card tinted by file type with the title and a document icon.
