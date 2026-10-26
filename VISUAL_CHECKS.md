@@ -4,7 +4,9 @@ Phase 1 workflow (user decision 2026-10-25): tasks are committed after tests pas
 
 At each checkpoint the main session gives one checklist grouped by screen, with every step numbered and tagged with its task ID, and marks steps that need special data or setup. Before each checkpoint the Debug "Seed Sample Library" is updated so every new feature can be checked without real files.
 
-Anything the user reports becomes a small fix task, committed separately.
+Since 2026-10-25 (ADR-0019) the checkpoints are run by the **ui-tester** agent: XCUITests (`./scripts/uitest.sh`) plus an exploratory Peekaboo pass on an in-memory build, with a report in `docs/checkpoints/<checkpoint>.md`. The user only answers items marked NEEDS HUMAN.
+
+Anything that fails becomes a small fix task, committed separately.
 
 ## Open
 
@@ -29,3 +31,10 @@ Anything the user reports becomes a small fix task, committed separately.
 - T45 Settings window (user, 2026-10-24)
 - T47 Library view (user, 2026-10-25)
 - T48 steps 1–4 and 6–12: drop, folder drop, unsupported, duplicate, File > Import, password prompt, Markdown image folder access, toolbar spinner, no onChange warnings, light/dark (user, 2026-10-25)
+
+## Needs a Mac
+
+Checks a cloud session can't run (ADR-0020). The user does them on the Mac, then moves each to Passed or reports it.
+
+| Task | What to check | How |
+|---|---|---|

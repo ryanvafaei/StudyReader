@@ -1,0 +1,103 @@
+# Build and test on a macOS 27 + Xcode 27 runner (ADR-0020).
+# - Push to master: build + unit tests.
+# - Push to ci-scratch: whatever the snapshot's .ci-request file asks for (scripts/ci.sh writes it).
+# - Manual run (Actions tab or REST dispatch): choose the suite.
+# Every run posts its summary as a commit comment (read by scripts/ci.sh through the GitHub REST API) and uploads
+# logs and UI-test screenshots as the "ci-results" artifact.
+name: CI
+
+on:
+  push:
+    branches: [master, ci-scratch]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".claude/**"
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "unit, build, ui, all, or fresh-clone"
+        type: choice
+        options: [unit, build, ui, all, fresh-clone]
+        default: unit
+      filters:
+        description: "Space-separated -only-testing filters, e.g. StudyReaderTests/FileStoreTests"
+        type: string
+        default: ""
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/ci-scratch' }}
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: xcode-27
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the request
+        id: request
+        env:
+          INPUT_SUITE: ${{ inputs.suite }}
+          INPUT_FILTERS: ${{ inputs.filters }}
+        run: ./scripts/ci/read-request.sh >> "$GITHUB_OUTPUT"
+
+      - name: Tools
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData/SourcePackages
+          key: spm-${{ hashFiles('StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'project.yml') }}
+          restore-keys: spm-
+
+      # Secrets/ is never committed. The GOOGLE_XCCONFIG repository secret holds the whole Secrets/Google.xcconfig
+      # file (set it with: gh secret set GOOGLE_XCCONFIG < Secrets/Google.xcconfig). Without it, CI builds with an
+      # empty placeholder, which is enough for the in-memory tests; Google sign-in just won't work in CI builds.
+      - name: Write local config from secrets
+        env:
+          GOOGLE_XCCONFIG: ${{ secrets.GOOGLE_XCCONFIG }}
+        run: |
+          mkdir -p Secrets
+          if [ -n "$GOOGLE_XCCONFIG" ]; then
+            printf '%s\n' "$GOOGLE_XCCONFIG" > Secrets/Google.xcconfig
+            echo "Wrote Secrets/Google.xcconfig from the GOOGLE_XCCONFIG secret."
+          else
+            printf '// CI placeholder: the GOOGLE_XCCONFIG secret is not set.\n' > Secrets/Google.xcconfig
+            echo "::warning::GOOGLE_XCCONFIG secret not set; building with an empty Google config."
+          fi
+
+      - name: Sign ad hoc for CI
+        run: ./scripts/ci/prepare-signing.sh
+
+      - name: Run ${{ steps.request.outputs.suite }}
+        run: ./scripts/ci/run.sh "${{ steps.request.outputs.suite }}" ${{ steps.request.outputs.filters }}
+
+      - name: Post the summary as a commit comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f build/ci-summary.md ] || printf 'CI run %s ended before writing a summary: %s/%s/actions/runs/%s\n' \
+            "${{ github.run_id }}" "${{ github.server_url }}" "${{ github.repository }}" "${{ github.run_id }}" > build/ci-summary.md
+          head -c 60000 build/ci-summary.md > build/ci-comment.md
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" -F body=@build/ci-comment.md > /dev/null
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-results
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            build/ci-summary.md
+            build/*.log
+            build/ui-screenshots/

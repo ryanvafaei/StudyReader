@@ -21,4 +21,5 @@ You implement UI and app-shell tasks for StudyReader. Follow the preloaded imple
 - Use system colors and semantic styles so light/dark mode work without special-casing. Highlight colors come from one shared palette type.
 - Strings go in the String Catalog (`Localizable.xcstrings`). Every interactive control has an accessibility label.
 - Don't draw PDF or text-view content and don't compute anchors; that's pdf-engine. Host `PDFReaderView` / `TextReaderView` as the spec says.
-- You can't see the UI. In your report, set "Visual check needed: yes" and list exactly what the user should check.
+- For every user-visible flow with a clear expected result (opens, enables/disables, shows an error, updates a card), add or extend an XCUITest in `StudyReaderUITests/` (ADR-0019). Use the helpers in `StudyReaderUITests/Support/` and the existing accessibility labels; add a label where a control has none. Tests launch with the in-memory library only. Run them with `./scripts/uitest.sh StudyReaderUITests/<Class>` (on a Mac it takes over the screen, so run it only when the main session says no other agent is running; in a cloud session it runs on CI).
+- You still can't judge looks. In your report, set "Visual check needed: yes" and list exactly what ui-tester should look at, by checklist step.

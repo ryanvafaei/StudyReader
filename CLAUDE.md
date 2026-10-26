@@ -25,7 +25,7 @@ Native macOS app for studying course material: read PDFs and Markdown, highlight
 - PDF: PDFKit. Markdown and PDF text view: swift-markdown → `NSAttributedString` in NSTextView (TextKit 2).
 - Persistence: SQLite via GRDB (`DatabasePool`, WAL), FTS5 search.
 - Export: GoogleSignIn (`drive.file` scope) + Drive API Markdown→Google Docs conversion via URLSession.
-- Tests: Swift Testing (`import Testing`). XCUITest only when a flow can't be tested otherwise.
+- Tests: Swift Testing (`import Testing`) for logic. UI flows at visual checkpoints get XCUITests in `StudyReaderUITests/` (ADR-0019).
 
 ## Commands
 
@@ -35,7 +35,11 @@ Always use these scripts, exactly as written (no pipes, redirects, `cd`, or chai
 - Test all: `./scripts/test.sh` (log: `build/test.log`)
 - Test some: `./scripts/test.sh StudyReaderTests/<Suite>[/<test>] …`
 - Fresh-clone check (committed files only): `./scripts/check-fresh-clone.sh`
+- UI tests (take over the screen): `./scripts/uitest.sh [StudyReaderUITests/<Class>[/<test>] …]` (log: `build/uitest.log`, screenshots: `build/ui-screenshots/`)
+- Run the app with an in-memory library for exploratory checks: `./scripts/run-app.sh` / `./scripts/run-app.sh stop` (log: `build/app.log`)
+- LaunchServices check / cleanup of stale app copies: `./scripts/lsregister-clean.sh [--check]`
 - Never call `xcodebuild` directly and never `rm -rf` the generated project; `xcodegen generate` (no cache) regenerates it.
+- **Cloud sessions (Linux, no Xcode):** `build.sh`, `test.sh`, `uitest.sh` and `check-fresh-clone.sh` forward to `./scripts/ci.sh`, which runs the same step on GitHub Actions (macOS 27) and prints the result (ADR-0020). A run takes minutes (build ~10, unit tests ~15, UI tests ~30); give the Bash call a long timeout and wait for it. Logs and screenshots land in `build/ci/<run id>/`. `./scripts/ci.sh status` shows the latest `master` run. `run-app.sh` and `lsregister-clean.sh` need a Mac.
 
 ## Architecture rules (details in ARCHITECTURE.md)
 
@@ -64,6 +68,7 @@ The main session coordinates and does not write feature code itself. Agents are 
 | test-runner | Haiku | low | Build + full tests, failures only |
 | code-reviewer | Sonnet | medium | Approve or request changes, per task |
 | bug-hunter | Opus | high | End-of-phase bug hunt, report in `docs/bugs/` |
+| ui-tester | Sonnet | high | Visual checkpoints: XCUITests + Peekaboo pass, report in `docs/checkpoints/` (ADR-0019) |
 
 Effort comes from each agent's file. Override it per call only as the escalation rule says. Never set `CLAUDE_CODE_EFFORT_LEVEL` (it overrides every agent).
 
@@ -74,9 +79,10 @@ Effort comes from each agent's file. Override it per call only as the escalation
    2. Run test-runner. Wait for the result.
    3. Run code-reviewer with the spec path, the implementer's report, and the test result.
    4. Append one line to the spec's "Review log": date, model and effort used, verdict, short reason.
-   5. APPROVED: commit (one task per commit, message `TNN: <title>`). If the report says "Visual check needed: yes", ask the user to check before moving on.
+   5. APPROVED: commit (one task per commit, message `TNN: <title>`), then `git push origin master`. CI on master runs build + unit tests; `./scripts/ci.sh status` must be green before the next task. If the report says "Visual check needed: yes", add its steps to VISUAL_CHECKS.md.
    6. CHANGES REQUESTED: follow the escalation rule below, then repeat from step 2.
-3. When all tasks are approved, have test-runner run `./scripts/check-fresh-clone.sh`, then run bug-hunter. Turn its critical and high findings into fix tasks and run them through the same loop.
+3. At each checkpoint in VISUAL_CHECKS.md, run ui-tester with the checkpoint name and its checklist. Each FAIL becomes a small fix task through the same loop; ask the user only about NEEDS HUMAN items, then continue.
+4. When all tasks are approved, have test-runner run `./scripts/check-fresh-clone.sh`, then run bug-hunter. Turn its critical and high findings into fix tasks and run them through the same loop.
 
 ### Escalation rule
 Count CHANGES REQUESTED verdicts per task (from its Review log).
@@ -88,9 +94,19 @@ Count CHANGES REQUESTED verdicts per task (from its Review log).
 
 ### General rules
 - Run one implementer at a time. Never run two agents that edit files in parallel.
-- Keep diffs small; one task per commit. Never push, force-push, or rewrite history unless the user asks.
-- UI and PDF-position changes can't be verified by reading code. Ask the user for a screenshot instead of claiming it works.
+- Keep diffs small; one task per commit, pushed to `master` right after (ADR-0020). Never force-push `master`, delete branches or rewrite history. Never base work on the `ci-scratch` branch (`ci.sh` rewrites it).
+- UI and PDF-position changes can't be verified by reading code. Verify them with ui-tester (XCUITests + Peekaboo) instead of claiming they work; ask the user only for what it marks NEEDS HUMAN.
+- Only ui-tester controls the screen. Never run `uitest.sh`, `run-app.sh` or Peekaboo from another agent or in parallel with another agent.
 - Don't read or print anything in `Secrets/`.
+
+## Cloud sessions (ADR-0020)
+
+A cloud session has `CLAUDE_CODE_REMOTE=true` and runs Linux without Xcode, the app or a screen.
+- At the start, read `docs/HANDOFF.md`, then run `./scripts/ci.sh status`. Keep HANDOFF.md current at each checkpoint, phase change or open decision, and push it.
+- Build and test through the scripts as usual; they run on CI (see Commands).
+- Mac-only checks (ui-tester's Peekaboo pass, Finder drag-and-drop, light/dark appearance, keychain/Google sign-in, real-library behaviour) can't run here. List them under "Needs a Mac" in VISUAL_CHECKS.md with the task ID and exact steps, and keep going. The user checks them on the Mac.
+- When something needs the user (a product decision, a BLOCKED report, a spec question), ask in the session, then continue with any task that doesn't depend on the answer. Don't guess.
+- If CI itself fails (runner, signing, network) rather than the code, stop and report it with the run URL.
 
 ## Compact instructions
 

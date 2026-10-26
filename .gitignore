@@ -35,6 +35,9 @@ StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
 !StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 .xcodegen-cache/
 
+# CI request file: only in ci-scratch snapshot commits (scripts/ci.sh)
+.ci-request
+
 # Reference repos and local-only files
 .references/
 _to_delete/

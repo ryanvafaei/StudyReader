@@ -29,10 +29,22 @@
       "Bash(rg *)",
       "Bash(wc *)",
       "Bash(head *)",
-      "Bash(tail *)"
+      "Bash(tail *)",
+      "Bash(./scripts/uitest.sh)",
+      "Bash(./scripts/uitest.sh *)",
+      "Bash(./scripts/run-app.sh)",
+      "Bash(./scripts/run-app.sh *)",
+      "Bash(./scripts/lsregister-clean.sh)",
+      "Bash(./scripts/lsregister-clean.sh *)",
+      "mcp__peekaboo",
+      "Bash(./scripts/ci.sh)",
+      "Bash(./scripts/ci.sh *)",
+      "Bash(git push)",
+      "Bash(git push origin master)",
+      "Bash(git fetch *)",
+      "Bash(git pull --rebase origin master)"
     ],
     "deny": [
-      "Bash(git push *)",
       "Bash(git reset --hard *)",
       "Bash(git clean *)",
       "Bash(rm -rf *)",
@@ -44,11 +56,22 @@
       "Edit(./.claude/settings.json)",
       "Write(./.claude/settings.json)",
       "Edit(./Secrets/**)",
-      "Write(./Secrets/**)"
+      "Write(./Secrets/**)",
+      "mcp__peekaboo__analyze",
+      "mcp__peekaboo__clipboard",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git push origin +*)",
+      "Bash(git push origin --delete *)",
+      "Edit(./.github/**)",
+      "Write(./.github/**)"
     ]
   },
   "env": {
-    "CLAUDE_CODE_FORK_SUBAGENT": "0"
+    "CLAUDE_CODE_FORK_SUBAGENT": "0",
+    "BASH_DEFAULT_TIMEOUT_MS": "2400000",
+    "BASH_MAX_TIMEOUT_MS": "4200000"
   },
   "sandbox": {
     "excludedCommands": [
@@ -56,12 +79,33 @@
       "./scripts/build.sh *",
       "./scripts/test.sh",
       "./scripts/test.sh *",
-      "./scripts/check-fresh-clone.sh"
+      "./scripts/check-fresh-clone.sh",
+      "./scripts/uitest.sh",
+      "./scripts/uitest.sh *",
+      "./scripts/run-app.sh",
+      "./scripts/run-app.sh *",
+      "./scripts/lsregister-clean.sh",
+      "./scripts/lsregister-clean.sh *",
+      "./scripts/ci.sh",
+      "./scripts/ci.sh *"
     ],
     "filesystem": {
       "denyRead": [
         "/Users/ali/Documents/Projects/StudyReader/Secrets"
       ]
     }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/session-start.sh",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
   }
 }
