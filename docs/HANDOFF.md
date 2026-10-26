@@ -5,8 +5,17 @@ Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. T
 ## Where the project is
 - Phase 1 (study loop). T29–T52 are committed. T52 was the first visual checkpoint.
 - T52 checkpoint, manual run: `docs/checkpoints/T52-manual-2026-10-25.md`. Step 1 passed: reader tabs join the library window, so the reader work isn't blocked.
-- Fix specs written: T52a–T52f in `docs/tasks/phase-1/` (not yet in the Phase 1 README). Still to write: T52g (category-delete plural text: "Its 1 document moves to Other.", step 24) and T52h (`Picker: the selection ""` console warnings plus the two layout warnings, step 39). See the report for both.
-- UI tests (`StudyReaderUITests/`, ADR-0019) compile and launch the app with the sample library. Failing tests that match known T52 findings must stay failing until their fix task: never weaken them. Current state (2026-10-26): the full suite has not been run yet. `LibraryOpenTests/testDoubleClickOpensReaderAsTabInLibraryWindow` fails with `tabs: []` although the screenshot shows the tab bar ("Library" and the reader tab), so `tabBar`/`tabTitles` in `Support/StudyReaderUI.swift` use the wrong selector. A ui-builder run to fix selectors (StudyReaderUITests/ only) was stopped by the user and not resumed. The user already changed the card, row, category-row and tag-count helpers to match label OR value (macOS exposes static text as `value`).
+- Fix specs T52a–T52h are in `docs/tasks/phase-1/` and the Phase 1 README (T52g: category-delete plural text; T52h: Picker and layout console warnings).
+- UI tests (`StudyReaderUITests/`, ADR-0019): cloud path verified 2026-10-26 (`./scripts/ci.sh uitest` posts the summary and downloads logs and screenshots to `build/ci/<run id>/`). Full suite on CI: 39 tests, 29 pass, 10 fail. Every failure matches a T52 finding, none is new, and they must stay failing until their fix task (never weaken them):
+  - `LibraryOpenTests/testListViewReturnOpensTheSelectedRow` → T52a
+  - `LibraryOpenTests/testOpeningAReaderTabKeepsTheWindowSize` → T52b
+  - `ReaderChromeTests/testMissingOriginalShowsErrorAndKeepsTheTitle`, `testOpenReaderSubtitleFollowsACategoryDeletion` → T52c
+  - `ReaderChromeTests/testHighlightColorMenuShowsColouredSwatchesAndKeepsTheChoice` → T52d
+  - `LibraryCoverTests/testLandscapeCoverIsFittedOverABlurredBackground`, `MetadataSheetTests/testChooseImageAndResetCoverUpdateTheCardCover` → T52e
+  - `MetadataSheetTests/testTagFieldSuggestionsArrowKeysAndReturn` → T52f
+  - `CategoryManagerTests/testCreateRenameAssignAndDeleteACategory` → T52g (plural text)
+  - `ReaderChromeTests/testOptionCommandHTogglesTheInspector` → open decision (⌥⌘H replacement)
+  The tab-bar selector problem is fixed (the user's helper edits); the single-test run passes.
 
 ## Decisions waiting for the user (ask, don't decide)
 - ⌥⌘H collides with macOS "Hide Others" (T52 step 35). Propose a replacement (suggestion: ⌥⌘I) and the SPEC §5 change.
