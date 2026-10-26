@@ -51,3 +51,5 @@ Clearing a grid selection (U3), the drop overlay for the list, changes to `RootV
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-26, code-reviewer sonnet medium: APPROVED on reading; main session overrides to CHANGES REQUESTED: CI UI run 40399782297 still fails testListViewReturnOpensTheSelectedRow (AC1); drop part untested
+- 2026-10-26, code-reviewer sonnet high (escalated): APPROVED. Rework after UI run 40399782297: Return uses a hidden Button with .keyboardShortcut(.defaultAction) (disabled without selection) instead of onKeyPress/@FocusState, because NSTableView takes key focus and never forwards Return to SwiftUI's onKeyPress; the grid's focusable()/onKeyPress were removed (one Return path). Unit tests and the three Return/open UI tests pass on CI (runs 40401278011, 40401578389). Drop (AC4) is in VISUAL_CHECKS.md under Needs a Mac.

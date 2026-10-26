@@ -22,6 +22,7 @@ struct LibraryView: View {
         content
             .navigationTitle("Library")
             .toolbar { toolbarItems }
+            .background { openSelectedButton }
             .task { await model.observe() }
             .task { await model.observeCategories() }
             .task { await model.observeTags() }
@@ -102,16 +103,10 @@ struct LibraryView: View {
             }
             .padding(16)
         }
-        .focusable()
-        .onKeyPress(.return) {
-            guard let currentSelection else { return .ignored }
-            openDocument(currentSelection)
-            return .handled
-        }
     }
 
     private var table: some View {
-        Table(model.visibleItems, selection: tableSelection) {
+        Table(of: LibraryItem.self, selection: tableSelection) {
             TableColumn("Title") { item in
                 LibraryTitleCell(title: item.document.title, status: item.document.extractionStatus) {
                     retry(item.id)
@@ -138,6 +133,13 @@ struct LibraryView: View {
             TableColumn("Added") { item in
                 LibraryAddedText(date: item.document.addedAt)
             }
+        } rows: {
+            ForEach(model.visibleItems) { item in
+                TableRow(item)
+            }
+            .dropDestination(for: URL.self) { _, urls in
+                session.importCoordinator.importURLs(urls)
+            }
         }
         .contextMenu(forSelectionType: String.self) { ids in
             if let id = ids.first, let item = item(id: id) {
@@ -148,6 +150,19 @@ struct LibraryView: View {
                 openDocument(id)
             }
         }
+    }
+
+    /// Return opens the selected document in both layouts. It is a key equivalent (default action), so it works
+    /// whichever view holds key focus: `NSTableView` takes focus after a row click and doesn't pass Return to a
+    /// SwiftUI `onKeyPress`. Disabled with no selection, so Return falls through as usual.
+    private var openSelectedButton: some View {
+        Button("Open Selected Document") {
+            openSelection()
+        }
+        .keyboardShortcut(.defaultAction)
+        .disabled(currentSelection == nil)
+        .opacity(0)
+        .frame(width: 0, height: 0)
     }
 
     // MARK: - Toolbar
@@ -258,6 +273,13 @@ struct LibraryView: View {
     /// Opens the document in its reader tab; an already open document's tab is selected instead (ADR-0017).
     private func openDocument(_ id: String) {
         session.router.open(documentId: id, using: openWindow)
+    }
+
+    /// Opens the selected document (Return). Does nothing with no selection.
+    private func openSelection() {
+        if let currentSelection {
+            openDocument(currentSelection)
+        }
     }
 
     private func retry(_ id: String) {

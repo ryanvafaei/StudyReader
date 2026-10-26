@@ -38,3 +38,4 @@ Checks a cloud session can't run (ADR-0020). The user does them on the Mac, then
 
 | Task | What to check | How |
 |---|---|---|
+| T52a | Dropping a PDF from Finder onto the List layout imports it: on a row, and on the empty area below the last row; a drop on the grid still imports; no stray button or focus ring in the library window | Debug > Seed Sample Library, switch to List, drag a PDF from Finder onto a row, then onto the empty area below the last row, then switch to Grid and drag another |
