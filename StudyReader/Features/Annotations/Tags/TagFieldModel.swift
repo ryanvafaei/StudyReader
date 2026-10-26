@@ -20,7 +20,10 @@ final class TagFieldModel {
 
     /// The text in the "Add tag" field. Changing it recomputes `suggestions`.
     var query: String = "" {
-        didSet { refreshSuggestions() }
+        didSet {
+            // The field writes its text back on Return; a same-value write must keep the highlight.
+            if query != oldValue { refreshSuggestions() }
+        }
     }
 
     /// Up to `suggestionLimit` existing tags that start with the query and aren't assigned yet, in name order.
@@ -53,7 +56,8 @@ final class TagFieldModel {
         _ = await (assigned, everything)
     }
 
-    /// Return in the field: adds the highlighted suggestion, else the typed query. A blank query does nothing.
+    /// Return in the field: adds the highlighted suggestion when one is set, else adds the typed query as a
+    /// tag (creating it if needed). A blank query with no highlight does nothing.
     func submit() async {
         if let index = highlightedSuggestion, suggestions.indices.contains(index) {
             await add(name: suggestions[index].name)
@@ -123,13 +127,17 @@ final class TagFieldModel {
             .map { $0 }
     }
 
+    /// Recomputes `suggestions`. The highlight follows the same tag when it is still suggested, and is
+    /// dropped otherwise.
     private func refreshSuggestions() {
+        let highlightedId = highlightedSuggestion
+            .flatMap { suggestions.indices.contains($0) ? suggestions[$0].id : nil }
         suggestions = Self.suggestions(
             for: query,
             in: allTags,
             excluding: Set(tags.map(\.id))
         )
-        highlightedSuggestion = nil
+        highlightedSuggestion = highlightedId.flatMap { id in suggestions.firstIndex { $0.id == id } }
     }
 
     private func observeAssigned() async {

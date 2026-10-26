@@ -20,7 +20,7 @@ Step 16 of `docs/checkpoints/T52-manual-2026-10-25.md`: after typing "#Sa" and p
 
 ## Acceptance criteria
 1. Unit test `TagFieldModelTests/returnAddsHighlightedSuggestionAfterSameValueWrite`: in-memory environment with a document and tags "Sample · exam" and "Sample · midterm" (`tagRepository.findOrCreate`); run `observe()` in a `Task` and wait (bounded) until suggestions appear for `query = "Sa"`; `moveHighlight(by: 1)`; set `query = "Sa"` again (the same-value write the field does); `submit()` → the document's tags (`tagRepository.tags(forDocument:)`) contain the first suggestion, and `tagRepository.fetchAll()` has no tag named "Sa".
-2. Unit test `TagFieldModelTests/highlightSurvivesTagListRefresh`: with a suggestion highlighted, create an unrelated tag ("Zeta") so `observeAll()` re-emits; after the suggestions update (bounded wait), `highlightedSuggestion` still points at the same tag id.
+2. Unit test `TagFieldModelTests/highlightSurvivesTagListRefresh`: with a suggestion highlighted, create an unrelated tag that matches the query ("Sample · zeta") so `observeAll()` re-emits; after the suggestions update (bounded wait), `highlightedSuggestion` still points at the same tag id.
 3. Existing `TagFieldModelTests` keep passing (`suggestionsMatchPrefix`, `addCreatesOrReuses`, …): `./scripts/test.sh StudyReaderTests/TagFieldModelTests`.
 4. UI test `StudyReaderUITests/MetadataSheetTests/testTagFieldSuggestionsArrowKeysAndReturn` (step 16) turns green; `MetadataSheetTests/testSaveUpdatesTheCardAndCancelKeepsOnlyTagChanges` (typed new tag "Kept" + Return, step 12) keeps passing.
 5. `./scripts/build.sh` succeeds.
@@ -32,3 +32,5 @@ Chip wrapping, tag manager changes, the metadata sheet's loading state (U2).
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-26, code-reviewer sonnet medium: CHANGES REQUESTED (1st): production code correct; highlightSurvivesTagListRefresh sleeps 300 ms and 'Zeta' doesn't match the query, so it can pass vacuously without the fix. Use a matching unrelated tag and a bounded waitUntil.
+- 2026-10-26, code-reviewer sonnet high (escalated): APPROVED (2nd). Test now uses a matching tag ("Sample · zeta", so AC2 deviates from the spec's "Zeta") with a bounded wait; both new tests fail on the pre-fix code. TagFieldModelTests 5/5 and MetadataSheetTests 6/6 pass on CI.

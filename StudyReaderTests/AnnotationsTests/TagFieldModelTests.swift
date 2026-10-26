@@ -96,4 +96,63 @@ struct TagFieldModelTests {
         // Removing from the document keeps the tag in the library.
         #expect(try await env.tagRepository.fetchAll().count == 2)
     }
+
+    @MainActor
+    @Test(.timeLimit(.minutes(1)))
+    func returnAddsHighlightedSuggestionAfterSameValueWrite() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        try await env.documentRepository.insert(TestData.document(id: Self.documentId))
+        _ = try await env.tagRepository.findOrCreate(name: "Sample · exam", at: TestData.referenceDate)
+        _ = try await env.tagRepository.findOrCreate(name: "Sample · midterm", at: TestData.referenceDate)
+        let model = TagFieldModel(target: .document(Self.documentId), environment: env)
+        let observer = Task { await model.observe() }
+        defer { observer.cancel() }
+
+        model.query = "Sa"
+        let ready = await ReaderTestSupport.waitUntil { model.suggestions.count == 2 }
+        #expect(ready)
+
+        // Arrow down highlights the first suggestion; the field then writes the same query back.
+        model.moveHighlight(by: 1)
+        model.query = "Sa"
+        #expect(model.highlightedSuggestion == 0)
+
+        let expected = try #require(model.suggestions.first)
+        await model.submit()
+
+        let assigned = try await env.tagRepository.tags(forDocument: Self.documentId)
+        #expect(assigned.map(\.id).contains(expected.id))
+        let allTags = try await env.tagRepository.fetchAll()
+        #expect(!allTags.contains { $0.name == "Sa" })
+    }
+
+    @MainActor
+    @Test(.timeLimit(.minutes(1)))
+    func highlightSurvivesTagListRefresh() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        try await env.documentRepository.insert(TestData.document(id: Self.documentId))
+        _ = try await env.tagRepository.findOrCreate(name: "Sample · exam", at: TestData.referenceDate)
+        _ = try await env.tagRepository.findOrCreate(name: "Sample · midterm", at: TestData.referenceDate)
+        let model = TagFieldModel(target: .document(Self.documentId), environment: env)
+        let observer = Task { await model.observe() }
+        defer { observer.cancel() }
+
+        model.query = "Sa"
+        let ready = await ReaderTestSupport.waitUntil { model.suggestions.count == 2 }
+        #expect(ready)
+        model.moveHighlight(by: 1)
+        let index = try #require(model.highlightedSuggestion)
+        let highlightedId = model.suggestions[index].id
+
+        // An unrelated tag that also matches "Sa" makes observeAll() emit again. suggestions grows to 3
+        // only when that emission has been applied, so the wait is a precise signal, not a timed guess.
+        _ = try await env.tagRepository.findOrCreate(name: "Sample · zeta", at: TestData.referenceDate)
+        let refreshed = await ReaderTestSupport.waitUntil { model.suggestions.count == 3 }
+        #expect(refreshed)
+
+        let current = try #require(model.highlightedSuggestion)
+        #expect(model.suggestions.indices.contains(current) && model.suggestions[current].id == highlightedId)
+    }
 }
