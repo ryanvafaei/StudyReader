@@ -26,6 +26,7 @@ struct StudyReaderApp: App {
         WindowGroup(id: ReaderRouter.windowId, for: String.self) { $documentId in
             ReaderWindowRoot(documentId: documentId, launchModel: launchModel)
         }
+        .defaultSize(width: 1100, height: 720)
 
         Settings {
             SettingsRootView(launchModel: launchModel)

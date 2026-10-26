@@ -12,7 +12,11 @@ struct ReaderWindowRoot: View {
     var body: some View {
         content
             .background(WindowAccessor { hostWindow in
-                ReaderTabbing.joinMainTabGroup(hostWindow)
+                if documentId == nil {
+                    ReaderTabbing.discardEmptyWindow(hostWindow)
+                } else {
+                    ReaderTabbing.joinMainTabGroup(hostWindow)
+                }
                 window = hostWindow
             })
     }

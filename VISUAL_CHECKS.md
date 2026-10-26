@@ -39,3 +39,7 @@ Checks a cloud session can't run (ADR-0020). The user does them on the Mac, then
 | Task | What to check | How |
 |---|---|---|
 | T52a | Dropping a PDF from Finder onto the List layout imports it: on a row, and on the empty area below the last row; a drop on the grid still imports; no stray button or focus ring in the library window | Debug > Seed Sample Library, switch to List, drag a PDF from Finder onto a row, then onto the empty area below the last row, then switch to Grid and drag another |
+| T52b | Tab bar "+" adds no empty tab: open a document so the tab bar shows, click "+" at the right of the tab bar → no "No document" tab, library tab selected, tab count unchanged | Seed Sample Library, open a document, click "+" |
+| T52b | Library window keeps its size and position after the last reader tab closes: maximise (Fill), open a document, Cmd+W → no visible jump (watch for a one-frame 10 pt flicker); repeat with two reader tabs, closing one; drag a tab out and back | Seed Sample Library |
+| T52b | Resize (drag bottom-right corner) and move the library while a reader tab is open, then close the tab → the new size and position are kept | Seed Sample Library |
+| T52b | Known gaps: zoom (green button or titlebar double-click) while a reader tab is open, then close it → zoomed size may be reverted; also try full screen with a reader open, then close it | Seed Sample Library; report what you see |

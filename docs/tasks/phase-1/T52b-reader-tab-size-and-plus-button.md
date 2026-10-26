@@ -41,3 +41,5 @@ Removing the "+" button itself (AppKit shows it for SwiftUI `WindowGroup` window
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-26, code-reviewer sonnet high: CHANGES REQUESTED (1st): ReaderTabbing restores a stale preReaderLibraryFrame captured at first join, reverting user resizes/moves made while reading, and fires for a reader moved to its own window; doc comment contradicts code. Test change (settle) judged not a weakening.
+- 2026-10-26, code-reviewer sonnet high (escalated): APPROVED (2nd). Stale-frame issue resolved: the stored library frame is kept current on live resize and mouse-driven moves; the membership check was replaced by 'no windows other than library and closing' because AppKit has already removed the closing tab at willClose (CI run 40408688957). Test change (settle) is not a weakening. Known gaps, on the Needs-a-Mac list: zoom while reading may be reverted at close; full screen untested. Spec's fix alone wasn't enough for AC1, hence the restore-on-close addition.
