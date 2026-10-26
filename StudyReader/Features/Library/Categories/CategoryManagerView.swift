@@ -62,7 +62,7 @@ struct CategoryManagerView: View {
                 Task { await model.delete(id: row.id) }
             }
         } message: { row in
-            Text("Its \(TagUsageFormat.documents(row.documentCount)) move to Other.")
+            Text(CategoryManagerModel.deleteConfirmationMessage(documentCount: row.documentCount))
         }
         .alert("Couldn't update categories", isPresented: isShowingError) {
             Button("OK") {

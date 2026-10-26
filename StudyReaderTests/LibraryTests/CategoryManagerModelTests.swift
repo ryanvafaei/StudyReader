@@ -59,4 +59,12 @@ struct CategoryManagerModelTests {
         #expect(model.errorMessage == CategoryError.builtinCategory.errorDescription)
         #expect(try await env.categoryRepository.fetch(id: BuiltinCategory.paper.id) != nil)
     }
+
+    @Test
+    func deleteMessageAgreesWithCount() {
+        #expect(CategoryManagerModel.deleteConfirmationMessage(documentCount: 0) == "Its 0 documents move to Other.")
+        #expect(CategoryManagerModel.deleteConfirmationMessage(documentCount: 1) == "Its 1 document moves to Other.")
+        #expect(CategoryManagerModel.deleteConfirmationMessage(documentCount: 2) == "Its 2 documents move to Other.")
+        #expect(CategoryManagerModel.deleteConfirmationMessage(documentCount: 21) == "Its 21 documents move to Other.")
+    }
 }

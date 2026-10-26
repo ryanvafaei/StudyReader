@@ -65,6 +65,12 @@ final class CategoryManagerModel {
         }
     }
 
+    /// Message of the delete confirmation: "Its 1 document moves to Other." / "Its N documents move to Other."
+    /// Built from one String Catalog entry with plural variations, so the noun and the verb agree with the count.
+    nonisolated static func deleteConfirmationMessage(documentCount: Int) -> String {
+        String(localized: "Its \(documentCount) documents move to Other.")
+    }
+
     /// Clears the error message once the user has seen it.
     func dismissError() {
         errorMessage = nil

@@ -242,8 +242,27 @@
     "It is removed from %@ and %@. They aren't deleted." : {
 
     },
-    "Its %@ move to Other." : {
-
+    "Its %lld documents move to Other." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Its %lld document moves to Other."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Its %lld documents move to Other."
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Label" : {
 
