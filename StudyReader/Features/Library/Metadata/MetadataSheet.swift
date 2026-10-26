@@ -50,12 +50,19 @@ struct MetadataSheet: View {
                     .accessibilityLabel(Text("Title"))
                 TextField("Author", text: $model.author)
                     .accessibilityLabel(Text("Author"))
-                Picker("Category", selection: $model.categoryId) {
-                    ForEach(model.categories) { category in
-                        Text(category.name).tag(category.id)
+                if model.hasValidCategorySelection {
+                    Picker("Category", selection: $model.categoryId) {
+                        ForEach(model.categories) { category in
+                            Text(category.name).tag(category.id)
+                        }
+                    }
+                    .accessibilityLabel(Text("Category"))
+                } else {
+                    // Until the categories load, the picker has no tag for its selection (T52h). Keep the row's height.
+                    LabeledContent("Category") {
+                        Text("")
                     }
                 }
-                .accessibilityLabel(Text("Category"))
             }
             .formStyle(.grouped)
             .scrollDisabled(true)

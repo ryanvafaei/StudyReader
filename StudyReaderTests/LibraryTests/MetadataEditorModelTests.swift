@@ -97,6 +97,32 @@ struct MetadataEditorModelTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func categoryPickerWaitsForValidSelection() async throws {
+        let env = try makeEnvironment()
+        defer { TestFileStore.remove(env.fileStore) }
+        let session = AppSession(environment: env)
+        try await env.documentRepository.insert(
+            TestData.document(id: Self.documentId, title: "Old title", author: "Old author")
+        )
+
+        let model = MetadataEditorModel(documentId: Self.documentId, currentPageIndex: nil, session: session)
+        // Before load() the selection is "" and there are no categories, so the picker must not be shown.
+        #expect(model.hasValidCategorySelection == false)
+
+        await model.load()
+        #expect(model.hasValidCategorySelection)
+
+        model.categoryId = "missing"
+        #expect(model.hasValidCategorySelection == false)
+
+        // A document that doesn't exist: the load fails and no category is selected.
+        let missing = MetadataEditorModel(documentId: Self.markdownId, currentPageIndex: nil, session: session)
+        await missing.load()
+        #expect(missing.errorMessage != nil)
+        #expect(missing.hasValidCategorySelection == false)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func currentPageRequiresPDFAndAPage() async throws {
         let env = try makeEnvironment()
         defer { TestFileStore.remove(env.fileStore) }

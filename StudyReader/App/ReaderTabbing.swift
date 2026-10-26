@@ -25,8 +25,9 @@ enum ReaderTabbing {
     /// Configures `window`, then adds it after the last tab of the main window's group and selects it. A window that is
     /// already in the group is left where it is. Without a visible main window nothing is joined.
     ///
-    /// The window takes the group's frame first, so tabbing it in doesn't resize the group (T52b F1). The tabbing
-    /// itself runs on the next main-actor turn, after SwiftUI has laid out the new window.
+    /// The window takes the group's frame before it is tabbed in, so tabbing it in doesn't resize the group (T52b F1).
+    /// Only property sets run synchronously; frame, tab and ordering changes run on the next main-actor turn, outside
+    /// SwiftUI's layout pass.
     static func joinMainTabGroup(_ window: NSWindow) {
         configure(window)
         observeWindows()
@@ -35,8 +36,8 @@ enum ReaderTabbing {
         if anchor === mainWindow, (anchor.tabGroup?.windows ?? [anchor]).allSatisfy({ $0 === anchor || $0 === window }) {
             libraryFrameWithReaders = groupFrame
         }
-        window.setFrame(groupFrame, display: false)
         Task { @MainActor in
+            window.setFrame(groupFrame, display: false)
             let group = anchor.tabGroup?.windows ?? [anchor]
             if !group.contains(where: { $0 === window }) {
                 let last = group.last ?? anchor
@@ -178,6 +179,8 @@ final class ReaderWindowObserver: NSObject {
 }
 
 /// Zero-size view that reports the hosting window once, from `viewDidMoveToWindow` (SwiftUI can't reach NSWindow).
+/// The callback runs during SwiftUI's layout of the window. Do only property sets there; defer frame, tab, ordering and
+/// `@State` changes to the next main-actor turn.
 struct WindowAccessor: NSViewRepresentable {
     let onWindow: @MainActor (NSWindow) -> Void
 

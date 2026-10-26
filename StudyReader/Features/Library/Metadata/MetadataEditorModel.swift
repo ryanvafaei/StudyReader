@@ -44,6 +44,12 @@ final class MetadataEditorModel {
         document?.fileType == .pdf && currentPageIndex != nil
     }
 
+    /// true when `categoryId` is one of `categories`, so the Category picker has a tag for its selection.
+    /// false before `load()` finishes, and after a failed load.
+    var hasValidCategorySelection: Bool {
+        categories.contains { $0.id == categoryId }
+    }
+
     /// Name of the selected category, or an empty string while it is unknown.
     var selectedCategoryName: String {
         categories.first { $0.id == categoryId }?.name ?? ""

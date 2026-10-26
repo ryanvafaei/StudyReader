@@ -17,7 +17,10 @@ struct ReaderWindowRoot: View {
                 } else {
                     ReaderTabbing.joinMainTabGroup(hostWindow)
                 }
-                window = hostWindow
+                // A @State write during the layout pass re-enters SwiftUI's layout (T52h), so it waits a turn.
+                Task { @MainActor in
+                    window = hostWindow
+                }
             })
     }
 
