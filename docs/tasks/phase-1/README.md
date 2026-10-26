@@ -42,6 +42,14 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 22 | [T50 Metadata sheet and category manager](T50-metadata-sheet-and-category-manager.md) | ui-builder | T39, T47, T49 | yes |
 | 23 | [T51 ReaderModel and ReaderRouter](T51-reader-model-and-router.md) | ui-builder | T38, T45 | no |
 | 24 | [T52 Reader tabs, toolbar, commands](T52-reader-window-and-commands.md) | ui-builder | T47, T48, T51 | yes |
+| 24a | [T52a List view opens on Return and accepts dropped files](T52a-list-view-return-and-drop.md) (T52 checkpoint fix) | ui-builder | T52 | yes (drop only; Return covered by UI test) |
+| 24b | [T52b Reader tabs keep the window size; the tab bar "+" adds no empty tab](T52b-reader-tab-size-and-plus-button.md) (T52 checkpoint fix) | ui-builder | T52 | yes (F2 "+" only; F1 covered by UI test) |
+| 24c | [T52c Reader title for a missing original; subtitle follows category changes](T52c-reader-title-and-live-subtitle.md) (T52 checkpoint fix) | ui-builder | T52 | no |
+| 24d | [T52d Highlight-color menu swatches show their colours](T52d-highlight-color-menu-swatches.md) (T52 checkpoint fix) | ui-builder | T52 | no |
+| 24e | [T52e Grid covers refresh after a cover change; landscape covers are fitted](T52e-cover-refresh-and-landscape-fit.md) (T52 checkpoint fix) | ui-builder | T52 | no |
+| 24f | [T52f Tag field Return adds the highlighted suggestion](T52f-tag-field-return-adds-suggestion.md) (T52 checkpoint fix) | ui-builder | T52 | no |
+| 24g | [T52g Category delete confirmation agrees with the document count](T52g-category-delete-plural-text.md) (T52 checkpoint fix) | ui-builder | T52 | no |
+| 24h | [T52h No Picker or reentrant-layout warnings in the console](T52h-picker-and-layout-console-warnings.md) (T52 checkpoint fix) | ui-builder | T52, T52b | yes (console check on a Mac; NEEDS HUMAN in cloud) |
 | 25 | [T53 PDF reader view](T53-pdf-reader-view.md) | pdf-engine | T52 | yes |
 | 26 | [T54 PDF dark-mode inversion](T54-pdf-dark-mode-inversion.md) | pdf-engine | T53 | yes |
 | 27 | [T55 TextReaderView and the Markdown reader](T55-text-reader-view-markdown.md) | pdf-engine | T43, T52 | yes |
@@ -65,14 +73,14 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 45 | [T73 Export UI](T73-export-ui.md) | ui-builder | T69, T72 | yes |
 | 46 | [T74 ExportSyncScheduler](T74-export-sync-scheduler.md) | integrations | T73 | no |
 
-Task numbers continue after Phase 0's last commit (T28). Tasks with "none" or early dependencies (T42, T57, T64) may run earlier if a chain is blocked, but keep one implementer at a time.
+Task numbers continue after Phase 0's last commit (T28). Rows 24a–24h (T52a–T52h) are fixes from the T52 checkpoint (`docs/checkpoints/T52-manual-2026-10-25.md`); they run after T52 and before T53, in letter order (T52h must follow T52b). Tasks with "none" or early dependencies (T42, T57, T64) may run earlier if a chain is blocked, but keep one implementer at a time.
 
 ## Points of care for the orchestrator
 - **T30** is done and committed.
 - **T31** ends with a manual Console check by the user before import work (T41+) starts. If a normal launch logs "Using the in-memory library", stop the phase.
 - **Combined visual checks:** T47's full check happens at T48 (documents can only be imported then) and T49's at T50 (tags can first be created there). Commit T47 and T49 after review plus their small "empty state" check.
 - **T41 and T65** run as data-layer with model `sonnet`, effort `high` from the first call. Treat them as escalated: review with code-reviewer effort `high`; two rejections → ask the user.
-- **Shared files touched by many tasks, in order:** `AppEnvironment.swift` (T31, T33, T35–T38, T44, T65, T70–T72, T74), `AppSession.swift` (T45, T48, T51, T66), `RootView.swift` (T45, T47, T48, T49, T50, T66, T69), `AppCommands.swift` (T48, T50, T52, T66, T73), `ReaderWindowView.swift` (T52, T53, T55, T62, T63), `StudyPDFView.swift`/`PDFReaderController.swift` (T53, T54, T59, T61, T67). One command per shortcut: ⇧⌘M (T50, extended by T52) and ⌘F (T52, extended by T66) each stay a single command.
+- **Shared files touched by many tasks, in order:** `AppEnvironment.swift` (T31, T33, T35–T38, T44, T65, T70–T72, T74), `AppSession.swift` (T45, T48, T51, T66), `RootView.swift` (T45, T47, T48, T49, T50, T66, T69), `AppCommands.swift` (T48, T50, T52, T66, T73), `ReaderWindowView.swift` (T52, T52b, T52c, T52h, T53, T55, T62, T63), `ReaderTabbing.swift` (T52, T52b, T52h), `StudyPDFView.swift`/`PDFReaderController.swift` (T53, T54, T59, T61, T67). One command per shortcut: ⇧⌘M (T50, extended by T52) and ⌘F (T52, extended by T66) each stay a single command.
 - **Signing is done by the user** (ADR-0011 amendment): `DEVELOPMENT_TEAM: "597KGSTZWJ"`, no `CODE_SIGN_IDENTITY` override, `keychain-access-groups` in the app's entitlements, and the scripts pass `-allowProvisioningUpdates`. No Phase 1 task changes signing, `project.yml` signing keys or entitlements.
 - **Document tabs (T52):** native window tabbing only. If T52 reports BLOCKED because tabbing can't be controlled, ask the user; don't accept a custom tab bar.
 - **Google credentials are done by the user** (`Secrets/Google.xcconfig`, included by `Config/Base.xcconfig`). Agents never read `Secrets/`. Specs use only the `GOOGLE_CLIENT_ID` / `GOOGLE_REVERSED_CLIENT_ID` build settings and `GIDClientID` from Info.plist; when `GOOGLE_CLIENT_ID` is empty at runtime, the app shows "Google export not configured" (T71–T73). Everything before T72 is tested with stubs.
@@ -158,7 +166,7 @@ StudyReaderTests/                      + LibraryTests, ExtractionTests, Markdown
 - **Q7 (T65, T70):** tag filter semantics as specified. Confirmed.
 
 ## Phase done when
-- All 46 tasks are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
+- All 55 tasks (rows 1–46, T75 in row 2a, and the T52 checkpoint fixes T52a–T52h in rows 24a–24h) are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
 - The full suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes.
 - The SPEC §6 "done when" flow works on the user's Mac with a real lecture PDF and Gemini Notebook.
 - bug-hunter has run; critical/high findings (and mediums that get more expensive later) are fixed; the rest are in `docs/bugs/backlog.md`.
