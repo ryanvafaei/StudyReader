@@ -60,3 +60,5 @@ enum SearchQueryParser {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer data-layer Haiku medium (rework 1: high), reviewer code-reviewer Sonnet medium: CHANGES REQUESTED (1st): major: the parser iterates Characters, so a quote followed by a combining mark (U+0301) is not equal to the bare quote and reaches MATCH undoubled (a phrase could leak a raw OR/column filter); fix: tokenize over unicodeScalars and escape with a literal replace; add adversarial tests (title:x, ^a, (a), a:b, a OR b, curly quotes, U+0001, -*, a**, quote+U+0301, very long) run through the real FTS5 table.
+- 2026-10-27, implementer data-layer Haiku medium (rework 1: high), reviewer code-reviewer Sonnet high: APPROVED (2nd, conditional on the full unit run). Scalar-based tokenizing and escaping fix the combining-mark leak on every path; 13 tests incl. adversarial inputs through the real FTS5 table (runs 40598819276, 40599148672). Nice-to-haves to BACKLOG B20.

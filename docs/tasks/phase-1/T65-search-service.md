@@ -122,3 +122,5 @@ Run all five in one `read`. Map rows to the hit types. If the system SQLite reje
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+
+> **Note from the T64 review (2026-10-27):** `SearchQueryParser.matchExpression` returns nil when there is no positive term (including exclusion-only queries): treat nil as "no search", never as a query. Also catch FTS5 errors (e.g. a NUL character in the input) instead of crashing; see docs/BACKLOG.md B20.
