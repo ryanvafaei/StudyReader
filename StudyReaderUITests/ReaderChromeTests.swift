@@ -118,23 +118,16 @@ final class ReaderChromeTests: XCTestCase {
         }
     }
 
-    /// Step 35. At the T52 checkpoint ⌥⌘H ran the system "Hide Others" instead: the shortcut collides with it.
+    /// Step 35. ⌥⌘I toggles the inspector both ways. At the T52 checkpoint the shortcut was ⌥⌘H, which ran the
+    /// system's "Hide Others" instead (user decision 2026-10-27: ⌥⌘I).
     @MainActor
-    func testOptionCommandHTogglesTheInspector() {
+    func testOptionCommandITogglesTheInspector() {
         let ui = openReader()
-        ui.app.typeKey("h", modifierFlags: [.command, .option])
-        let opened = ui.waitUntil(timeout: 3) { ui.isInspectorOpen }
-
-        // Undo "Hide Others" if that's what the shortcut did, so the other apps come back.
-        let appMenu = ui.app.menuBars.menuBarItems["StudyReader"]
-        appMenu.click()
-        let showAll = appMenu.menuItems["Show All"]
-        if showAll.exists, showAll.isEnabled {
-            showAll.click()
-        } else {
-            ui.app.typeKey(.escape, modifierFlags: [])
-        }
-        XCTAssertTrue(opened, "⌥⌘H didn't toggle the inspector (it collides with StudyReader > Hide Others).")
+        ui.app.typeKey("i", modifierFlags: [.command, .option])
+        XCTAssertTrue(ui.waitUntil(timeout: 3) { ui.isInspectorOpen }, "⌥⌘I didn't open the inspector.")
+        XCTAssertEqual(ui.app.state, .runningForeground, "⌥⌘I sent StudyReader to the background.")
+        ui.app.typeKey("i", modifierFlags: [.command, .option])
+        XCTAssertTrue(ui.waitUntil(timeout: 3) { !ui.isInspectorOpen }, "A second ⌥⌘I didn't close the inspector.")
     }
 
     /// Step 36.

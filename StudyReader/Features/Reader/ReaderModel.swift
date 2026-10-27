@@ -212,7 +212,7 @@ final class ReaderModel {
         }
     }
 
-    /// Shows or hides the right panel on `tab`: the toolbar toggle and ⌥⌘H both use it.
+    /// Shows or hides the right panel on `tab`: the toolbar toggle and ⌥⌘I (View > Highlights Panel) both use it.
     func toggleRightPanel(tab: ReaderPanelTab) {
         rightPanelTab = tab
         isRightPanelVisible.toggle()

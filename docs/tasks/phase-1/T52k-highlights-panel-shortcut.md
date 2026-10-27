@@ -47,3 +47,4 @@ Other shortcuts, the panel content (T63), the inspector's behaviour for failed l
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-27, implementer ui-builder Haiku (per agent file) medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED. ⌥⌘I toggles the inspector both ways and the app stays in front; the three named UI tests pass on CI (run 40508785508).

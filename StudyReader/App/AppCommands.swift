@@ -88,7 +88,7 @@ struct AppCommands: Commands {
             Button("Highlights Panel") {
                 readerActions?.model.toggleRightPanel(tab: .highlights)
             }
-            .keyboardShortcut("h", modifiers: [.command, .option])
+            .keyboardShortcut("i", modifiers: [.command, .option])
             .disabled(readerActions == nil)
         }
 
