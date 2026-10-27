@@ -51,6 +51,9 @@ private struct PDFReaderContent: View {
         .task(id: model.pendingLocation) {
             controller.applyPendingLocation()
         }
+        .onChange(of: model.session.settings.invertPDFInDarkMode, initial: true) { _, enabled in
+            controller.setInversionEnabled(enabled)
+        }
     }
 }
 

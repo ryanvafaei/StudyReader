@@ -15,9 +15,17 @@ final class StudyPDFView: PDFView {
     /// Key handling hook for 1–5 / H (T59); return true if handled.
     var onKeyDown: (@MainActor (NSEvent) -> Bool)?
 
+    /// Called when the effective appearance (light or dark) changes; the controller re-evaluates the dark-mode inversion.
+    var onEffectiveAppearanceChange: (@MainActor () -> Void)?
+
     private static let clickTolerance: CGFloat = 3
     private var mouseDownPoint: CGPoint?
     private var mouseDidDrag = false
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        onEffectiveAppearanceChange?()
+    }
 
     override func mouseDown(with event: NSEvent) {
         mouseDownPoint = convert(event.locationInWindow, from: nil)

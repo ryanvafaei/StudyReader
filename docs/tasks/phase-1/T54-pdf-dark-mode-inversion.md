@@ -47,3 +47,4 @@ extension PDFReaderController {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Layer-filter inversion (colorInvert + hueAdjust π) on the document view, reapplied on document, display mode and appearance changes; PDFInversionTests pass on CI. Look is Mac-only; fallback if filters don't show: pageOverlayViewProvider or a PDFPage subclass.

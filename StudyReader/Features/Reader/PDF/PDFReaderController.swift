@@ -34,11 +34,17 @@ final class PDFReaderController: NSObject {
     @ObservationIgnored private weak var observedClipView: NSClipView?
     @ObservationIgnored private var isTrackingPosition = false
     @ObservationIgnored private var lastReportedPosition: PDFPosition?
+    /// Mirror of `AppSettings.invertPDFInDarkMode`; kept current by `setInversionEnabled(_:)` (PDFInversion.swift).
+    @ObservationIgnored var invertSettingEnabled: Bool
+    /// Whether the dark-mode filters are on; set by `setInverted(_:)` (PDFInversion.swift).
+    @ObservationIgnored var isInverted = false
 
     init(model: ReaderModel) {
         self.model = model
+        self.invertSettingEnabled = model.session.settings.invertPDFInDarkMode
         self.pdfView = StudyPDFView(frame: .zero)
         super.init()
+        pdfView.onEffectiveAppearanceChange = { [weak self] in self?.refreshInversion() }
         pdfView.displayMode = .singlePageContinuous
         pdfView.displayDirection = .vertical
         pdfView.displaysPageBreaks = true
@@ -75,6 +81,7 @@ final class PDFReaderController: NSObject {
         lastReportedPosition = model.initialPDFPosition
         pdfView.autoScales = true
         pdfView.document = loaded
+        refreshInversion()
         registerActions()
 
         let saved = model.initialPDFPosition
@@ -164,6 +171,7 @@ final class PDFReaderController: NSObject {
         if let destination {
             pdfView.go(to: destination)
         }
+        applyInversionToDocumentView()
         observeClipView()
     }
 
