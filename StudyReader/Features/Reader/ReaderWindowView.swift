@@ -127,6 +127,30 @@ private struct ReaderTabContent: View {
             ContentUnavailableView(message, systemImage: "exclamationmark.triangle")
         case .ready:
             ReaderContentSlot(model: model)
+                .popover(
+                    item: Bindable(model).popoverRequest,
+                    attachmentAnchor: .rect(.rect(model.popoverRequest?.anchorRect ?? .zero)),
+                    arrowEdge: .bottom
+                ) { request in
+                    HighlightPopoverView(request: request, session: session) {
+                        model.popoverRequest = nil
+                    }
+                }
+                .overlay { selectionToolbarOverlay }
+        }
+    }
+
+    /// The toolbar floats just above the selection, clamped inside the content.
+    @ViewBuilder
+    private var selectionToolbarOverlay: some View {
+        if let request = model.selectionToolbar {
+            GeometryReader { proxy in
+                SelectionToolbarView(model: model, settings: session.settings)
+                    .position(
+                        x: min(max(request.anchorRect.midX, 150), max(proxy.size.width - 150, 150)),
+                        y: min(max(request.anchorRect.minY - 24, 24), max(proxy.size.height - 24, 24))
+                    )
+            }
         }
     }
 

@@ -4,6 +4,9 @@ import SwiftUI
 /// Hosts pass a `TagFieldModel` for their target. The view holds no state of its own.
 struct TagFieldView: View {
     @Bindable var model: TagFieldModel
+    /// Puts keyboard focus in the "Add tag" field when the view appears (the popover's Tag request).
+    var focusOnAppear = false
+    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -29,6 +32,7 @@ struct TagFieldView: View {
             TextField("Add tag", text: $model.query)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityLabel(Text("Add tag"))
+                .focused($isFieldFocused)
                 .onSubmit {
                     Task { await model.submit() }
                 }
@@ -69,6 +73,9 @@ struct TagFieldView: View {
                     .font(.callout)
                     .foregroundStyle(.red)
             }
+        }
+        .onAppear {
+            if focusOnAppear { isFieldFocused = true }
         }
         .task {
             await model.observe()

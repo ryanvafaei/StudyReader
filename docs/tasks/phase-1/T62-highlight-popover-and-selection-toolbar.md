@@ -64,3 +64,4 @@ Views:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer ui-builder Sonnet (transcript: claude-sonnet-5-5) medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Popover and selection toolbar met; note flushed on disappear; click-outside monitor removed on every path; HighlightPopoverModelTests 4/4 on CI. Nice-to-haves to BACKLOG B15.
