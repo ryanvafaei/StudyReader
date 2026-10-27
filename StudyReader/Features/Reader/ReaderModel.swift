@@ -51,14 +51,14 @@ final class ReaderModel {
         let environment = session.environment
         do {
             guard let loaded = try await environment.documentRepository.fetch(id: documentId) else {
-                state = .failed(String(localized: "This document is no longer in the library."))
+                fail(String(localized: "This document is no longer in the library."))
                 return
             }
             document = loaded
             categoryName = (try? await environment.categoryRepository.fetch(id: loaded.categoryId))?.name
             guard let url = environment.fileStore.url(forRelativePath: loaded.storedPath),
                   FileManager.default.fileExists(atPath: url.path) else {
-                state = .failed(String(localized: "The document file is missing."))
+                fail(String(localized: "The document file is missing."))
                 return
             }
             fileURL = url
@@ -71,8 +71,23 @@ final class ReaderModel {
             state = .ready
         } catch {
             Log.database.error("Loading the document failed.")
-            state = .failed(String(localized: "The document couldn't be opened."))
+            fail(String(localized: "The document couldn't be opened."))
         }
+    }
+
+    /// True only when `state == .ready`. The tab shows the colour menu, the inspector toggle and the inspector only
+    /// then, and View > Highlights Panel is disabled otherwise.
+    var isDocumentAvailable: Bool { state == .ready }
+
+    /// An engine couldn't show the document (`PDFDocument(url:)` returned nil; T55 uses it for an unreadable Markdown
+    /// file). Marks the document unavailable and closes the right panel.
+    func engineFailed(_ message: String) {
+        fail(message)
+    }
+
+    private func fail(_ message: String) {
+        state = .failed(message)
+        isRightPanelVisible = false
     }
 
     /// Keeps `document` (title, author, categoryId) and `categoryName` in step with metadata edits, category renames
@@ -213,7 +228,9 @@ final class ReaderModel {
     }
 
     /// Shows or hides the right panel on `tab`: the toolbar toggle and ⌥⌘I (View > Highlights Panel) both use it.
+    /// Does nothing while the document isn't available (loading or failed).
     func toggleRightPanel(tab: ReaderPanelTab) {
+        guard isDocumentAvailable else { return }
         rightPanelTab = tab
         isRightPanelVisible.toggle()
     }

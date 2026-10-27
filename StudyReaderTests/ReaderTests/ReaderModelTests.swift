@@ -49,6 +49,42 @@ struct ReaderModelTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func failedLoadHidesThePanelAndIgnoresToggle() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await ReaderTestSupport.insertDocument(session, id: Self.documentId, withFile: false)
+
+        let model = ReaderModel(documentId: Self.documentId, session: session)
+        model.navigate(to: .documentNote)
+        #expect(model.isRightPanelVisible)
+        await model.load()
+
+        #expect(model.isDocumentAvailable == false)
+        #expect(model.isRightPanelVisible == false)
+        model.toggleRightPanel(tab: .highlights)
+        #expect(model.isRightPanelVisible == false)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func engineFailedMarksTheDocumentUnavailable() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await ReaderTestSupport.insertDocument(session, id: Self.documentId, withFile: true)
+
+        let model = ReaderModel(documentId: Self.documentId, session: session)
+        await model.load()
+        #expect(model.isDocumentAvailable)
+        model.toggleRightPanel(tab: .highlights)
+        #expect(model.isRightPanelVisible)
+
+        model.engineFailed("x")
+
+        #expect(model.state == .failed("x"))
+        #expect(model.isDocumentAvailable == false)
+        #expect(model.isRightPanelVisible == false)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func subtitleFollowsCategoryRenameAndDelete() async throws {
         let session = try ReaderTestSupport.makeSession()
         defer { ReaderTestSupport.cleanUp(session) }

@@ -2,8 +2,8 @@ import XCTest
 
 private typealias Sample = StudyReaderUI.Sample
 
-/// T52 checkpoint, reader tab steps 26–36. The PDF and Markdown content areas are placeholders until T53 and T55,
-/// so these check only the chrome: title, toolbar, inspector, error state and menu commands.
+/// T52 checkpoint, reader tab steps 26–36. These check only the chrome: title, toolbar, inspector, error state and
+/// menu commands. The PDF reader arrived with T53; the Markdown content area is a placeholder until T55.
 final class ReaderChromeTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = true
@@ -107,15 +107,46 @@ final class ReaderChromeTests: XCTestCase {
         XCTAssertEqual(titles.filter { $0.hasPrefix("Find") }.count, 1, "Edit has more than one Find entry: \(titles)")
     }
 
-    /// Step 34: the reader View items are greyed out, not missing.
+    /// Step 34: the reader View items are greyed out, not missing. Since T53 a loaded PDF enables them, so the check
+    /// uses the sample whose original is missing (a failed reader registers no engine actions).
     @MainActor
     func testViewMenuReaderItemsAreDisabledNotMissing() {
-        let ui = openReader()
+        let ui = openReader(Sample.pendulum)
+        XCTAssertTrue(ui.app.staticTexts["The document file is missing."].waitForExistence(timeout: 5))
         for title in ["Zoom In", "Zoom Out", "Actual Size", "Fit Width", "Single Page", "Show Thumbnails"] {
             let state = ui.menuItemState("View", title)
             XCTAssertTrue(state.exists, "View > \(title) is missing.")
             XCTAssertFalse(state.enabled, "View > \(title) is enabled.")
         }
+    }
+
+    /// T53: a loaded PDF enables the zoom, display and thumbnail items.
+    @MainActor
+    func testViewMenuPDFItemsAreEnabledForALoadedPDF() {
+        let ui = openReader(Sample.lecture)
+        for title in ["Zoom In", "Zoom Out", "Actual Size", "Fit Width", "Single Page", "Show Thumbnails"] {
+            let enabled = ui.waitUntil(timeout: 10) { ui.menuItemState("View", title).enabled }
+            XCTAssertTrue(enabled, "View > \(title) stays disabled for a loaded PDF.")
+        }
+    }
+
+    /// U7: a reader that failed to load has no colour menu and no inspector toggle, and ⌥⌘I does nothing.
+    @MainActor
+    func testFailedReaderShowsNoColourMenuOrInspectorToggle() {
+        let ui = StudyReaderUI.launch()
+        ui.card(Sample.pendulum).doubleClick()
+        XCTAssertTrue(ui.app.staticTexts["The document file is missing."].waitForExistence(timeout: 5))
+        ui.attachScreenshot("Failed reader chrome", to: self)
+
+        XCTAssertFalse(ui.highlightColorMenu.exists, "The highlight colour menu shows in a failed reader.")
+        XCTAssertFalse(ui.inspectorToggle.exists, "The inspector toggle shows in a failed reader.")
+        let state = ui.menuItemState("View", "Highlights Panel")
+        XCTAssertTrue(state.exists, "View > Highlights Panel is missing.")
+        XCTAssertFalse(state.enabled, "View > Highlights Panel is enabled in a failed reader.")
+
+        ui.app.typeKey("i", modifierFlags: [.command, .option])
+        ui.settle(1)
+        XCTAssertFalse(ui.isInspectorOpen, "⌥⌘I opened the inspector in a failed reader.")
     }
 
     /// Step 35. ⌥⌘I toggles the inspector both ways. At the T52 checkpoint the shortcut was ⌥⌘H, which ran the

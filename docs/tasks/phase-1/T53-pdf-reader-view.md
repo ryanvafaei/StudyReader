@@ -118,3 +118,4 @@ The implementer doesn't run `./scripts/uitest.sh` (CLAUDE.md); ui-tester runs `.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). PDF reader, position restore, zoom/fit/thumbnails/outline and U7 met; testViewMenuReaderItemsAreDisabledNotMissing now opens a failed-load document (spec-sanctioned) with a new enabled-case test. Backlog B5: skip tracking on restore timeout.

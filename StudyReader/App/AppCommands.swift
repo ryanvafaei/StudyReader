@@ -89,7 +89,7 @@ struct AppCommands: Commands {
                 readerActions?.model.toggleRightPanel(tab: .highlights)
             }
             .keyboardShortcut("i", modifiers: [.command, .option])
-            .disabled(readerActions == nil)
+            .disabled(readerActions?.model.isDocumentAvailable != true)
         }
 
         CommandMenu("Document") {

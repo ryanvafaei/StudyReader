@@ -9,3 +9,4 @@ Rule (user, 2026-10-27): no polish tasks mid-phase. Anything that is not a spec 
 | B2 | T52b review | Zoom (green button, titlebar double-click) while a reader tab is open may be reverted when the last reader tab closes; full screen untested. | Mac check first. |
 | B3 | T52h review | `ReaderTabbingTests/joinChangesNoFrameSynchronously` only covers the property side (the test window has no anchor). | Add an anchored variant if feasible. |
 | B4 | T52j review | The "no alert" assertions in `ExternalOpenTests` run right after the card appears; a late alert could slip past. | Add a short wait or settle. |
+| B5 | T53 review | If the initial PDF position restore hits its 2 s retry limit without a window, tracking still starts and a later layout could report page 0 over the saved position. | Very unlikely; skip `beginTrackingPosition` on timeout until the view has a window. |

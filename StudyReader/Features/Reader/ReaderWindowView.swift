@@ -78,7 +78,7 @@ private struct ReaderTabContent: View {
             .navigationTitle(model.document?.title ?? "")
             .navigationSubtitle(model.categoryName ?? "")
             .toolbar { toolbarItems }
-            .inspector(isPresented: Bindable(model).isRightPanelVisible) {
+            .inspector(isPresented: inspectorBinding) {
                 ReaderSidePanel(model: model)
                     .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
             }
@@ -109,6 +109,14 @@ private struct ReaderTabContent: View {
             }
     }
 
+    /// The inspector shows only for a loaded document; a failed reader has nothing to list.
+    private var inspectorBinding: Binding<Bool> {
+        Binding(
+            get: { model.isDocumentAvailable && model.isRightPanelVisible },
+            set: { model.isRightPanelVisible = $0 }
+        )
+    }
+
     @ViewBuilder
     private var content: some View {
         switch model.state {
@@ -124,25 +132,27 @@ private struct ReaderTabContent: View {
 
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Picker("Highlight color", selection: Bindable(session.settings).currentColor) {
-                    ForEach(HighlightColor.allCases, id: \.self) { color in
-                        Label {
-                            Text(session.settings.label(for: color))
-                        } icon: {
-                            Image(nsImage: HighlightPalette.swatchImage(color))
+        if model.isDocumentAvailable {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Picker("Highlight color", selection: Bindable(session.settings).currentColor) {
+                        ForEach(HighlightColor.allCases, id: \.self) { color in
+                            Label {
+                                Text(session.settings.label(for: color))
+                            } icon: {
+                                Image(nsImage: HighlightPalette.swatchImage(color))
+                            }
+                            .tag(color)
                         }
-                        .tag(color)
                     }
+                    .pickerStyle(.inline)
+                } label: {
+                    Image(systemName: "circle.fill")
+                        .foregroundStyle(HighlightPalette.color(session.settings.currentColor))
                 }
-                .pickerStyle(.inline)
-            } label: {
-                Image(systemName: "circle.fill")
-                    .foregroundStyle(HighlightPalette.color(session.settings.currentColor))
+                .help("Highlight color for new highlights")
+                .accessibilityLabel("Highlight color")
             }
-            .help("Highlight color for new highlights")
-            .accessibilityLabel("Highlight color")
         }
 
         if model.engineActions.findInDocument != nil {
@@ -169,14 +179,16 @@ private struct ReaderTabContent: View {
             }
         }
 
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                model.toggleRightPanel(tab: model.rightPanelTab)
-            } label: {
-                Label("Highlights panel", systemImage: "sidebar.right")
+        if model.isDocumentAvailable {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    model.toggleRightPanel(tab: model.rightPanelTab)
+                } label: {
+                    Label("Highlights panel", systemImage: "sidebar.right")
+                }
+                .help("Show or hide the Highlights and Notes panel")
+                .accessibilityLabel("Show or hide the Highlights and Notes panel")
             }
-            .help("Show or hide the Highlights and Notes panel")
-            .accessibilityLabel("Show or hide the Highlights and Notes panel")
         }
     }
 
@@ -205,15 +217,14 @@ private struct ReaderTabContent: View {
     }
 }
 
-/// Engine slot. T53 (PDF) and T55 (Markdown) replace the placeholder branches.
+/// Engine slot. T55 replaces the Markdown placeholder.
 struct ReaderContentSlot: View {
     let model: ReaderModel
 
     var body: some View {
         switch model.document?.fileType {
         case .pdf:
-            Text("PDF reader arrives in T53")
-                .foregroundStyle(.secondary)
+            PDFReaderView(model: model)
         case .markdown:
             Text("Markdown reader arrives in T55")
                 .foregroundStyle(.secondary)
