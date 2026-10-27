@@ -54,3 +54,4 @@ Tool and creation:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run, which must include SnapshotServiceTests and ReaderModelTests). Snapshots render from the PDFPage in a detached task with its own PDFDocument (uninverted), rotation maths tested, image highlights drawn as display-only outlines. positionKey uses clipped.maxY - cropBox.minY (same convention as PDFAnchorBuilder; the spec's literal formula differs only for a non-zero crop box origin). BACKLOG B14.

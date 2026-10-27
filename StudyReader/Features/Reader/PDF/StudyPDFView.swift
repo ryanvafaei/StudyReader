@@ -18,9 +18,40 @@ final class StudyPDFView: PDFView {
     /// Called when the effective appearance (light or dark) changes; the controller re-evaluates the dark-mode inversion.
     var onEffectiveAppearanceChange: (@MainActor () -> Void)?
 
+    /// Called when a snapshot drag ends: the rect and its start point in this view's coordinates (T61).
+    var onSnapshotDrag: (@MainActor (_ rect: CGRect, _ start: CGPoint) -> Void)?
+    /// Called when snapshot mode ends without a capture (Escape).
+    var onSnapshotCancel: (@MainActor () -> Void)?
+
+    static let escapeKeyCode: UInt16 = 53
     private static let clickTolerance: CGFloat = 3
+    private var snapshotOverlay: SnapshotOverlayView?
     private var mouseDownPoint: CGPoint?
     private var mouseDidDrag = false
+
+    /// True while the snapshot drag overlay is on top of the document.
+    var isSnapshotModeActive: Bool { snapshotOverlay != nil }
+
+    /// Puts the crosshair overlay over the document and takes keyboard focus so Escape reaches it.
+    func beginSnapshotMode() {
+        guard snapshotOverlay == nil else { return }
+        let overlay = SnapshotOverlayView(host: self)
+        overlay.onFinish = { [weak self] rect, start in self?.onSnapshotDrag?(rect, start) }
+        overlay.onCancel = { [weak self] in self?.onSnapshotCancel?() }
+        addSubview(overlay)
+        snapshotOverlay = overlay
+        window?.makeFirstResponder(overlay)
+        window?.invalidateCursorRects(for: overlay)
+    }
+
+    func endSnapshotMode() {
+        guard let overlay = snapshotOverlay else { return }
+        snapshotOverlay = nil
+        overlay.removeFromSuperview()
+        if window?.firstResponder === overlay {
+            window?.makeFirstResponder(self)
+        }
+    }
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
@@ -56,6 +87,10 @@ final class StudyPDFView: PDFView {
     }
 
     override func keyDown(with event: NSEvent) {
+        if isSnapshotModeActive, event.keyCode == Self.escapeKeyCode {
+            onSnapshotCancel?()
+            return
+        }
         if onKeyDown?(event) == true { return }
         super.keyDown(with: event)
     }

@@ -33,6 +33,7 @@ final class PDFReaderController: NSObject {
     @ObservationIgnored private let model: ReaderModel
     /// Draws and hit-tests the stored highlights and creates new ones (T59).
     @ObservationIgnored private(set) var highlightController: PDFHighlightController?
+    @ObservationIgnored private var snapshotTask: Task<Void, Never>?
     @ObservationIgnored private weak var observedClipView: NSClipView?
     @ObservationIgnored private var isTrackingPosition = false
     @ObservationIgnored private var lastReportedPosition: PDFPosition?
@@ -48,6 +49,8 @@ final class PDFReaderController: NSObject {
         super.init()
         highlightController = PDFHighlightController(model: model, pdfView: pdfView)
         pdfView.onEffectiveAppearanceChange = { [weak self] in self?.refreshInversion() }
+        pdfView.onSnapshotDrag = { [weak self] rect, start in self?.snapshotDragFinished(rect: rect, start: start) }
+        pdfView.onSnapshotCancel = { [weak self] in self?.pdfView.endSnapshotMode() }
         pdfView.displayMode = .singlePageContinuous
         pdfView.displayDirection = .vertical
         pdfView.displaysPageBreaks = true
@@ -119,6 +122,16 @@ final class PDFReaderController: NSObject {
         }
         model.engineActions.toggleThumbnails = { [weak self] in self?.showsThumbnails.toggle() }
         model.engineActions.currentPageIndex = { [weak self] in self?.currentPageIndex }
+        model.engineActions.startSnapshot = { [weak self] in self?.toggleSnapshotMode() }
+    }
+
+    /// Called when the tab goes away: leaves snapshot mode, cancels a running capture and drops the highlight
+    /// controller's undo action.
+    func tearDown() {
+        pdfView.endSnapshotMode()
+        snapshotTask?.cancel()
+        snapshotTask = nil
+        highlightController?.tearDown()
     }
 
     private func beginTrackingPosition() {
@@ -177,6 +190,55 @@ final class PDFReaderController: NSObject {
         }
         applyInversionToDocumentView()
         observeClipView()
+    }
+
+    // MARK: - Snapshot (F-08)
+
+    /// The camera button and ⌃⌘S: enters snapshot mode, or leaves it when it is already on.
+    func toggleSnapshotMode() {
+        if pdfView.isSnapshotModeActive {
+            pdfView.endSnapshotMode()
+        } else if document != nil {
+            pdfView.beginSnapshotMode()
+        }
+    }
+
+    /// The drag ended: leaves the mode, converts the rect (view space) to page space on the page under the start
+    /// point, clips it, renders it off the main actor from the file on disk and stores it as an image highlight in
+    /// the current color. A drag off the pages or under 10 x 10 pt is ignored silently.
+    private func snapshotDragFinished(rect: CGRect, start: CGPoint) {
+        pdfView.endSnapshotMode()
+        guard let document, let url = model.fileURL,
+              let page = pdfView.page(for: start, nearest: false) else { return }
+        let pageIndex = document.index(for: page)
+        guard pageIndex != NSNotFound else { return }
+        let cropBox = page.bounds(for: .cropBox)
+        guard let clipped = SnapshotService.clippedRect(pdfView.convert(rect, to: page), pageBounds: cropBox) else { return }
+        let positionKey = PDFAnchorBuilder.positionKey(
+            pageIndex: pageIndex,
+            pageHeight: Double(cropBox.height),
+            topOfFirstRect: Double(clipped.maxY - cropBox.minY)
+        )
+        let new = NewImageHighlight(
+            documentId: model.documentId,
+            pageIndex: pageIndex,
+            rect: CGRectCodable(clipped),
+            positionKey: positionKey,
+            color: model.session.settings.currentColor,
+            pngData: Data()
+        )
+        snapshotTask?.cancel()
+        snapshotTask = Task { @MainActor [weak self] in
+            let png = await Task.detached { try? SnapshotService.renderPNG(fileAt: url, pageIndex: pageIndex, rect: clipped) }.value
+            guard let self, !Task.isCancelled else { return }
+            guard let png else {
+                model.snapshotRenderFailed()
+                return
+            }
+            var captured = new
+            captured.pngData = png
+            await model.createSnapshot(captured)
+        }
     }
 
     // MARK: - Navigation

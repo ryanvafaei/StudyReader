@@ -188,7 +188,7 @@ struct PDFHighlightControllerTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func orphanedAndImageHighlightsNotDrawn() async throws {
+    func orphanedHighlightsAndImageHighlightsAreNotTextAnnotations() async throws {
         let harness = try await Self.makeHarness()
         defer { ReaderTestSupport.cleanUp(harness.session) }
         let document = harness.document
@@ -203,6 +203,71 @@ struct PDFHighlightControllerTests {
         harness.controller.sync(with: [orphaned, image])
         #expect(harness.controller.annotationCount == 0)
         #expect(Self.annotations(document).isEmpty)
+    }
+
+    private static func isSquare(_ annotation: PDFAnnotation) -> Bool {
+        annotation.type?.contains("Square") == true
+    }
+
+    private static func imageHighlight(id: String, color: HighlightColor = .yellow, rect: CGRect) -> Highlight {
+        Highlight(
+            id: id, documentId: documentId, kind: .image, view: .pdf, color: color, pageIndex: 0, positionKey: 0,
+            anchor: .image(ImageAnchor(pageIndex: 0, rect: CGRectCodable(rect))),
+            createdAt: TestData.referenceDate, updatedAt: TestData.referenceDate)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func imageHighlightsGetAnOutlineAndAreHitTestable() async throws {
+        let harness = try await Self.makeHarness()
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        let rect = CGRect(x: 100, y: 100, width: 150, height: 120)
+        harness.controller.sync(with: [Self.imageHighlight(id: "image", color: .green, rect: rect)])
+
+        let page = try #require(harness.document.page(at: 0))
+        let outlines = page.annotations.filter(Self.isSquare)
+        #expect(outlines.count == 1, "outlines: \(outlines.count)")
+        let outline = try #require(outlines.first)
+        #expect(outline.bounds == rect)
+        #expect(outline.border?.lineWidth == PDFHighlightController.imageOutlineWidth)
+        #expect(harness.controller.imageOutlineCount == 1)
+        #expect(harness.controller.annotationCount == 0)
+        #expect(harness.controller.highlightIds(at: CGPoint(x: 150, y: 150), onPage: 0) == ["image"])
+        #expect(harness.controller.highlightIds(at: CGPoint(x: 400, y: 150), onPage: 0).isEmpty)
+
+        harness.controller.sync(with: [])
+        #expect(harness.controller.imageOutlineCount == 0)
+        #expect(page.annotations.filter(Self.isSquare).isEmpty)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func imageOutlineFollowsColorChange() async throws {
+        let harness = try await Self.makeHarness()
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        let rect = CGRect(x: 100, y: 100, width: 150, height: 120)
+        harness.controller.sync(with: [Self.imageHighlight(id: "image", color: .green, rect: rect)])
+        harness.controller.sync(with: [Self.imageHighlight(id: "image", color: .pink, rect: rect)])
+        #expect(harness.controller.imageOutlineCount == 1)
+        let page = try #require(harness.document.page(at: 0))
+        let outline = try #require(page.annotations.first(where: Self.isSquare))
+        let actual = try #require(outline.color.usingColorSpace(.sRGB))
+        let expected = try #require(HighlightPalette.nsColor(.pink).usingColorSpace(.sRGB))
+        #expect(abs(actual.redComponent - expected.redComponent) < 0.02, "red: \(actual.redComponent)")
+        #expect(abs(actual.greenComponent - expected.greenComponent) < 0.02, "green: \(actual.greenComponent)")
+        #expect(abs(actual.blueComponent - expected.blueComponent) < 0.02, "blue: \(actual.blueComponent)")
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func tearDownRemovesUndoActionsAndFlash() async throws {
+        let harness = try await Self.makeHarness()
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        let undoManager = try #require(harness.pdfView.undoManager)
+        undoManager.groupsByEvent = false
+        undoManager.beginUndoGrouping()
+        undoManager.registerUndo(withTarget: harness.controller) { _ in }
+        undoManager.endUndoGrouping()
+        #expect(undoManager.canUndo)
+        harness.controller.tearDown()
+        #expect(!undoManager.canUndo)
     }
 
     @Test(.timeLimit(.minutes(1)))

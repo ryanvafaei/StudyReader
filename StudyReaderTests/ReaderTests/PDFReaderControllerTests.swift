@@ -57,6 +57,83 @@ struct PDFReaderControllerTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func snapshotModeTogglesAndEscapeCancels() async throws {
+        let harness = try await Self.makeHarness()
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        #expect(harness.model.engineActions.startSnapshot == nil)
+        harness.controller.load(url: harness.url)
+        let start = try #require(harness.model.engineActions.startSnapshot)
+
+        start()
+        #expect(harness.controller.pdfView.isSnapshotModeActive)
+        start()
+        #expect(!harness.controller.pdfView.isSnapshotModeActive)
+
+        start()
+        harness.controller.pdfView.onSnapshotCancel?()
+        #expect(!harness.controller.pdfView.isSnapshotModeActive)
+
+        start()
+        harness.controller.tearDown()
+        #expect(!harness.controller.pdfView.isSnapshotModeActive)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func snapshotDragCreatesImageHighlight() async throws {
+        let harness = try await Self.makeHarness(fileData: PDFFixtureBuilder.coloredRegion())
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        harness.controller.load(url: harness.url)
+        try await Self.settle()
+        let pdfView = harness.controller.pdfView
+        let page = try #require(pdfView.document?.page(at: 0))
+        let pageRect = PDFFixtureBuilder.coloredRect
+        let viewRect = pdfView.convert(pageRect, from: page)
+        harness.model.engineActions.startSnapshot?()
+        #expect(pdfView.isSnapshotModeActive)
+
+        pdfView.onSnapshotDrag?(viewRect, CGPoint(x: viewRect.midX, y: viewRect.midY))
+        #expect(!pdfView.isSnapshotModeActive)
+
+        let repository = harness.session.environment.highlightRepository
+        var rows: [Highlight] = []
+        for _ in 0..<100 where rows.isEmpty {
+            try await Self.settle(0.05)
+            rows = try await repository.fetchForDocument(Self.documentId)
+        }
+        let highlight = try #require(rows.first, "no image highlight was stored")
+        #expect(highlight.kind == .image)
+        #expect(highlight.color == harness.session.settings.currentColor)
+        guard case .image(let anchor) = highlight.anchor else {
+            Issue.record("expected an image anchor")
+            return
+        }
+        #expect(anchor.pageIndex == 0)
+        #expect(abs(anchor.rect.x - pageRect.minX) < 1.5 && abs(anchor.rect.y - pageRect.minY) < 1.5, "rect: \(anchor.rect)")
+        #expect(abs(anchor.rect.width - pageRect.width) < 1.5 && abs(anchor.rect.height - pageRect.height) < 1.5)
+        let imagePath = try #require(highlight.imagePath)
+        let imageURL = try #require(harness.session.environment.fileStore.url(forRelativePath: imagePath))
+        #expect(FileManager.default.fileExists(atPath: imageURL.path))
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func tinySnapshotDragIsIgnored() async throws {
+        let harness = try await Self.makeHarness(fileData: PDFFixtureBuilder.coloredRegion())
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        harness.controller.load(url: harness.url)
+        try await Self.settle()
+        let pdfView = harness.controller.pdfView
+        let page = try #require(pdfView.document?.page(at: 0))
+        let viewRect = pdfView.convert(CGRect(x: 100, y: 100, width: 4, height: 4), from: page)
+        harness.model.engineActions.startSnapshot?()
+        pdfView.onSnapshotDrag?(viewRect, CGPoint(x: viewRect.midX, y: viewRect.midY))
+        #expect(!pdfView.isSnapshotModeActive)
+        try await Self.settle(0.3)
+        let rows = try await harness.session.environment.highlightRepository.fetchForDocument(Self.documentId)
+        #expect(rows.isEmpty)
+        #expect(harness.model.transientMessage == nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func loadsAndRegistersActions() async throws {
         let harness = try await Self.makeHarness()
         defer { ReaderTestSupport.cleanUp(harness.session) }

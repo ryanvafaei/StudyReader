@@ -218,6 +218,24 @@ final class ReaderModel {
         }
     }
 
+    /// Stores a rendered snapshot as an image highlight (F-08). On failure the banner shows why.
+    @discardableResult
+    func createSnapshot(_ new: NewImageHighlight) async -> Highlight? {
+        do {
+            let highlight = try await session.environment.highlightService.createImage(new)
+            transientMessage = nil
+            return highlight
+        } catch {
+            transientMessage = Self.failureMessage(for: error)
+            return nil
+        }
+    }
+
+    /// Rendering the snapshot failed (the file couldn't be opened or the page rendered).
+    func snapshotRenderFailed() {
+        transientMessage = String(localized: "The snapshot couldn't be captured.")
+    }
+
     func undoLastAutoHighlight() async {
         do {
             _ = try await session.environment.highlightService.undoLastAutoHighlight()

@@ -17,7 +17,7 @@ final class PDFHighlightController {
         let createdAt: Date
         let color: HighlightColor
         let pages: [PDFAnchor.PageRects]
-        var annotations: [(pageIndex: Int, annotation: StudyHighlightAnnotation)]
+        var annotations: [(pageIndex: Int, annotation: PDFAnnotation)]
     }
 
     private let model: ReaderModel
@@ -27,8 +27,23 @@ final class PDFHighlightController {
     private var flash: (page: PDFPage, annotation: PDFAnnotation)?
     private var flashTask: Task<Void, Never>?
 
-    /// Number of `StudyHighlightAnnotation`s currently on the pages.
-    private(set) var annotationCount = 0
+    /// Border width and alpha of the outline drawn around an image highlight (snapshot).
+    static let imageOutlineWidth: CGFloat = 1.5
+    static let imageOutlineAlpha: CGFloat = 0.8
+
+    /// Number of `StudyHighlightAnnotation`s (text highlights) currently on the pages.
+    var annotationCount: Int {
+        drawn.values.reduce(0) { total, entry in
+            total + entry.annotations.filter { $0.annotation is StudyHighlightAnnotation }.count
+        }
+    }
+
+    /// Number of image-highlight outline annotations currently on the pages.
+    var imageOutlineCount: Int {
+        drawn.values.reduce(0) { total, entry in
+            total + entry.annotations.filter { !($0.annotation is StudyHighlightAnnotation) }.count
+        }
+    }
 
     init(model: ReaderModel, pdfView: StudyPDFView) {
         self.model = model
@@ -46,7 +61,8 @@ final class PDFHighlightController {
     // MARK: - Drawing
 
     /// Diff by highlight id + color: removes annotations of deleted, recolored or re-anchored highlights and adds new
-    /// ones (only kind `.text` with a `.pdf` anchor and status `.ok`). Adds in `createdAt` order so newer ones draw
+    /// ones: text highlights with a `.pdf` anchor and image highlights (snapshots) with an `.image` anchor get an
+    /// outline; both only with status `.ok`. Adds in `createdAt` order so newer ones draw
     /// on top; when a highlight has to be re-added, every newer one is re-added after it to keep that order.
     func sync(with highlights: [Highlight]) {
         guard let document = pdfView.document else {
@@ -55,12 +71,11 @@ final class PDFHighlightController {
         if syncedDocument !== document {
             // A different document: the old annotations went with the old pages.
             drawn = [:]
-            annotationCount = 0
             syncedDocument = document
         }
 
         let wanted = highlights
-            .filter { $0.kind == .text && $0.anchorStatus == .ok && Self.pdfAnchor(of: $0) != nil }
+            .filter { $0.anchorStatus == .ok && Self.pages(of: $0) != nil }
             .enumerated()
             .sorted { lhs, rhs in
                 lhs.element.createdAt == rhs.element.createdAt
@@ -76,9 +91,9 @@ final class PDFHighlightController {
 
         var restacking = false
         for highlight in wanted {
-            guard let anchor = Self.pdfAnchor(of: highlight) else { continue }
+            guard let pages = Self.pages(of: highlight) else { continue }
             if !restacking, let existing = drawn[highlight.id],
-               existing.color == highlight.color, existing.pages == anchor.pages {
+               existing.color == highlight.color, existing.pages == pages {
                 continue
             }
             restacking = true
@@ -94,24 +109,57 @@ final class PDFHighlightController {
         return nil
     }
 
+    /// The page rects a highlight occupies: the per-line rects of a text highlight, the one rect of an image
+    /// highlight. Nil for a Markdown text anchor.
+    private static func pages(of highlight: Highlight) -> [PDFAnchor.PageRects]? {
+        switch highlight.anchor {
+        case .pdf(let anchor) where highlight.kind == .text:
+            anchor.pages
+        case .image(let anchor) where highlight.kind == .image:
+            [PDFAnchor.PageRects(pageIndex: anchor.pageIndex, rects: [anchor.rect])]
+        default:
+            nil
+        }
+    }
+
+    /// The display-only outline of an image highlight: a `.square` annotation with a colored border and no fill.
+    static func imageOutline(rect: CGRect, color: HighlightColor) -> PDFAnnotation {
+        let annotation = PDFAnnotation(bounds: rect, forType: .square, withProperties: nil)
+        annotation.color = HighlightPalette.nsColor(color).withAlphaComponent(imageOutlineAlpha)
+        let border = PDFBorder()
+        border.lineWidth = imageOutlineWidth
+        annotation.border = border
+        annotation.shouldPrint = false
+        return annotation
+    }
+
     private func add(_ highlight: Highlight, in document: PDFDocument) {
-        guard let anchor = Self.pdfAnchor(of: highlight) else { return }
-        var annotations: [(pageIndex: Int, annotation: StudyHighlightAnnotation)] = []
-        for item in StudyHighlightAnnotation.annotations(
-            for: highlight,
-            color: Self.annotationColor(for: highlight.color)
-        ) {
+        guard let pages = Self.pages(of: highlight) else { return }
+        var annotations: [(pageIndex: Int, annotation: PDFAnnotation)] = []
+        let items: [(pageIndex: Int, annotation: PDFAnnotation)]
+        if highlight.kind == .image {
+            items = pages.compactMap { entry in
+                entry.rects.first.map {
+                    (pageIndex: entry.pageIndex, annotation: Self.imageOutline(rect: $0.cgRect, color: highlight.color))
+                }
+            }
+        } else {
+            items = StudyHighlightAnnotation.annotations(
+                for: highlight,
+                color: Self.annotationColor(for: highlight.color)
+            ).map { (pageIndex: $0.pageIndex, annotation: $0.annotation as PDFAnnotation) }
+        }
+        for item in items {
             guard let page = document.page(at: item.pageIndex) else { continue }
             page.addAnnotation(item.annotation)
             pdfView.annotationsChanged(on: page)
             annotations.append(item)
         }
-        annotationCount += annotations.count
         drawn[highlight.id] = Drawn(
             highlightId: highlight.id,
             createdAt: highlight.createdAt,
             color: highlight.color,
-            pages: anchor.pages,
+            pages: pages,
             annotations: annotations
         )
     }
@@ -124,7 +172,6 @@ final class PDFHighlightController {
                 pdfView.annotationsChanged(on: page)
             }
         }
-        annotationCount -= entry.annotations.count
     }
 
     // MARK: - Hit testing
@@ -236,18 +283,27 @@ final class PDFHighlightController {
         return true
     }
 
+    // MARK: - Teardown
+
+    /// Called when the tab goes away: drops the pending flash and the undo action that points at this controller.
+    func tearDown() {
+        endFlash()
+        pdfView.undoManager?.removeAllActions(withTarget: self)
+    }
+
     // MARK: - Reveal
 
-    /// Scrolls to the highlight and flashes it. An orphaned or image highlight only brings its page into view.
+    /// Draws the current highlights first (so the flash has something to flash), scrolls to the highlight and flashes
+    /// it. An orphaned highlight only brings its page into view; an image highlight is revealed like a text one.
     /// Returns false when the highlight isn't among `model.highlights` (the caller keeps the location pending).
     @discardableResult
     func reveal(highlightId: String) -> Bool {
         guard let document = pdfView.document,
               let highlight = model.highlights.first(where: { $0.id == highlightId }) else { return false }
-        if highlight.kind == .text, highlight.anchorStatus == .ok,
-           let entry = drawn[highlightId]?.annotations.first,
+        sync(with: model.highlights)
+        if let entry = drawn[highlightId]?.annotations.first,
            let page = document.page(at: entry.pageIndex),
-           let first = Self.pdfAnchor(of: highlight)?.pages.first(where: { $0.pageIndex == entry.pageIndex })?.rects.first {
+           let first = drawn[highlightId]?.pages.first(where: { $0.pageIndex == entry.pageIndex })?.rects.first {
             pdfView.go(to: first.cgRect, on: page)
             startFlash(on: page, rect: first.cgRect)
             return true

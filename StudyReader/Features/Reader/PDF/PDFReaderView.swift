@@ -48,6 +48,9 @@ private struct PDFReaderContent: View {
                 controller.load(url: url)
             }
         }
+        .onDisappear {
+            controller.tearDown()
+        }
         .task(id: model.pendingLocation) {
             controller.applyPendingLocation()
         }
