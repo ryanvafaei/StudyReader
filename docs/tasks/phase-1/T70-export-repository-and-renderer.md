@@ -244,3 +244,5 @@ Each golden file ends with one newline after its last line. Load them with `Bund
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+
+> **Note from the T58 review (2026-10-27):** `RichTextMarkdown.escape` only escapes `\ \` * _ [ ]`. The export renderer must also neutralise block-level constructs in highlight text (line-start `#`, `>`, `-`, `+`, `1.`/`1)`), `<` and `!` before `[`, because Google Docs conversion parses block Markdown. See docs/BACKLOG.md B11.

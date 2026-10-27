@@ -45,3 +45,4 @@ enum RichTextMarkdown {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Rich text and escaping follow the spec's contract exactly; RichTextTests 7/7 on CI. Hardening of the escape set (line-start #>-+ and numbered lists, <, !) is left for the export task (T70); other items in BACKLOG B11.
