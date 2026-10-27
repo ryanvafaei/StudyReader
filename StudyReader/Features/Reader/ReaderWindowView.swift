@@ -257,7 +257,7 @@ struct ReaderContentSlot: View {
     }
 }
 
-/// Right column with the Highlights and Notes tabs. The content arrives with T63.
+/// Right column with the Highlights and Notes tabs (SPEC F-06, F-09).
 private struct ReaderSidePanel: View {
     @Bindable var model: ReaderModel
 
@@ -271,10 +271,12 @@ private struct ReaderSidePanel: View {
             .labelsHidden()
             .accessibilityLabel("Panel")
 
-            Spacer()
-            Text("Panel content arrives in T63")
-                .foregroundStyle(.secondary)
-            Spacer()
+            switch model.rightPanelTab {
+            case .highlights:
+                HighlightsPanelView(model: model)
+            case .notes:
+                DocumentNotePanelView(documentId: model.documentId, session: model.session)
+            }
         }
         .padding()
     }

@@ -65,3 +65,4 @@ final class HighlightsPanelModel {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer ui-builder Sonnet (transcript: claude-sonnet-5-5) medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Highlights tab, Notes tab, thumbnails cached off the main actor, note flush on disappear; HighlightsPanelModelTests 6/6 on CI. Nice-to-haves to BACKLOG B16.
