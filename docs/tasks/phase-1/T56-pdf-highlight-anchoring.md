@@ -80,3 +80,4 @@ Fixture: `PDFFixtureBuilder.plainMultiPage(pageCount: 5)` loaded with `PDFDocume
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Anchors from selectionsByLine in page space, 0.5 pt filter, display-only annotation never written to the PDF; PDFAnchorTests 6/6 on CI. Backlog B9: no test for rotated pages or a non-zero crop box origin.

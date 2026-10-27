@@ -13,3 +13,4 @@ Rule (user, 2026-10-27): no polish tasks mid-phase. Anything that is not a spec 
 | B6 | T55 review | `TextReaderView.onClick` fires after a link click too (super already opened the link) and its Bool return is ignored. | T60 decides whether a click on a link inside a highlight is handled; honour the return or document the order. |
 | B7 | T55 review | `TextReaderController.firstVisibleOffset()` returns 0 when no fragment is found; during tracking before layout it could report 0. | Return the last known offset or skip reporting. |
 | B8 | T55 review | The default context menu's "Open Link" item may bypass the http/https/mailto filter; `@preconcurrency` on the layout-manager delegate lacks a one-line justification comment. | Check on a Mac; override `menu(for:)`/`openLink` if it bypasses. |
+| B9 | T56 review | No test covers a rotated page or a crop box with a non-zero origin for PDF anchors. | Add a fixture in a later fix pass. |
