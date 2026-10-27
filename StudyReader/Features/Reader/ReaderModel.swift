@@ -31,6 +31,21 @@ final class ReaderModel {
     private(set) var pendingLocation: ReaderLocation?
     var engineActions = ReaderEngineActions()
     private(set) var transientMessage: String?
+    /// The auto-highlight the service remembers for ⌘Z, as created. Cleared when it is undone, when any other
+    /// highlight is created or fails to be, and when the live highlights show it deleted or recoloured (the service
+    /// forgets it on both, whichever code path made the change).
+    private var autoHighlightMark: AutoHighlightMark?
+
+    private struct AutoHighlightMark {
+        let id: String
+        let color: HighlightColor
+        /// Set once the live highlights have listed it, so an older snapshot can't be read as a deletion.
+        var seen = false
+    }
+
+    /// True while Edit > Undo Highlight can remove the last auto-highlight; the menu reads it for its title and
+    /// enabled state.
+    var canUndoHighlight: Bool { autoHighlightMark != nil }
 
     private let positionDebouncer: Debouncer
     /// Serializes schedule calls so the debouncer sees position changes in the order they happened.
@@ -127,10 +142,27 @@ final class ReaderModel {
         do {
             for try await rows in session.environment.highlightRepository.observeForDocument(documentId) {
                 highlights = rows
+                reconcileAutoHighlightMark()
             }
         } catch {
             Log.database.error("Observing highlights failed.")
             transientMessage = String(localized: "Highlights couldn't be loaded.")
+        }
+    }
+
+    /// Drops the undo mark once the live row is gone or has another color. Recolouring and deleting go through the
+    /// service from the popover and the panel, which the model doesn't see, so it reads the result here.
+    private func reconcileAutoHighlightMark() {
+        guard var mark = autoHighlightMark else { return }
+        if let row = highlights.first(where: { $0.id == mark.id }) {
+            if row.color == mark.color {
+                mark.seen = true
+                autoHighlightMark = mark
+            } else {
+                autoHighlightMark = nil
+            }
+        } else if mark.seen {
+            autoHighlightMark = nil
         }
     }
 
@@ -211,11 +243,29 @@ final class ReaderModel {
         do {
             let highlight = try await session.environment.highlightService.createText(new, isAuto: isAuto)
             transientMessage = nil
+            if isAuto {
+                rememberAutoHighlight(highlight)
+            } else {
+                autoHighlightMark = nil
+            }
             return highlight
         } catch {
+            autoHighlightMark = nil
             transientMessage = Self.failureMessage(for: error)
             return nil
         }
+    }
+
+    /// Marks `highlight` as the auto-highlight ⌘Z may undo. The snapshot listing it can reach the main actor before
+    /// `createHighlight` resumes, so the mark starts as seen when the live highlights already list the row; otherwise
+    /// a later deletion would never clear it.
+    func rememberAutoHighlight(_ highlight: Highlight) {
+        autoHighlightMark = AutoHighlightMark(
+            id: highlight.id,
+            color: highlight.color,
+            seen: highlights.contains { $0.id == highlight.id }
+        )
+        reconcileAutoHighlightMark()
     }
 
     /// Stores a rendered snapshot as an image highlight (F-08). On failure the banner shows why.
@@ -224,8 +274,10 @@ final class ReaderModel {
         do {
             let highlight = try await session.environment.highlightService.createImage(new)
             transientMessage = nil
+            autoHighlightMark = nil
             return highlight
         } catch {
+            autoHighlightMark = nil
             transientMessage = Self.failureMessage(for: error)
             return nil
         }
@@ -236,9 +288,13 @@ final class ReaderModel {
         transientMessage = String(localized: "The snapshot couldn't be captured.")
     }
 
+    /// Removes the auto-highlight this model created, if the service still remembers it. Does nothing when this model
+    /// has none, and never touches another tab's highlight.
     func undoLastAutoHighlight() async {
+        guard let mark = autoHighlightMark else { return }
+        autoHighlightMark = nil
         do {
-            _ = try await session.environment.highlightService.undoLastAutoHighlight()
+            _ = try await session.environment.highlightService.undoAutoHighlight(id: mark.id)
             transientMessage = nil
         } catch {
             transientMessage = Self.failureMessage(for: error)

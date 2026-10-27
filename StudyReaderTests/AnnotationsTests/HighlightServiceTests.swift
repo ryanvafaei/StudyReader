@@ -44,12 +44,12 @@ struct HighlightServiceTests {
         #expect(stored?.color == .pink)
         #expect(stored?.createdAt == TestData.referenceDate)
 
-        let undone = try await service.undoLastAutoHighlight()
+        let undone = try await service.undoAutoHighlight(id: created.id)
         #expect(undone == created.id)
         let afterUndo = try await env.highlightRepository.fetch(id: created.id)
         #expect(afterUndo == nil)
 
-        let second = try await service.undoLastAutoHighlight()
+        let second = try await service.undoAutoHighlight(id: created.id)
         #expect(second == nil)
         try await env.database.writer.write { db in try FTSIntegrity.check(db) }
     }
@@ -64,7 +64,7 @@ struct HighlightServiceTests {
         // A color change after the auto-highlight cancels the undo.
         let h1 = try await service.createText(Self.textSelection(text: "First"), isAuto: true)
         try await service.setColor(id: h1.id, color: .blue)
-        let undoAfterColor = try await service.undoLastAutoHighlight()
+        let undoAfterColor = try await service.undoAutoHighlight(id: h1.id)
         #expect(undoAfterColor == nil)
         let storedH1 = try await env.highlightRepository.fetch(id: h1.id)
         #expect(storedH1 != nil)
@@ -73,11 +73,34 @@ struct HighlightServiceTests {
         // A non-auto highlight created after the auto-highlight cancels the undo.
         let h2 = try await service.createText(Self.textSelection(text: "Second"), isAuto: true)
         _ = try await service.createText(Self.textSelection(text: "Third"), isAuto: false)
-        let undoAfterPlain = try await service.undoLastAutoHighlight()
+        let undoAfterPlain = try await service.undoAutoHighlight(id: h2.id)
         #expect(undoAfterPlain == nil)
         let storedH2 = try await env.highlightRepository.fetch(id: h2.id)
         #expect(storedH2 != nil)
         try await env.database.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func undoOnlyDeletesTheCallersOwnAutoHighlight() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        try await env.documentRepository.insert(TestData.document(id: Self.documentId))
+        let service = env.highlightService
+
+        let first = try await service.createText(Self.textSelection(text: "First"), isAuto: true)
+        let second = try await service.createText(Self.textSelection(text: "Second"), isAuto: true)
+
+        let undoFirst = try await service.undoAutoHighlight(id: first.id)
+        #expect(undoFirst == nil)
+        let storedFirst = try await env.highlightRepository.fetch(id: first.id)
+        let storedSecond = try await env.highlightRepository.fetch(id: second.id)
+        #expect(storedFirst != nil)
+        #expect(storedSecond != nil)
+
+        let undoSecond = try await service.undoAutoHighlight(id: second.id)
+        #expect(undoSecond == second.id)
+        let afterUndo = try await env.highlightRepository.fetch(id: second.id)
+        #expect(afterUndo == nil)
     }
 
     @Test(.timeLimit(.minutes(1)))

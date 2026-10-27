@@ -55,12 +55,35 @@ final class ReaderChromeTests: XCTestCase {
         ui.app.typeKey(.escape, modifierFlags: [])
     }
 
-    /// Step 28: Find and Snapshot buttons are absent until the engines provide them, not just disabled.
+    /// Step 28, updated in T63a: the Find and Snapshot toolbar buttons show only when the engine provides them, and are
+    /// absent otherwise (not just disabled). Failed reader: neither. PDF: Snapshot only (PDF Find arrives with T67).
+    /// Markdown: Find only.
     @MainActor
-    func testFindAndSnapshotButtonsAreAbsent() {
-        let ui = openReader()
-        XCTAssertFalse(ui.app.toolbars.buttons["Find in document"].exists)
-        XCTAssertFalse(ui.app.toolbars.buttons["Snapshot"].exists)
+    func testFindAndSnapshotButtonsAreAbsentInAFailedReader() {
+        let ui = openReader(Sample.pendulum)
+        XCTAssertTrue(ui.app.staticTexts["The document file is missing."].waitForExistence(timeout: 5))
+        XCTAssertFalse(ui.app.toolbars.buttons["Find in Document"].exists, "Find shows in a failed reader.")
+        XCTAssertFalse(ui.app.toolbars.buttons["Snapshot"].exists, "Snapshot shows in a failed reader.")
+    }
+
+    @MainActor
+    func testSnapshotButtonShowsForAPDFAndFindDoesNot() {
+        let ui = openReader(Sample.lecture)
+        XCTAssertTrue(
+            ui.app.toolbars.buttons["Snapshot"].waitForExistence(timeout: 10),
+            "The Snapshot button is missing for a loaded PDF."
+        )
+        XCTAssertFalse(ui.app.toolbars.buttons["Find in Document"].exists, "Find shows for a PDF before T67.")
+    }
+
+    @MainActor
+    func testFindButtonShowsForMarkdownAndSnapshotDoesNot() {
+        let ui = openReader(Sample.gradient)
+        XCTAssertTrue(
+            ui.app.toolbars.buttons["Find in Document"].waitForExistence(timeout: 10),
+            "The Find button is missing for Markdown."
+        )
+        XCTAssertFalse(ui.app.toolbars.buttons["Snapshot"].exists, "Snapshot shows for Markdown.")
     }
 
     /// Step 29.
@@ -161,13 +184,36 @@ final class ReaderChromeTests: XCTestCase {
         XCTAssertTrue(ui.waitUntil(timeout: 3) { !ui.isInspectorOpen }, "A second ⌥⌘I didn't close the inspector.")
     }
 
-    /// Step 36.
+    /// Step 36, updated in T63a (T57 made Snapshot a PDF feature): Document > Snapshot is enabled for a loaded PDF and
+    /// disabled for a failed reader and for a Markdown document.
     @MainActor
-    func testSnapshotIsDisabled() {
-        let ui = openReader()
+    func testSnapshotMenuItemIsDisabledInAFailedReader() {
+        let ui = openReader(Sample.pendulum)
+        XCTAssertTrue(ui.app.staticTexts["The document file is missing."].waitForExistence(timeout: 5))
         let state = ui.menuItemState("Document", "Snapshot")
-        XCTAssertTrue(state.exists)
-        XCTAssertFalse(state.enabled)
+        XCTAssertTrue(state.exists, "Document > Snapshot is missing in a failed reader.")
+        XCTAssertFalse(state.enabled, "Document > Snapshot is enabled in a failed reader.")
+    }
+
+    @MainActor
+    func testSnapshotMenuItemIsEnabledForAPDF() {
+        let ui = openReader(Sample.lecture)
+        XCTAssertTrue(
+            ui.waitUntil(timeout: 10) { ui.menuItemState("Document", "Snapshot").enabled },
+            "Document > Snapshot stays disabled for a loaded PDF."
+        )
+    }
+
+    @MainActor
+    func testSnapshotMenuItemIsDisabledForMarkdown() {
+        let ui = openReader(Sample.gradient)
+        XCTAssertTrue(
+            ui.app.toolbars.buttons["Find in Document"].waitForExistence(timeout: 10),
+            "The Markdown reader didn't finish loading."
+        )
+        let state = ui.menuItemState("Document", "Snapshot")
+        XCTAssertTrue(state.exists, "Document > Snapshot is missing for Markdown.")
+        XCTAssertFalse(state.enabled, "Document > Snapshot is enabled for Markdown.")
     }
 
     /// Found at the T52 checkpoint: after its category was deleted, an open reader tab kept showing the deleted

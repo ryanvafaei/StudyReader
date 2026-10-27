@@ -1,10 +1,10 @@
 import AppKit
 import Foundation
 
-/// Draws the stored highlights of a text document with TextKit 2 rendering attributes (the text storage, and so every
-/// UTF-16 offset, stays untouched), hit-tests them, turns selections into new highlights and re-anchors stored ones
-/// when the rendering changed (SPEC F-06/F-07, ARCHITECTURE §5.2-§5.3, ADR-0004/0005). The Markdown reader uses it
-/// today; the PDF text view reuses it in Phase 3.
+/// Draws the stored highlights of a text document as rects under the text (`TextReaderView.drawBackground`; the text
+/// storage, and so every UTF-16 offset, stays untouched), hit-tests them, turns selections into new highlights and
+/// re-anchors stored ones when the rendering changed (SPEC F-06/F-07, ARCHITECTURE §5.2-§5.3, ADR-0004/0005). The
+/// Markdown reader uses it today; the PDF text view reuses it in Phase 3.
 @MainActor
 final class TextHighlightController {
     /// Alpha of a drawn highlight; `HighlightPalette` colors are opaque.
@@ -44,17 +44,10 @@ final class TextHighlightController {
 
     // MARK: - Drawing
 
-    /// Removes what the last call drew, then draws every `.ok` text highlight with a `.text` anchor inside the text in
-    /// `createdAt` order (ties keep the given order), so the newest is drawn last and shows on top.
+    /// Replaces what the last call painted with every `.ok` text highlight with a `.text` anchor inside the text in
+    /// `createdAt` order (ties keep the given order), so the newest is painted last and shows on top. The text view
+    /// draws the rects under the text (`TextReaderView.drawBackground`).
     func sync(with highlights: [Highlight]) {
-        guard let layoutManager = textController.textView.textLayoutManager else { return }
-        for entry in drawn {
-            if let textRange = textController.textRange(for: entry.range) {
-                layoutManager.removeRenderingAttribute(.backgroundColor, for: textRange)
-            }
-        }
-        drawn = []
-
         let length = textController.textLength
         let wanted = highlights
             .enumerated()
@@ -65,16 +58,15 @@ final class TextHighlightController {
                     : lhs.element.createdAt < rhs.element.createdAt
             }
             .map(\.element)
+        var entries: [Drawn] = []
+        var paints: [TextReaderView.HighlightPaint] = []
         for highlight in wanted {
-            guard let range = Self.range(of: highlight), range.length > 0, NSMaxRange(range) <= length,
-                  let textRange = textController.textRange(for: range) else { continue }
-            layoutManager.addRenderingAttribute(
-                .backgroundColor,
-                value: Self.backgroundColor(for: highlight.color),
-                for: textRange
-            )
-            drawn.append(Drawn(id: highlight.id, range: range))
+            guard let range = Self.range(of: highlight), range.length > 0, NSMaxRange(range) <= length else { continue }
+            entries.append(Drawn(id: highlight.id, range: range))
+            paints.append(.init(range: range, color: Self.backgroundColor(for: highlight.color)))
         }
+        drawn = entries
+        textController.textView.highlightPaints = paints
     }
 
     private static func range(of highlight: Highlight) -> NSRange? {
@@ -177,8 +169,10 @@ final class TextHighlightController {
               let new = newHighlight(for: selection, color: color) else { return false }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            if await model.createHighlight(new, isAuto: false) != nil {
+            // isAuto only makes the highlight the one ⌘Z removes (Edit > Undo Highlight).
+            if await model.createHighlight(new, isAuto: true) != nil {
                 collapseSelection(ifStill: selection)
+                registerAutoHighlightUndo()
             }
         }
         return true

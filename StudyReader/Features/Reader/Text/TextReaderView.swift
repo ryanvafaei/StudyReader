@@ -116,6 +116,43 @@ final class TextReaderView: NSTextView {
         super.keyDown(with: event)
     }
 
+    // MARK: - Highlights
+
+    /// One stored highlight to paint: the UTF-16 range and its (translucent) color.
+    struct HighlightPaint: Equatable {
+        let range: NSRange
+        let color: NSColor
+    }
+
+    /// The highlights `TextHighlightController` painted, oldest first (the newest is drawn last, on top). They are
+    /// drawn here, under the text, rather than as TextKit 2 rendering attributes, which didn't paint reliably.
+    var highlightPaints: [HighlightPaint] = [] {
+        didSet { needsDisplay = true }
+    }
+
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        guard !highlightPaints.isEmpty, let layoutManager = textLayoutManager,
+              let contentManager = layoutManager.textContentManager else { return }
+        let origin = textContainerOrigin
+        let length = textStorage?.length ?? 0
+        for paint in highlightPaints {
+            guard paint.range.location >= 0, paint.range.length > 0, NSMaxRange(paint.range) <= length,
+                  let start = contentManager.location(contentManager.documentRange.location, offsetBy: paint.range.location),
+                  let end = contentManager.location(start, offsetBy: paint.range.length),
+                  let textRange = NSTextRange(location: start, end: end) else { continue }
+            layoutManager.ensureLayout(for: textRange)
+            paint.color.setFill()
+            layoutManager.enumerateTextSegments(in: textRange, type: .standard, options: []) { _, frame, _, _ in
+                let segment = frame.offsetBy(dx: origin.x, dy: origin.y)
+                if segment.width > 0, segment.intersects(rect) {
+                    segment.fill(using: .sourceOver)
+                }
+                return true
+            }
+        }
+    }
+
     // MARK: - Links
 
     /// Opens `http`, `https` and `mailto` links in the default app; ignores every other scheme.

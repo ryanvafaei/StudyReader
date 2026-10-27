@@ -180,6 +180,12 @@ struct SampleLibrary: Sendable {
         sample.paragraphs.joined(separator: "\n\n")
     }
 
+    /// The string the reader shows for a Markdown sample (`MarkdownRenderer` output).
+    private static func renderedString(of sample: Sample) -> String {
+        MarkdownRenderer.render(MarkdownDocumentSource(markdown: markdownText(of: sample), documentId: nil, fileStore: nil))
+            .string
+    }
+
     private static func units(for sample: Sample) -> [DocumentText] {
         if sample.fileType == .markdown {
             return [
@@ -232,6 +238,7 @@ struct SampleLibrary: Sendable {
                 view: .pdf,
                 color: spec.color,
                 text: text,
+                richText: RichTextMarkdown.escape(text),
                 note: spec.note,
                 pageIndex: page,
                 positionKey: Double(page) + Double(line) / 1000,
@@ -240,20 +247,15 @@ struct SampleLibrary: Sendable {
                 updatedAt: now
             )
         case let .phrase(phrase):
-            let full = NSString(string: markdownText(of: sample))
-            let range = full.range(of: phrase)
+            // Offsets and context are those of the rendered string (what the reader shows and anchors against), not
+            // of the file: the renderer separates blocks with one newline, the file with a blank line.
+            let rendered = renderedString(of: sample)
+            let range = NSString(string: rendered).range(of: phrase)
             guard range.location != NSNotFound else {
-                Log.files.error("Sample phrase not found in its document text")
+                Log.files.error("Sample phrase not found in its rendered text")
                 return nil
             }
-            let anchor = TextAnchor(
-                start: range.location,
-                length: range.length,
-                text: phrase,
-                prefix: "",
-                suffix: "",
-                sourceVersion: MarkdownRenderer.version
-            )
+            let anchor = TextAnchoring.anchor(for: range, in: rendered, sourceVersion: MarkdownRenderer.version)
             return Highlight(
                 id: UUID().uuidString,
                 documentId: sample.id,
@@ -261,9 +263,10 @@ struct SampleLibrary: Sendable {
                 view: .markdown,
                 color: spec.color,
                 text: phrase,
+                richText: RichTextMarkdown.escape(phrase),
                 note: spec.note,
                 pageIndex: nil,
-                positionKey: Double(range.location),
+                positionKey: TextAnchoring.positionKey(for: anchor),
                 anchor: .text(anchor),
                 createdAt: now,
                 updatedAt: now

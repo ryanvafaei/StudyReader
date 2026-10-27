@@ -74,7 +74,16 @@ final class MarkdownReaderCoordinator {
         self.model = model
         self.controller = TextReaderController(model: model)
         self.highlightController = TextHighlightController(model: model, textController: controller)
-        controller.onPositionReady = { [weak self] in self?.applyPendingLocation() }
+        controller.onPositionReady = { [weak self] in self?.positionReady() }
+    }
+
+    /// The text has a layout and its saved position is restored. Draws the highlights again: a draw made before the
+    /// first layout (while the column inset and the view size were still changing) must not be the only one.
+    private func positionReady() {
+        if rendered != nil, !isReanchoring, didReanchor || model.highlights.isEmpty {
+            highlightController.sync(with: model.highlights)
+        }
+        applyPendingLocation()
     }
 
     /// Reads the stored file as UTF-8, renders it and shows it. An unreadable file fails the model.

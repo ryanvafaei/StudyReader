@@ -173,9 +173,6 @@
     "Filter documents" : {
 
     },
-    "Find in document" : {
-
-    },
     "Find in Document" : {
 
     },
@@ -411,6 +408,9 @@
     "Reading" : {
 
     },
+    "Redo" : {
+
+    },
     "Remove tag %@" : {
 
     },
@@ -574,6 +574,12 @@
 
     },
     "Title" : {
+
+    },
+    "Undo" : {
+
+    },
+    "Undo Highlight" : {
 
     },
     "Unlock" : {

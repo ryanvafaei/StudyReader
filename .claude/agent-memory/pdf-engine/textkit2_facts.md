@@ -12,7 +12,7 @@ metadata:
 - Test log values: put them in the `#expect` comment string; failures otherwise omit them (grep `build/ci/<run>/test.log`).
 
 ## T60 (highlight drawing/interaction)
-- Highlights drawn with `NSTextLayoutManager.addRenderingAttribute(.backgroundColor,...)`; remove by re-walking the ranges drawn last time (don't clear the whole document: other users of rendering attributes). Verified in tests with `enumerateRenderingAttributes(from:reverse:using:)`.
+- Highlights: rendering attributes (`addRenderingAttribute(.backgroundColor,...)`) did NOT paint on the CI macOS 27 runner (0 px, T63a). They are now drawn in `TextReaderView.drawBackground(in:)` from `highlightPaints` using `enumerateTextSegments(.standard)` rects plus `textContainerOrigin`. Unit tests read `textView.highlightPaints`.
 - `textView.undoManager` is non-nil for the (allowsUndo == false) reader view in a borderless test window; `undo()` works outside a run-loop group.
 - Swift Testing `-only-testing` filters use the struct name (`TextHighlightControllerTests`), not the `@Suite` display name; a wrong name runs 0 tests and still prints TEST SUCCEEDED. Check for "Test run with N tests" in the log.
 - Re-anchoring writes reach `model.highlights` only through the DB observation: wait until `model.highlights == fetchForDocument` before drawing/revealing (see MarkdownReaderCoordinator.waitForReanchoredRows).

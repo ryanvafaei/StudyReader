@@ -28,6 +28,8 @@ final class StudyReaderUI {
         static let gradient = "Sample · Notes: Gradient Descent"
         /// Markdown, text extraction failed.
         static let retrieval = "Sample · Paper: Retrieval Notes"
+        /// PDF, one seeded highlight.
+        static let probability = "Sample · Book chapter: Probability"
         /// Original file missing (no bookmark).
         static let pendulum = "Sample · Lab manual: Pendulum"
         /// 16:9 landscape PDF.
@@ -47,6 +49,10 @@ final class StudyReaderUI {
         app.launchEnvironment["STUDYREADER_IN_MEMORY"] = "1"
         app.launch()
         let ui = StudyReaderUI(app: app)
+        // Reader windows restored from an earlier run join the library's tab group as the selected tab and hide the
+        // library (CI run 40577743964: a spinner tab on top, so the sidebar never appeared). They are closed first,
+        // before anything waits for the sidebar; every launch starts from the library window alone.
+        ui.closeRestoredReaders()
         ui.ensureLibraryWindow()
         guard ui.sidebar.exists else {
             // Stop here instead of letting every later query wait and fail; the screenshot shows what was on screen.
@@ -54,8 +60,7 @@ final class StudyReaderUI {
             XCTFail("The library window didn't open, even from Window > StudyReader.", file: file, line: line)
             return ui
         }
-        // Reader windows restored from an earlier run would cover the library or add stray tabs, so every launch
-        // starts from the library window alone.
+        // A restored window can also arrive after the first pass.
         ui.closeRestoredReaders()
         ui.ensureLibraryWindow()
         // The layout is a per-Mac setting that outlives the launch (ephemeral defaults suite), so a List test would
@@ -74,7 +79,9 @@ final class StudyReaderUI {
         if sidebar.waitForExistence(timeout: 10) { return }
         let windowMenu = app.menuBars.menuBarItems["Window"]
         windowMenu.click()
-        let libraryItem = windowMenu.menuItems["StudyReader"]
+        // The Window menu lists "StudyReader" twice (the scene's own item and the window-list entry), so a subscript
+        // lookup is ambiguous. Either one brings the library window forward.
+        let libraryItem = windowMenu.menuItems.matching(NSPredicate(format: "title == 'StudyReader'")).firstMatch
         if libraryItem.exists {
             libraryItem.click()
         } else {

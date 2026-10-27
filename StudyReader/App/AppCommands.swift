@@ -38,6 +38,25 @@ struct AppCommands: Commands {
             .disabled(readerActions == nil && (libraryActions?.selectedDocumentId == nil || libraryActions?.editMetadata == nil))
         }
 
+        // Replaces the system Undo/Redo: a read-only reader (TextKit 2 view, PDFView) reports them disabled and never
+        // titles them, but the auto-highlight registers one undo action ("Undo Highlight"). Anything else (a text field
+        // in a sheet or the library) goes down the responder chain as before.
+        CommandGroup(replacing: .undoRedo) {
+            Button {
+                performUndo()
+            } label: {
+                Text(readerActions?.model.canUndoHighlight == true ? String(localized: "Undo Highlight") : String(localized: "Undo"))
+            }
+            .keyboardShortcut("z")
+
+            Button {
+                NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
+            } label: {
+                Text("Redo")
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+        }
+
         CommandGroup(after: .textEditing) {
             Button("Find in Document") {
                 readerActions?.model.engineActions.findInDocument?()
@@ -99,5 +118,39 @@ struct AppCommands: Commands {
             .keyboardShortcut("s", modifiers: [.command, .control])
             .disabled(readerActions?.model.engineActions.startSnapshot == nil)
         }
+    }
+
+    /// Removes the frontmost reader's last auto-highlight. Normally it runs the first responder's (or the window's)
+    /// undo manager, the same path as the responder chain; the action registered there only calls
+    /// `ReaderModel.undoLastAutoHighlight()` on the tab that registered it. When that manager has nothing to undo, it
+    /// calls the model directly, but only while the reader view itself has the keyboard (see `isReaderUndoContext`).
+    /// Anywhere else (a sheet, a popover field, the library) Undo goes down the responder chain, so ⌘Z in an empty
+    /// field never deletes a highlight. The model removes only the highlight it created itself, so ⌘Z never deletes
+    /// another tab's.
+    @MainActor
+    private func performUndo() {
+        guard let model = readerActions?.model, model.canUndoHighlight else {
+            NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+            return
+        }
+        let window = NSApp.keyWindow
+        if let manager = window?.firstResponder?.undoManager ?? window?.undoManager, manager.canUndo {
+            manager.undo()
+        } else if Self.isReaderUndoContext(window) {
+            Task { await model.undoLastAutoHighlight() }
+        } else {
+            NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+        }
+    }
+
+    /// True when `window` is a reader's own window (not a sheet, popover or other panel) and its first responder is
+    /// not an editable text view or field editor, i.e. it is the reader view, its scroll view or nothing in particular.
+    @MainActor
+    static func isReaderUndoContext(_ window: NSWindow?) -> Bool {
+        guard let window, window.sheetParent == nil, window.canBecomeMain else { return false }
+        if let text = window.firstResponder as? NSTextView, text.isFieldEditor || text.isEditable {
+            return false
+        }
+        return true
     }
 }

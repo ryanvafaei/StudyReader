@@ -59,8 +59,36 @@ struct HighlightsPanelView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isButton)
-                .accessibilityLabel("Highlight")
+                .accessibilityLabel(row.highlight.accessibilityExcerpt)
+                .accessibilityValue(row.accessibilityDetail)
+                .accessibilityIdentifier("highlight-row")
         }
+    }
+}
+
+private extension Highlight {
+    /// Markdown shown for the row: the edited text, else the rich text, else the plain text.
+    var excerptMarkdown: String {
+        if let editedText { return RichTextMarkdown.escape(editedText) }
+        return richText.isEmpty ? RichTextMarkdown.escape(text) : richText
+    }
+
+    /// Row label for VoiceOver and UI tests: the plain excerpt, or "Snapshot" for an image highlight.
+    var accessibilityExcerpt: String {
+        if imagePath != nil { return String(localized: "Snapshot") }
+        let plain = editedText ?? text
+        return plain.isEmpty ? String(localized: "Highlight") : plain
+    }
+}
+
+private extension PanelHighlightRow {
+    /// Page and view badge as the row's accessibility value ("p. 2, PDF"); `.combine` plus the label would otherwise
+    /// hide them from VoiceOver and UI tests.
+    var accessibilityDetail: String {
+        var parts: [String] = []
+        if let page = highlight.pageIndex { parts.append(String(localized: "p. \(page + 1)")) }
+        if let viewLabel { parts.append(viewLabel) }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -119,7 +147,7 @@ private struct HighlightRowView: View {
                 .frame(maxWidth: .infinity, maxHeight: 60, alignment: .leading)
                 .accessibilityLabel("Snapshot")
         } else if row.highlight.imagePath == nil {
-            RichTextView(row.highlight.editedText.map(RichTextMarkdown.escape) ?? row.highlight.richText)
+            RichTextView(row.highlight.excerptMarkdown)
                 .lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

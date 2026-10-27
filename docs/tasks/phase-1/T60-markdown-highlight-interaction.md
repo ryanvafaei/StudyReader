@@ -9,6 +9,8 @@
 ## Goal
 Make highlighting work in the Markdown view: selection → highlight (auto or toolbar), 1–5 / H, ⌘Z undo, drawing with TextKit 2 rendering attributes (offsets stay stable), click → popover (topmost wins), re-anchoring on open when the renderer version or text changed (orphans stay listed but aren't drawn), and `.highlight(id)` navigation.
 
+> Note: T63a replaced the TextKit 2 rendering attributes described below with painting in `TextReaderView.drawBackground(in:)` from `highlightPaints` (see the ADR-0005 amendment); the rendering-attribute wording in this spec is historical.
+
 ## Files to touch
 - `StudyReader/Features/Reader/Text/TextHighlightController.swift` (new)
 - `StudyReader/Features/Reader/Text/TextReaderView.swift`, `TextReaderController.swift` (modify: hooks, undo)

@@ -80,19 +80,11 @@ struct TextHighlightControllerTests {
             anchor: .text(anchor), anchorStatus: status, createdAt: createdAt, updatedAt: createdAt)
     }
 
-    /// UTF-16 offsets that carry a background-color rendering attribute.
+    /// UTF-16 offsets the text view paints a highlight over.
     private static func coloredOffsets(_ textController: TextReaderController) -> IndexSet {
         var offsets = IndexSet()
-        guard let layoutManager = textController.textView.textLayoutManager,
-              let contentManager = layoutManager.textContentManager else { return offsets }
-        let documentStart = contentManager.documentRange.location
-        layoutManager.enumerateRenderingAttributes(from: documentStart, reverse: false) { _, attributes, textRange in
-            if attributes[.backgroundColor] != nil {
-                let start = contentManager.offset(from: documentStart, to: textRange.location)
-                let end = contentManager.offset(from: documentStart, to: textRange.endLocation)
-                offsets.insert(integersIn: start..<end)
-            }
-            return true
+        for paint in textController.textView.highlightPaints {
+            offsets.insert(integersIn: paint.range.location..<NSMaxRange(paint.range))
         }
         return offsets
     }

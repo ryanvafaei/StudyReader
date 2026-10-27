@@ -186,8 +186,8 @@ private struct ReaderTabContent: View {
                 } label: {
                     Label("Find in Document", systemImage: "magnifyingglass")
                 }
-                .help("Find in document")
-                .accessibilityLabel("Find in document")
+                .help("Find in Document")
+                .accessibilityLabel("Find in Document")
             }
         }
 

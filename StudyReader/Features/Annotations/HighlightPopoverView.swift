@@ -75,7 +75,7 @@ struct HighlightPopoverView: View {
                 .frame(maxWidth: .infinity, maxHeight: 120, alignment: .leading)
                 .accessibilityLabel("Snapshot")
         } else if let highlight = model.highlight, highlight.kind == .text {
-            RichTextView(highlight.richText)
+            RichTextView(highlight.richText.isEmpty ? RichTextMarkdown.escape(highlight.text) : highlight.richText)
                 .lineLimit(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

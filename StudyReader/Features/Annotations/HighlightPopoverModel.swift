@@ -47,7 +47,9 @@ final class HighlightPopoverModel {
         }
     }
 
+    /// Choosing the color it already has changes nothing, so it doesn't touch the row or the auto-highlight undo.
     func setColor(_ color: HighlightColor) async {
+        guard highlight?.color != color else { return }
         do {
             try await session.environment.highlightService.setColor(id: highlightId, color: color)
             errorMessage = nil

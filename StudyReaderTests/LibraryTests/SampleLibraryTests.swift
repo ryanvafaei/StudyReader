@@ -33,6 +33,36 @@ struct SampleLibraryTests {
         #expect(remaining.map(\.id) == [real.id])
     }
 
+    @Test("every seeded Markdown highlight resolves unchanged against what the reader renders")
+    func seededMarkdownHighlightsMatchTheRenderedText() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        _ = try await SampleLibrary(environment: env).seed()
+
+        var checked = 0
+        for document in try await env.documentRepository.fetchAll() where document.fileType == .markdown {
+            let url = try #require(env.fileStore.url(forRelativePath: document.storedPath))
+            let markdown = try String(contentsOf: url, encoding: .utf8)
+            let rendered = MarkdownRenderer.render(
+                MarkdownDocumentSource(markdown: markdown, documentId: document.id, fileStore: env.fileStore)
+            ).string
+            for highlight in try await env.highlightRepository.fetchForDocument(document.id) {
+                guard case .text(let anchor) = highlight.anchor else {
+                    Issue.record("A Markdown highlight has no text anchor: \(highlight.text)")
+                    continue
+                }
+                #expect(
+                    TextAnchoring.resolve(anchor, in: rendered, currentVersion: MarkdownRenderer.version) == .unchanged,
+                    "\"\(highlight.text)\" doesn't sit at its stored offset of the rendered text."
+                )
+                #expect((rendered as NSString).substring(with: NSRange(location: anchor.start, length: anchor.length)) == highlight.text)
+                #expect(highlight.anchorStatus == .ok)
+                checked += 1
+            }
+        }
+        #expect(checked >= 4)
+    }
+
     @Test("the 16:9 slide-deck sample has a landscape cover no larger than the 600 px cap")
     func landscapeSampleHasLandscapeCover() async throws {
         let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))

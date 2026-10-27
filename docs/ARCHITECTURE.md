@@ -12,7 +12,7 @@ Companion to `docs/SPEC.md` (what) and `docs/DEPENDENCIES.md` (libraries). Decis
 │        @Observable feature models  ←── GRDB ValueObservation (live lists)    │
 ├──────────────────────────── Reader engines (AppKit) ─────────────────────────┤
 │ PDFReaderView (PDFView subclass)     TextReaderView (NSTextView, TextKit 2)  │
-│ highlight annotations, snapshot      highlight rendering attrs, paged mode   │
+│ highlight annotations, snapshot      highlight painting, paged mode          │
 ├──────────────────────────── Services (actors / structs) ─────────────────────┤
 │ ImportService · ExtractionService · SearchService · HighlightService         │
 │ ReviewScheduler · DailyReviewBuilder · ThemedReviewBuilder · MasteryService  │
@@ -365,7 +365,7 @@ struct ImageAnchor: Codable, Sendable, Equatable { var pageIndex: Int; var rect:
 
 ### 5.2 Text view and Markdown
 - The text is shown in `TextReaderView` (NSTextView with TextKit 2, non-editable, selectable). Offsets are **UTF-16** (`NSRange`), matching NSTextView.
-- Rendering: `NSTextLayoutManager.addRenderingAttribute(.backgroundColor, …, for: textRange)`. Rendering attributes don't change the text storage, so offsets stay stable.
+- Rendering: `TextHighlightController` hands `TextReaderView.highlightPaints` (UTF-16 range plus color); the view fills the `enumerateTextSegments` rects in `drawBackground(in:)`, under the text. The text storage isn't touched, so offsets stay stable. (TextKit 2 rendering attributes were tried first and didn't paint on CI, T63a.)
 - Hit testing: character index at click point → topmost highlight containing it.
 
 ### 5.3 Re-anchoring (text and Markdown)

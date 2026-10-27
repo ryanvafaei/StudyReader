@@ -260,8 +260,10 @@ final class PDFHighlightController {
               let new = newHighlight(for: selection, color: color) else { return false }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            if await model.createHighlight(new, isAuto: false) != nil {
+            // isAuto only makes the highlight the one ⌘Z removes (Edit > Undo Highlight).
+            if await model.createHighlight(new, isAuto: true) != nil {
                 pdfView.clearSelection()
+                registerAutoHighlightUndo()
             }
         }
         return true
