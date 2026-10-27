@@ -31,6 +31,8 @@ final class PDFReaderController: NSObject {
     var showsThumbnails = false
 
     @ObservationIgnored private let model: ReaderModel
+    /// Draws and hit-tests the stored highlights and creates new ones (T59).
+    @ObservationIgnored private(set) var highlightController: PDFHighlightController?
     @ObservationIgnored private weak var observedClipView: NSClipView?
     @ObservationIgnored private var isTrackingPosition = false
     @ObservationIgnored private var lastReportedPosition: PDFPosition?
@@ -44,6 +46,7 @@ final class PDFReaderController: NSObject {
         self.invertSettingEnabled = model.session.settings.invertPDFInDarkMode
         self.pdfView = StudyPDFView(frame: .zero)
         super.init()
+        highlightController = PDFHighlightController(model: model, pdfView: pdfView)
         pdfView.onEffectiveAppearanceChange = { [weak self] in self?.refreshInversion() }
         pdfView.displayMode = .singlePageContinuous
         pdfView.displayDirection = .vertical
@@ -81,6 +84,7 @@ final class PDFReaderController: NSObject {
         lastReportedPosition = model.initialPDFPosition
         pdfView.autoScales = true
         pdfView.document = loaded
+        highlightController?.sync(with: model.highlights)
         refreshInversion()
         registerActions()
 
@@ -187,13 +191,27 @@ final class PDFReaderController: NSObject {
         pdfView.window?.makeFirstResponder(pdfView)
     }
 
-    /// Applies a `.page` location the model holds and consumes it. Other locations belong to T59 and T67. Before the
-    /// saved position is restored the call does nothing; `beginTrackingPosition` applies it afterwards.
+    /// Applies a `.page` or `.highlight` location the model holds and consumes it. Other locations belong to T67.
+    /// Before the saved position is restored the call does nothing; `beginTrackingPosition` applies it afterwards.
+    /// A `.highlight` location whose highlight isn't loaded yet stays pending; `highlightsChanged()` retries it.
     func applyPendingLocation() {
-        guard isTrackingPosition, case .page(let index)? = model.pendingLocation else { return }
-        go(toPage: index)
+        guard isTrackingPosition else { return }
+        switch model.pendingLocation {
+        case .page(let index):
+            go(toPage: index)
+        case .highlight(let id):
+            guard highlightController?.reveal(highlightId: id) == true else { return }
+        default:
+            return
+        }
         model.consumeLocation()
         reportPositionIfNeeded()
+    }
+
+    /// `model.highlights` changed: redraw the annotations, then retry a pending `.highlight` location.
+    func highlightsChanged() {
+        highlightController?.sync(with: model.highlights)
+        applyPendingLocation()
     }
 
     var currentPageIndex: Int? {

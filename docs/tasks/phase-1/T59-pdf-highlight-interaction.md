@@ -63,3 +63,4 @@ In-memory environment, a document with `plainMultiPage(pageCount: 3)` as its fil
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Display annotations in memory only, undo, keys, click, reveal and flash met; 26 PDF unit tests pass on CI. Nice-to-haves to BACKLOG B12.
