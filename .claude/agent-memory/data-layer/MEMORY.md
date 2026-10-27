@@ -14,3 +14,4 @@
 - [Import service notes](import-service-notes.md) — T41 ImportService files, shared test stubs/harness, folder-access and ordering behaviours
 - [Extraction service notes](extraction-service-notes.md) — T44 ExtractionService actor, DocumentTextRepository, LibraryMaintenance, launch sweep, async #expect(throws:)
 - [Search query parser notes](search-query-parser-notes.md) — T64 SearchQueryParser tokenizer rules and test location
+- [Search service notes](search-service-notes.md) — T65 SearchService: column-filtered FTS queries, error catch, SearchTestEnvironment helper

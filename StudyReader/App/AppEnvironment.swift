@@ -15,6 +15,7 @@ struct AppEnvironment: Sendable {
     let documentTextRepository: DocumentTextRepository
     let extractionService: ExtractionService
     let importService: ImportService
+    let searchService: SearchService
     let settingsStore: SettingsStore
     let sleeper: any Sleeper
 
@@ -43,6 +44,7 @@ struct AppEnvironment: Sendable {
             now: now
         )
         self.documentTextRepository = DocumentTextRepository(database: database)
+        self.searchService = SearchService(database: database)
         let extractionService = ExtractionService(database: database, fileStore: fileStore)
         self.extractionService = extractionService
         self.importService = ImportService(
