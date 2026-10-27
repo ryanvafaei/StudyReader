@@ -22,8 +22,11 @@ final class TextReaderController: NSObject {
 
     private let model: ReaderModel
     private let decorationDelegate = TextBlockDecorationDelegate()
-    private var isTrackingPosition = false
+    /// True once the saved position has been restored (or there was none) and scrolling is reported.
+    private(set) var isTrackingPosition = false
     private var lastReportedOffset: Int?
+    /// Called each time `load` finishes restoring the position; the highlight code applies a pending location then.
+    var onPositionReady: (@MainActor () -> Void)?
 
     init(model: ReaderModel) {
         self.model = model
@@ -103,6 +106,7 @@ final class TextReaderController: NSObject {
 
     private func beginTrackingPosition() {
         isTrackingPosition = true
+        onPositionReady?()
     }
 
     private func registerActions() {
@@ -209,6 +213,15 @@ final class TextReaderController: NSObject {
         let clamped = NSRange(location: location, length: min(max(range.length, 0), length - location))
         textView.setSelectedRange(clamped)
         textView.scrollRangeToVisible(clamped)
+    }
+
+    /// `range` as a text range of the layout manager, or nil when it lies outside the text.
+    func textRange(for range: NSRange) -> NSTextRange? {
+        guard let contentManager = textView.textLayoutManager?.textContentManager,
+              range.location >= 0, range.length >= 0, NSMaxRange(range) <= textLength,
+              let start = contentManager.location(contentManager.documentRange.location, offsetBy: range.location),
+              let end = contentManager.location(start, offsetBy: range.length) else { return nil }
+        return NSTextRange(location: start, end: end)
     }
 
     /// Rect of `range` in the scroll view's coordinate space, top-left origin (popover anchors, ADR-0017). `.zero`

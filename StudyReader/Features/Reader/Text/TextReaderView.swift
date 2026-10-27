@@ -7,7 +7,8 @@ import AppKit
 final class TextReaderView: NSTextView {
     /// Called after a mouse-up that leaves a non-empty selection (T60).
     var onSelectionFinished: (@MainActor (NSRange) -> Void)?
-    /// Called for a click that doesn't select: the character index under the pointer. Return true if handled (T60).
+    /// Called for a click that doesn't select and isn't on a link: the character index under the pointer. Return true
+    /// if handled (T60).
     var onClick: (@MainActor (Int, NSEvent) -> Bool)?
     /// Key handling hook for 1-5 / H (T60); return true if handled.
     var onKeyDown: (@MainActor (NSEvent) -> Bool)?
@@ -15,6 +16,8 @@ final class TextReaderView: NSTextView {
     /// Link schemes that open outside the app; every other link is ignored.
     static let openableLinkSchemes: Set<String> = ["http", "https", "mailto"]
     private static let clickTolerance: CGFloat = 3
+    /// Set by `clicked(onLink:at:)` while `super.mouseDown` tracks the click, so a link click isn't also a highlight click.
+    private var didClickLink = false
 
     /// The TextKit 2 objects the view works with. Held here so they live as long as the view.
     private let contentStorage: NSTextContentStorage
@@ -91,8 +94,10 @@ final class TextReaderView: NSTextView {
 
     override func mouseDown(with event: NSEvent) {
         let down = convert(event.locationInWindow, from: nil)
+        didClickLink = false
         // NSTextView tracks the whole drag inside `super`, so it returns after the mouse is released.
         super.mouseDown(with: event)
+        if didClickLink { return }
 
         let selection = selectedRange()
         if selection.length > 0 {
@@ -115,6 +120,7 @@ final class TextReaderView: NSTextView {
 
     /// Opens `http`, `https` and `mailto` links in the default app; ignores every other scheme.
     override func clicked(onLink link: Any, at charIndex: Int) {
+        didClickLink = true
         guard let url = Self.url(forLink: link), Self.isOpenable(url) else { return }
         NSWorkspace.shared.open(url)
     }

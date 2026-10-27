@@ -1,3 +1,4 @@
 - [PDFKit facts](pdfkit_facts.md) — verified behaviours: encrypted copy writing, rotation, test filter names
 - [Markdown renderer facts](markdown_renderer_facts.md) — T43 design notes, swift-markdown API location, verified font traits
 - [TextKit 2 facts](textkit2_facts.md) — T55: manual TK2 NSTextView stack, @preconcurrency delegate, test pitfalls
+- (T60 notes appended to textkit2_facts.md)

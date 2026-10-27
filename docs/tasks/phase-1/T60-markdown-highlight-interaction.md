@@ -70,3 +70,4 @@ In-memory environment; a Markdown document whose file is `rich-inline.md` (and o
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Rendering attributes keep offsets stable, re-anchor once per open and idempotent, reveal syncs first, undo torn down; 31 unit tests on CI. Open: whether Edit > Undo is enabled for a non-editable NSTextView (Mac check, may become a T63 checkpoint FAIL). B6 fixed; B13 added.
