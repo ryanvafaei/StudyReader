@@ -217,7 +217,7 @@ private struct ReaderTabContent: View {
     }
 }
 
-/// Engine slot. T55 replaces the Markdown placeholder.
+/// Engine slot: the PDF reader or the Markdown reader.
 struct ReaderContentSlot: View {
     let model: ReaderModel
 
@@ -226,8 +226,7 @@ struct ReaderContentSlot: View {
         case .pdf:
             PDFReaderView(model: model)
         case .markdown:
-            Text("Markdown reader arrives in T55")
-                .foregroundStyle(.secondary)
+            MarkdownReaderView(model: model)
         case nil:
             ProgressView()
         }

@@ -73,3 +73,4 @@ Model over an in-memory environment with a Markdown document (file = `all-elemen
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). TextKit 2 text view, column, decorations, position restore, link scheme filter met; no layoutManager access. Minor items to BACKLOG B6–B8.
