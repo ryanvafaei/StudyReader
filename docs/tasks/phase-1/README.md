@@ -66,6 +66,7 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 33 | [T61 Snapshot service and tool](T61-snapshot-service-and-tool.md) | pdf-engine | T59 | yes |
 | 34 | [T62 Highlight popover and selection toolbar](T62-highlight-popover-and-selection-toolbar.md) | ui-builder | T37, T49, T59, T60 | yes |
 | 35 | [T63 Reader side panel](T63-reader-side-panel.md) | ui-builder | T62 | yes |
+| 24n | [T63a T63 checkpoint fixes: seed highlight text, obsolete reader tests, highlight UI tests](T63a-checkpoint-fixes.md) (spec FAILs and failing tests from the T63 checkpoint; added after T63, runs before T64) | ui-builder | T63 | no |
 | 36 | [T64 SearchQueryParser](T64-search-query-parser.md) | data-layer | none | no |
 | 37 | [T65 SearchService](T65-search-service.md) | data-layer (model sonnet, effort high) | T44, T64 | no |
 | 38 | [T66 Global search UI](T66-global-search-ui.md) | ui-builder | T52, T65 | yes |
