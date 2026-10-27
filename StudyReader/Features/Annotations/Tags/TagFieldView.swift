@@ -7,10 +7,15 @@ struct TagFieldView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if model.tags.isEmpty {
+            if model.hasLoadedAssignedTags && model.tags.isEmpty {
                 Text("No tags yet")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+            } else if model.tags.isEmpty {
+                // Not loaded yet: keep the line's height so nothing moves when the tags arrive.
+                Text(" ")
+                    .font(.callout)
+                    .accessibilityHidden(true)
             } else {
                 FlowLayout(spacing: 6) {
                     ForEach(model.tags) { tag in

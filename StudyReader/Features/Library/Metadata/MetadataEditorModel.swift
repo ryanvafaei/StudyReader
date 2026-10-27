@@ -9,12 +9,23 @@ final class MetadataEditorModel {
 
     private(set) var document: LibraryDocument?
 
-    var title: String = ""
+    var title: String = "" {
+        didSet {
+            if title != oldValue { titleError = nil }
+        }
+    }
     var author: String = ""
     var categoryId: String = ""
 
     /// Every category, for the picker. Loaded once in `load()`.
     private(set) var categories: [DocumentCategory] = []
+
+    /// false until the first `load()` has finished (successfully or not). The sheet hides its fields until then.
+    private(set) var hasLoaded = false
+
+    /// Message for the Title field, shown directly below it. Set when Save is refused for a blank title; cleared when
+    /// `title` changes. `errorMessage` stays for every other failure (load, save, cover).
+    private(set) var titleError: String?
 
     /// User-facing message from the last failed load, save or cover action. Nil after a success.
     private(set) var errorMessage: String?
@@ -57,6 +68,7 @@ final class MetadataEditorModel {
 
     /// Reads the document and the category list, and fills the fields with the stored values.
     func load() async {
+        defer { hasLoaded = true }
         do {
             categories = try await categoryRepository.fetchAll()
             guard let loaded = try await documents.fetch(id: documentId) else {
@@ -73,15 +85,16 @@ final class MetadataEditorModel {
         }
     }
 
-    /// Saves title, author and category. An empty title is refused and sets `errorMessage`.
+    /// Saves title, author and category. An empty title is refused and sets `titleError`.
     /// Returns true on success, which closes the sheet.
     func save() async -> Bool {
         do {
             try await documents.updateMetadata(id: documentId, title: title, author: author, categoryId: categoryId)
             errorMessage = nil
+            titleError = nil
             return true
         } catch DocumentEditError.emptyTitle {
-            errorMessage = Self.message(for: DocumentEditError.emptyTitle)
+            titleError = Self.message(for: DocumentEditError.emptyTitle)
             return false
         } catch {
             errorMessage = Self.message(for: error)

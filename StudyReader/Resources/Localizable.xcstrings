@@ -80,6 +80,9 @@
     "blue" : {
 
     },
+    "Blue" : {
+
+    },
     "Built-in category" : {
 
     },
@@ -185,6 +188,9 @@
     "green" : {
 
     },
+    "Green" : {
+
+    },
     "Grid" : {
 
     },
@@ -285,6 +291,9 @@
     "Library location" : {
 
     },
+    "Loading" : {
+
+    },
     "library.empty.hint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -381,7 +390,13 @@
     "pink" : {
 
     },
+    "Pink" : {
+
+    },
     "Progress" : {
+
+    },
+    "Purple" : {
 
     },
     "purple" : {
@@ -571,6 +586,9 @@
 
     },
     "Use current page as cover" : {
+
+    },
+    "Yellow" : {
 
     },
     "yellow" : {

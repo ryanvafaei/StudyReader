@@ -27,6 +27,12 @@ struct ImportReport: Sendable, Equatable {
     var unreadableImageCount: Int = 0
     var missingImageCount: Int = 0             // informational, not in the summary
 
+    /// true when the user should read the summary: nothing was imported, or there is a duplicate, an unsupported file,
+    /// a failure, or an unreadable image. A batch that only imported documents needs no attention.
+    var needsAttention: Bool {
+        imported.isEmpty || !duplicates.isEmpty || !unsupported.isEmpty || !failures.isEmpty || unreadableImageCount > 0
+    }
+
     /// User text, lines joined with "\n": the import count (only when something was imported or skipped as
     /// unsupported), one line per duplicate, one per failure, then the unreadable-image line.
     var summary: String {

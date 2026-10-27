@@ -35,24 +35,86 @@ private func pollUntil(_ condition: () -> Bool) async -> Bool {
     return condition()
 }
 
+/// Records the VoiceOver announcements the coordinator makes, so no accessibility notification is posted in tests.
+@MainActor
+final class AnnouncementRecorder {
+    private(set) var texts: [String] = []
+
+    func record(_ text: String) {
+        texts.append(text)
+    }
+}
+
 @MainActor
 @Suite("ImportCoordinator")
 struct ImportCoordinatorTests {
     @Test
-    func importsAndPublishesSummary() async throws {
+    func quietImportShowsNoAlertAndAnnounces() async throws {
         let harness = try ImportHarness.make()
         defer { harness.cleanup() }
-        let coordinator = ImportCoordinator(importService: harness.service)
+        let recorder = AnnouncementRecorder()
+        let coordinator = ImportCoordinator(importService: harness.service, announce: recorder.record)
         let source = try PDFFixtureBuilder.writeTemporary(PDFFixtureBuilder.plainMultiPage(), name: "lecture.pdf")
 
         coordinator.importURLs([source])
         #expect(coordinator.isImporting)
 
-        let finished = await pollUntil { !coordinator.isImporting && coordinator.lastSummary != nil }
+        let finished = await pollUntil { !coordinator.isImporting && coordinator.summaryHistory.count == 1 }
         #expect(finished)
-        #expect(coordinator.lastSummary == "Imported 1")
         #expect(coordinator.summaryHistory == ["Imported 1"])
+        #expect(coordinator.lastSummary == nil)
+        #expect(recorder.texts == ["Imported 1"])
         #expect(try await harness.env.documentRepository.fetchAll().count == 1)
+    }
+
+    @Test
+    func duplicateImportStillShowsTheSummary() async throws {
+        let harness = try ImportHarness.make()
+        defer { harness.cleanup() }
+        let recorder = AnnouncementRecorder()
+        let coordinator = ImportCoordinator(importService: harness.service, announce: recorder.record)
+        let source = try PDFFixtureBuilder.writeTemporary(PDFFixtureBuilder.plainMultiPage(), name: "lecture.pdf")
+
+        coordinator.importURLs([source])
+        let firstFinished = await pollUntil { !coordinator.isImporting && coordinator.summaryHistory.count == 1 }
+        #expect(firstFinished)
+
+        coordinator.importURLs([source])
+        let secondFinished = await pollUntil { !coordinator.isImporting && coordinator.summaryHistory.count == 2 }
+        #expect(secondFinished)
+        #expect(coordinator.lastSummary?.hasPrefix("Already in library:") == true)
+        #expect(recorder.texts == ["Imported 1"])
+        #expect(try await harness.env.documentRepository.fetchAll().count == 1)
+    }
+
+    @Test
+    func reportNeedsAttentionOnlyForProblems() {
+        let imported = ImportedDocument(documentId: "1", title: "A")
+        var oneImported = ImportReport()
+        oneImported.imported = [imported]
+        #expect(oneImported.needsAttention == false)
+
+        #expect(ImportReport().needsAttention == true)
+
+        var duplicate = oneImported
+        duplicate.duplicates = ["A"]
+        #expect(duplicate.needsAttention == true)
+
+        var unsupported = oneImported
+        unsupported.unsupported = ["notes.docx"]
+        #expect(unsupported.needsAttention == true)
+
+        var failed = oneImported
+        failed.failures = [ImportFailure(fileName: "broken.pdf", reason: .damaged)]
+        #expect(failed.needsAttention == true)
+
+        var unreadable = oneImported
+        unreadable.unreadableImageCount = 1
+        #expect(unreadable.needsAttention == true)
+
+        var missing = oneImported
+        missing.missingImageCount = 2
+        #expect(missing.needsAttention == false)
     }
 
     @Test

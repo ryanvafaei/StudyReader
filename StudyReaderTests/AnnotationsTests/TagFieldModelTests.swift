@@ -99,6 +99,40 @@ struct TagFieldModelTests {
 
     @MainActor
     @Test(.timeLimit(.minutes(1)))
+    func assignedTagsLoadedAfterFirstObservation() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        try await env.documentRepository.insert(TestData.document(id: Self.documentId))
+        let tag = try await env.tagRepository.findOrCreate(name: "Sample · exam", at: TestData.referenceDate)
+        try await env.tagRepository.setTags([tag.id], forDocument: Self.documentId)
+        let model = TagFieldModel(target: .document(Self.documentId), environment: env)
+        #expect(model.hasLoadedAssignedTags == false)
+
+        let observer = Task { await model.observe() }
+        defer { observer.cancel() }
+        let loaded = await ReaderTestSupport.waitUntil { model.hasLoadedAssignedTags }
+        #expect(loaded)
+        #expect(model.tags.count == 1)
+    }
+
+    @MainActor
+    @Test(.timeLimit(.minutes(1)))
+    func assignedTagsLoadedWhenTheDocumentHasNoTags() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        try await env.documentRepository.insert(TestData.document(id: Self.documentId))
+        let model = TagFieldModel(target: .document(Self.documentId), environment: env)
+        #expect(model.hasLoadedAssignedTags == false)
+
+        let observer = Task { await model.observe() }
+        defer { observer.cancel() }
+        let loaded = await ReaderTestSupport.waitUntil { model.hasLoadedAssignedTags }
+        #expect(loaded)
+        #expect(model.tags.isEmpty)
+    }
+
+    @MainActor
+    @Test(.timeLimit(.minutes(1)))
     func returnAddsHighlightedSuggestionAfterSameValueWrite() async throws {
         let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
         defer { TestFileStore.remove(env.fileStore) }

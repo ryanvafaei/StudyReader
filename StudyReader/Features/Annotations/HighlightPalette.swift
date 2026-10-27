@@ -41,6 +41,18 @@ enum HighlightPalette {
         return image
     }
 
+    /// Capitalized colour name for row labels: "Yellow", "Green", "Blue", "Pink", "Purple" (SPEC F-06).
+    /// `name(_:)` stays lowercase for use inside sentences.
+    static func title(_ color: HighlightColor) -> String {
+        switch color {
+        case .yellow: String(localized: "Yellow")
+        case .green: String(localized: "Green")
+        case .blue: String(localized: "Blue")
+        case .pink: String(localized: "Pink")
+        case .purple: String(localized: "Purple")
+        }
+    }
+
     /// Localized color name for accessibility labels.
     static func name(_ color: HighlightColor) -> String {
         switch color {

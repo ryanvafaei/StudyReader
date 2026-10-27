@@ -33,50 +33,72 @@ struct MetadataSheet: View {
         self.fileStore = session.environment.fileStore
     }
 
+    /// The fields and tags show only once their stored values have loaded (U2). Until then they stay laid out, hidden.
+    private var isReady: Bool {
+        model.hasLoaded && tagModel.hasLoadedAssignedTags
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Edit Metadata")
                 .font(.headline)
 
-            HStack(alignment: .top, spacing: 16) {
-                coverPreview
-                    .frame(width: 110)
-                coverButtons
-                Spacer(minLength: 0)
-            }
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 16) {
+                    coverPreview
+                        .frame(width: 110)
+                    coverButtons
+                    Spacer(minLength: 0)
+                }
 
-            Form {
-                TextField("Title", text: $model.title)
-                    .accessibilityLabel(Text("Title"))
-                TextField("Author", text: $model.author)
-                    .accessibilityLabel(Text("Author"))
-                if model.hasValidCategorySelection {
-                    Picker("Category", selection: $model.categoryId) {
-                        ForEach(model.categories) { category in
-                            Text(category.name).tag(category.id)
+                Form {
+                    TextField("Title", text: $model.title)
+                        .accessibilityLabel(Text("Title"))
+                    if let titleError = model.titleError {
+                        Text(titleError)
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                            .accessibilityLabel(Text(titleError))
+                    }
+                    TextField("Author", text: $model.author)
+                        .accessibilityLabel(Text("Author"))
+                    if model.hasValidCategorySelection {
+                        Picker("Category", selection: $model.categoryId) {
+                            ForEach(model.categories) { category in
+                                Text(category.name).tag(category.id)
+                            }
+                        }
+                        .accessibilityLabel(Text("Category"))
+                    } else {
+                        // Until the categories load, the picker has no tag for its selection (T52h). Keep the row's height.
+                        LabeledContent("Category") {
+                            Text("")
                         }
                     }
-                    .accessibilityLabel(Text("Category"))
-                } else {
-                    // Until the categories load, the picker has no tag for its selection (T52h). Keep the row's height.
-                    LabeledContent("Category") {
-                        Text("")
-                    }
+                }
+                .formStyle(.grouped)
+                .scrollDisabled(true)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Tags")
+                        .font(.subheadline.weight(.semibold))
+                    TagFieldView(model: tagModel)
+                }
+
+                if let message = model.errorMessage {
+                    Text(message)
+                        .font(.callout)
+                        .foregroundStyle(.red)
                 }
             }
-            .formStyle(.grouped)
-            .scrollDisabled(true)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Tags")
-                    .font(.subheadline.weight(.semibold))
-                TagFieldView(model: tagModel)
-            }
-
-            if let message = model.errorMessage {
-                Text(message)
-                    .font(.callout)
-                    .foregroundStyle(.red)
+            .opacity(isReady ? 1 : 0)
+            .accessibilityHidden(!isReady)
+            .overlay {
+                if !isReady {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Loading")
+                }
             }
 
             HStack {
@@ -94,6 +116,7 @@ struct MetadataSheet: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
+                .disabled(!isReady)
                 .accessibilityLabel("Save metadata")
             }
         }

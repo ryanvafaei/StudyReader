@@ -4,6 +4,10 @@ import Testing
 
 @MainActor
 @Suite struct HighlightPaletteTests {
+    @Test func titlesAreCapitalizedColourNames() {
+        #expect(HighlightColor.allCases.map(HighlightPalette.title) == ["Yellow", "Green", "Blue", "Pink", "Purple"])
+    }
+
     @Test func swatchImageIsColouredAndNotTemplate() throws {
         for color in HighlightColor.allCases {
             let image = HighlightPalette.swatchImage(color)

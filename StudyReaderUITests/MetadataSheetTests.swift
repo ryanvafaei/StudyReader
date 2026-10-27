@@ -88,7 +88,26 @@ final class MetadataSheetTests: XCTestCase {
         sheet.buttons["Cancel"].click()
     }
 
-    /// Step 13.
+    /// U2: the fields show their stored values as soon as the sheet appears; nothing empty or "No tags yet" first.
+    @MainActor
+    func testFieldsAppearWithTheirStoredValues() {
+        let ui = StudyReaderUI.launch()
+        ui.card(Sample.lecture).click()
+        ui.settle()
+        ui.app.typeKey("m", modifierFlags: [.command, .shift])
+        let sheet = ui.sheet
+        let title = sheet.textFields["Title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "The metadata sheet didn't open.")
+        // No further wait: the values must already be there when the field first exists.
+        XCTAssertEqual(title.value as? String, Sample.lecture)
+        XCTAssertEqual(sheet.textFields["Author"].value as? String, "Dr. A. Rivera")
+        XCTAssertFalse(sheet.staticTexts["No tags yet"].exists, "The sheet showed \"No tags yet\" before the tags loaded.")
+        let chip = sheet.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Remove tag '")).firstMatch
+        XCTAssertTrue(chip.exists, "The lecture's tags aren't shown.")
+        sheet.buttons["Cancel"].click()
+    }
+
+    /// Step 13. S1: the error sits directly under the Title field, not at the bottom of the sheet.
     @MainActor
     func testBlankTitleShowsAnInlineErrorAndKeepsTheSheetOpen() {
         let ui = StudyReaderUI.launch()
@@ -98,7 +117,12 @@ final class MetadataSheetTests: XCTestCase {
         title.typeKey("a", modifierFlags: .command)
         title.typeKey(.delete, modifierFlags: [])
         sheet.buttons["Save metadata"].click()
-        XCTAssertTrue(sheet.staticTexts["A title is required."].waitForExistence(timeout: 3))
+        let error = sheet.staticTexts["A title is required."]
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+        let author = sheet.textFields["Author"]
+        XCTAssertGreaterThanOrEqual(error.frame.minY, title.frame.maxY - 1, "The error overlaps the Title field.")
+        XCTAssertLessThan(error.frame.minY - title.frame.maxY, 40, "The error is far below the Title field.")
+        XCTAssertLessThanOrEqual(error.frame.maxY, author.frame.minY + 1, "The error is not above the Author field.")
         XCTAssertTrue(sheet.exists, "The sheet closed with a blank title.")
         ui.attachScreenshot("Step 13 blank title", to: self)
         sheet.buttons["Cancel"].click()

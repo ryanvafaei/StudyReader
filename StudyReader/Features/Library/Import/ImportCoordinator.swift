@@ -20,6 +20,8 @@ final class ImportCoordinator: ImportInteraction {
 
     /// Shows the folder-access panel; injected so tests never open a real panel.
     typealias FolderPanel = @MainActor (_ folder: URL, _ markdownFileName: String) async -> URL?
+    /// Speaks a quiet batch's summary to VoiceOver; injected so tests can record it.
+    typealias Announcer = @MainActor (_ text: String) -> Void
 
     /// true while a batch is queued or running.
     private(set) var isImporting = false
@@ -27,13 +29,15 @@ final class ImportCoordinator: ImportInteraction {
     private(set) var passwordRequest: PasswordRequest?
     /// The large-file question for the running batch, nil when none is pending.
     private(set) var largeFileRequest: LargeFileRequest?
-    /// Summary of the last finished import; the UI shows it in an alert and sets it to nil when dismissed.
+    /// Summary of the last import that needs the user's attention; the UI shows it in an alert and sets it to nil when
+    /// dismissed. Batches that only imported documents don't set it.
     var lastSummary: String?
-    /// Every summary produced in this app run, in order. Tests read it; the UI doesn't.
+    /// Every summary produced in this app run, including quiet ones, in order. Tests read it; the UI doesn't.
     private(set) var summaryHistory: [String] = []
 
     @ObservationIgnored private let importService: ImportService
     @ObservationIgnored private let folderPanel: FolderPanel
+    @ObservationIgnored private let announce: Announcer
     @ObservationIgnored private var passwordContinuation: CheckedContinuation<String?, Never>?
     @ObservationIgnored private var largeFileContinuation: CheckedContinuation<Bool, Never>?
     /// The last queued batch; the next batch waits for it, which keeps batches in order.
@@ -42,10 +46,12 @@ final class ImportCoordinator: ImportInteraction {
 
     init(
         importService: ImportService,
-        folderPanel: @escaping FolderPanel = ImportCoordinator.showFolderAccessPanel
+        folderPanel: @escaping FolderPanel = ImportCoordinator.showFolderAccessPanel,
+        announce: @escaping Announcer = ImportCoordinator.postAnnouncement
     ) {
         self.importService = importService
         self.folderPanel = folderPanel
+        self.announce = announce
     }
 
     // MARK: - Starting imports
@@ -69,7 +75,11 @@ final class ImportCoordinator: ImportInteraction {
         isImporting = pendingBatches > 0
         let summary = report.summary.isEmpty ? "Imported 0" : report.summary
         summaryHistory.append(summary)
-        lastSummary = summary
+        if report.needsAttention {
+            lastSummary = summary
+        } else {
+            announce(summary)
+        }
     }
 
     // MARK: - Answers from the UI
@@ -108,6 +118,19 @@ final class ImportCoordinator: ImportInteraction {
 
     func requestFolderAccess(for folder: URL, markdownFileName: String) async -> URL? {
         await folderPanel(folder, markdownFileName)
+    }
+
+    /// VoiceOver announcement (NSAccessibility .announcementRequested, high priority) on NSApp; does nothing without NSApp.
+    static func postAnnouncement(_ text: String) {
+        guard let app = NSApp else { return }
+        NSAccessibility.post(
+            element: app,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: text,
+                .priority: NSAccessibilityPriorityLevel.high.rawValue
+            ]
+        )
     }
 
     /// NSOpenPanel for one folder (ADR-0016, user decision Q5). Shown as a sheet on the key or main window when there

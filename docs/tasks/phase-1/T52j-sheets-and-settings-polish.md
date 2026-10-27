@@ -159,3 +159,4 @@ A toast or banner for imports, changes to `ImportReport.summary` text, the passw
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-27, implementer ui-builder Haiku (per agent file) medium (two passes A+B, C+D; test-lookup fix at high), reviewer code-reviewer Sonnet high: APPROVED. All four parts met; changed existing tests are the ones the spec sanctions (none loosened); targeted UI runs passed (MetadataSheetTests etc. 10/10, ExternalOpenTests 4/4, SettingsTests 1/1). SettingsTests matches the field with label CONTAINS because XCUITest combines the labels. Note: the no-alert assertions in ExternalOpenTests run right after the card appears (a late alert could slip past; the duplicate test covers the positive case).

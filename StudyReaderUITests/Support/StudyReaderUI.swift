@@ -292,7 +292,8 @@ final class StudyReaderUI {
 
     var sheet: XCUIElement { app.sheets.firstMatch }
 
-    /// Dismisses the "Import finished" alert if it's showing. Scoped to the alert's sheet or dialog: an unscoped
+    /// Dismisses the import summary alert if it's showing. Since T52j it appears only when an import needs attention
+    /// (duplicates, skipped or failed files). Scoped to the alert's sheet or dialog: an unscoped
     /// `app.buttons["OK"]` can resolve to a Touch Bar element, which can't be clicked.
     func dismissImportAlertIfShown(timeout: TimeInterval = 5) {
         let ok = alertButton("OK")

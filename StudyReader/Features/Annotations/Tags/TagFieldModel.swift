@@ -18,6 +18,10 @@ final class TagFieldModel {
     /// Tags assigned to the target, in name order.
     private(set) var tags: [LibraryTag] = []
 
+    /// false until the target's assigned tags have been observed once (or that observation failed).
+    /// The view shows "No tags yet" only after that.
+    private(set) var hasLoadedAssignedTags = false
+
     /// The text in the "Add tag" field. Changing it recomputes `suggestions`.
     var query: String = "" {
         didSet {
@@ -146,15 +150,18 @@ final class TagFieldModel {
             case .highlight(let highlightId):
                 for try await observed in tagRepository.observeTags(forHighlight: highlightId) {
                     tags = observed
+                    hasLoadedAssignedTags = true
                     refreshSuggestions()
                 }
             case .document(let documentId):
                 for try await observed in tagRepository.observeTags(forDocument: documentId) {
                     tags = observed
+                    hasLoadedAssignedTags = true
                     refreshSuggestions()
                 }
             }
         } catch {
+            hasLoadedAssignedTags = true
             guard !Task.isCancelled else { return }
             errorMessage = Self.message(for: error)
         }

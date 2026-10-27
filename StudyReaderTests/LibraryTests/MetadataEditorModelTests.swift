@@ -53,17 +53,38 @@ struct MetadataEditorModelTests {
 
         model.title = "   "
         #expect(await model.save() == false)
-        #expect(model.errorMessage != nil)
+        #expect(model.titleError == "A title is required.")
+        #expect(model.errorMessage == nil)
 
         let row = try #require(try await env.documentRepository.fetch(id: Self.documentId))
         #expect(row.title == "Keep me")
 
-        // Dismissing clears the message; a corrected title saves.
-        model.dismissError()
-        #expect(model.errorMessage == nil)
+        // Changing the title clears the field's message; a corrected title saves.
         model.title = "Fixed"
+        #expect(model.titleError == nil)
         #expect(await model.save())
+        #expect(model.titleError == nil)
         #expect(model.errorMessage == nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func hasLoadedAfterLoadEvenWhenTheDocumentIsMissing() async throws {
+        let env = try makeEnvironment()
+        defer { TestFileStore.remove(env.fileStore) }
+        let session = AppSession(environment: env)
+        try await env.documentRepository.insert(TestData.document(id: Self.documentId))
+
+        let model = MetadataEditorModel(documentId: Self.documentId, currentPageIndex: nil, session: session)
+        #expect(model.hasLoaded == false)
+        await model.load()
+        #expect(model.hasLoaded)
+        #expect(model.errorMessage == nil)
+
+        // A missing document still counts as loaded, with the error shown.
+        let missing = MetadataEditorModel(documentId: Self.markdownId, currentPageIndex: nil, session: session)
+        await missing.load()
+        #expect(missing.hasLoaded)
+        #expect(missing.errorMessage != nil)
     }
 
     @Test(.timeLimit(.minutes(1)))

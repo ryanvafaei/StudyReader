@@ -71,6 +71,8 @@ private struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollDisabled(true)
+        .fixedSize(horizontal: false, vertical: true)
         .task { await categoryOptions.observe() }
     }
 
@@ -101,21 +103,24 @@ private struct ColorLabelRow: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(HighlightPalette.color(color))
-                .frame(width: 14, height: 14)
-                .accessibilityHidden(true)
-            TextField(
-                "Label",
-                text: $draft
-            )
-            .focused($isFocused)
-            .onSubmit { commit() }
-            .onChange(of: isFocused) { _, focused in
-                if !focused { commit() }
+        LabeledContent {
+            TextField("Label", text: $draft)
+                .labelsHidden()
+                .focused($isFocused)
+                .onSubmit { commit() }
+                .onChange(of: isFocused) { _, focused in
+                    if !focused { commit() }
+                }
+                .accessibilityLabel(String(localized: "Label for \(HighlightPalette.name(color)) highlights"))
+        } label: {
+            Label {
+                Text(HighlightPalette.title(color))
+            } icon: {
+                Circle()
+                    .fill(HighlightPalette.color(color))
+                    .frame(width: 12, height: 12)
+                    .accessibilityHidden(true)
             }
-            .accessibilityLabel(String(localized: "Label for \(HighlightPalette.name(color)) highlights"))
         }
         .onAppear { draft = settings.label(for: color) }
     }
