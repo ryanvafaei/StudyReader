@@ -6,16 +6,9 @@ Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. T
 - Phase 1 (study loop). T29–T52 are committed. T52 was the first visual checkpoint.
 - T52 checkpoint, manual run: `docs/checkpoints/T52-manual-2026-10-25.md`. Step 1 passed: reader tabs join the library window, so the reader work isn't blocked.
 - Fix specs T52a–T52h are in `docs/tasks/phase-1/` and the Phase 1 README (T52g: category-delete plural text; T52h: Picker and layout console warnings).
-- UI tests (`StudyReaderUITests/`, ADR-0019): cloud path verified 2026-10-26 (`./scripts/ci.sh uitest` posts the summary and downloads logs and screenshots to `build/ci/<run id>/`). Full suite on CI: 39 tests, 29 pass, 10 fail. Every failure matches a T52 finding, none is new, and they must stay failing until their fix task (never weaken them):
-  - `LibraryOpenTests/testListViewReturnOpensTheSelectedRow` → T52a
-  - `LibraryOpenTests/testOpeningAReaderTabKeepsTheWindowSize` → T52b
-  - `ReaderChromeTests/testMissingOriginalShowsErrorAndKeepsTheTitle`, `testOpenReaderSubtitleFollowsACategoryDeletion` → T52c
-  - `ReaderChromeTests/testHighlightColorMenuShowsColouredSwatchesAndKeepsTheChoice` → T52d
-  - `LibraryCoverTests/testLandscapeCoverIsFittedOverABlurredBackground`, `MetadataSheetTests/testChooseImageAndResetCoverUpdateTheCardCover` → T52e
-  - `MetadataSheetTests/testTagFieldSuggestionsArrowKeysAndReturn` → T52f
-  - `CategoryManagerTests/testCreateRenameAssignAndDeleteACategory` → T52g (plural text)
-  - `ReaderChromeTests/testOptionCommandHTogglesTheInspector` → open decision (⌥⌘H replacement)
-  The tab-bar selector problem is fixed (the user's helper edits); the single-test run passes.
+- T52a–T52h are done and on `master` (CI green at `fee871d`). Full UI suite on CI (run 40424857937): 39 tests, 38 pass. The only failure is `ReaderChromeTests/testOptionCommandHTogglesTheInspector`, which waits on the ⌥⌘H decision below; never weaken it.
+- T52 checkpoint, cloud run: `docs/checkpoints/T52-cloud-2026-10-27.md`. Mac-only checks are in VISUAL_CHECKS.md under "Needs a Mac" (T52a drop, T52b tab "+" and window size/position/zoom/full screen, T52d swatches in dark mode, T52e cover tint, T52h console warnings), plus tab drag-out, Open With, Dock icon count, dark mode.
+- Known test gaps: `ReaderTabbingTests/joinChangesNoFrameSynchronously` only covers the property side; resize/move/zoom restore after the last reader closes is untested (zoom may be reverted).
 
 ## Decisions waiting for the user (ask, don't decide)
 - ⌥⌘H collides with macOS "Hide Others" (T52 step 35). Propose a replacement (suggestion: ⌥⌘I) and the SPEC §5 change.
@@ -23,10 +16,9 @@ Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. T
 - UX items U1–U7 in the T52 report: triage and propose; build only what the user approves.
 
 ## Next steps
-1. Confirm CI on `master` is green: `./scripts/ci.sh status`.
-2. Finish the T52g and T52h specs (architect), add all T52 fix tasks to the Phase 1 README, then run them through the normal loop.
-3. Run ui-tester for checkpoint T52 (cloud mode: XCUITests through CI plus screenshot review). Put the Mac-only items under "Needs a Mac" in VISUAL_CHECKS.md.
-4. Continue with T53 (PDF reader view).
+1. User decisions (above): ⌥⌘H replacement, tab restore after relaunch, U1–U7 triage. The ⌥⌘H one needs a SPEC §5 change, an AppCommands change and the UI test updated.
+2. User checks the "Needs a Mac" list.
+3. Continue with T53 (PDF reader view).
 
 ## Session notes (local session: add anything the cloud session needs to know)
 - Unit suite at T52: 355 tests passed, 0 warnings.
