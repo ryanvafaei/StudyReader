@@ -20,6 +20,20 @@ final class MetadataSheetTests: XCTestCase {
         return sheet
     }
 
+    /// Escape in the sheet closes only the sheet. The sheet takes the key, so the library's Clear Selection doesn't run.
+    @MainActor
+    func testEscapeClosesTheSheetAndKeepsTheLibrarySelection() {
+        let ui = StudyReaderUI.launch()
+        let sheet = openSheet(for: Sample.sparse, in: ui)
+        ui.app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: 3), "Escape didn't close the metadata sheet.")
+        ui.settle()
+        XCTAssertTrue(
+            ui.menuItemState("File", "Edit Metadata…").enabled,
+            "Escape in the sheet also cleared the library selection."
+        )
+    }
+
     /// Step 11: menu item disabled with nothing selected; ⇧⌘M and the context menu open the sheet.
     @MainActor
     func testEditMetadataIsDisabledWithoutSelectionAndOpensFromShortcutAndContextMenu() {

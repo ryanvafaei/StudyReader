@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 
 /// Cover for one document: the stored cover image when it loads, otherwise a generated card (SPEC F-01).
-/// The image is read once per `coverPath` in `.task`, not on every body pass.
+/// The image is read once per `coverPath` in `.task`, not on every body pass. The cover has a 1 pt hairline edge
+/// (system separator colour) so white covers stay visible on the white window background.
 struct DocumentCoverView: View {
     let document: LibraryDocument
     let categoryName: String
@@ -47,6 +48,7 @@ struct DocumentCoverView: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1) }
             .accessibilityHidden(true)
             .task(id: CoverReloadKey(path: document.coverPath, version: coverVersion)) {
                 coverImage = loadCoverImage()
@@ -68,7 +70,8 @@ private struct CoverReloadKey: Hashable {
     let version: Date?
 }
 
-/// Fallback cover: a rounded card tinted by file type with the title and a document icon.
+/// Fallback cover: a rounded card with the title and a document icon. Neutral tint; the accent colour is reserved for
+/// the grid selection (U4). The two file types differ by symbol.
 private struct GeneratedCoverView: View {
     let title: String
     let fileType: FileType
@@ -78,7 +81,7 @@ private struct GeneratedCoverView: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(tint)
             VStack(spacing: 10) {
-                Image(systemName: "doc.text")
+                Image(systemName: symbolName)
                     .font(.system(size: 28))
                     .foregroundStyle(.secondary)
                 Text(title)
@@ -93,7 +96,14 @@ private struct GeneratedCoverView: View {
     private var tint: Color {
         switch fileType {
         case .pdf: Color.secondary.opacity(0.2)
-        case .markdown: Color.accentColor.opacity(0.15)
+        case .markdown: Color.secondary.opacity(0.12)
+        }
+    }
+
+    private var symbolName: String {
+        switch fileType {
+        case .pdf: "doc.text"
+        case .markdown: "doc.plaintext"
         }
     }
 }

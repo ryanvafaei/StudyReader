@@ -22,7 +22,7 @@ struct LibraryView: View {
         content
             .navigationTitle("Library")
             .toolbar { toolbarItems }
-            .background { openSelectedButton }
+            .background { hiddenKeyButtons }
             .task { await model.observe() }
             .task { await model.observeCategories() }
             .task { await model.observeTags() }
@@ -83,26 +83,33 @@ struct LibraryView: View {
         }
     }
 
+    /// A click on empty space (between or below the cards) clears the selection. The cards' own tap gestures win over
+    /// this one, so a click on a card still selects it.
     private var grid: some View {
-        ScrollView {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 160, maximum: 220), spacing: 16)],
-                spacing: 16
-            ) {
-                ForEach(model.visibleItems) { item in
-                    LibraryGridCard(
-                        item: item,
-                        fileStore: session.environment.fileStore,
-                        coverVersion: model.coverVersions[item.id],
-                        isSelected: currentSelection == item.id,
-                        onRetry: { retry(item.id) }
-                    )
-                    .onTapGesture(count: 2) { openDocument(item.id) }
-                    .onTapGesture { selection = item.id }
-                    .contextMenu { menu(for: item) }
+        GeometryReader { proxy in
+            ScrollView {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 160, maximum: 220), spacing: 16)],
+                    spacing: 16
+                ) {
+                    ForEach(model.visibleItems) { item in
+                        LibraryGridCard(
+                            item: item,
+                            fileStore: session.environment.fileStore,
+                            coverVersion: model.coverVersions[item.id],
+                            isSelected: currentSelection == item.id,
+                            onRetry: { retry(item.id) }
+                        )
+                        .onTapGesture(count: 2) { openDocument(item.id) }
+                        .onTapGesture { selection = item.id }
+                        .contextMenu { menu(for: item) }
+                    }
                 }
+                .padding(16)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .top)
+                .contentShape(Rectangle())
+                .onTapGesture { selection = nil }
             }
-            .padding(16)
         }
     }
 
@@ -153,15 +160,22 @@ struct LibraryView: View {
         }
     }
 
-    /// Return opens the selected document in both layouts. It is a key equivalent (default action), so it works
-    /// whichever view holds key focus: `NSTableView` takes focus after a row click and doesn't pass Return to a
-    /// SwiftUI `onKeyPress`. Disabled with no selection, so Return falls through as usual.
-    private var openSelectedButton: some View {
-        Button("Open Selected Document") {
-            openSelection()
+    /// Key equivalents for the library window (not visible, not in the accessibility tree, never focused).
+    /// Return opens the selected document; Escape clears the selection. Both are disabled with no selection, so the
+    /// key falls through as usual. Constraint: a text field added to the library window must keep Return and Escape
+    /// for itself (see docs/HANDOFF.md).
+    /// Return is a key equivalent (default action), so it works whichever view holds key focus: `NSTableView` takes
+    /// focus after a row click and doesn't pass Return to a SwiftUI `onKeyPress`.
+    private var hiddenKeyButtons: some View {
+        ZStack {
+            Button("Open Selected Document") { openSelection() }
+                .keyboardShortcut(.defaultAction)
+            Button("Clear Selection") { selection = nil }
+                .keyboardShortcut(.cancelAction)
         }
-        .keyboardShortcut(.defaultAction)
         .disabled(currentSelection == nil)
+        .focusable(false)
+        .accessibilityHidden(true)
         .opacity(0)
         .frame(width: 0, height: 0)
     }

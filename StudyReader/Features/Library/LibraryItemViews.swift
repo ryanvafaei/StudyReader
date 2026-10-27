@@ -63,13 +63,17 @@ struct LibraryGridCard: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(LibraryItemFormat.accessibilityLabel(for: item))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
-        )
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.accentColor.opacity(0.2))
+                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.accentColor, lineWidth: 2))
+            }
+        }
         .contentShape(Rectangle())
     }
 }

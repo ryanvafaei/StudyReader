@@ -121,3 +121,5 @@ Multi-selection, ⌘-click behaviour, keyboard arrow navigation in the grid, the
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-27, implementer ui-builder Haiku (per agent file) medium (first run, one test failing after 2 attempts; test-strip fix at high), reviewer code-reviewer Sonnet high: CHANGES REQUESTED (1st): testNoFocusRingAtTheContentLeftEdge dropped the spec's card click before measuring, a weaker detector; restore the click, keep the top-card strip (the Dock overlap was a runner artefact).
+- 2026-10-27, implementer ui-builder Haiku (per agent file) medium (reworks: high, high), reviewer code-reviewer Sonnet high: APPROVED (2nd). Focus-ring test restored the card click and measures the topmost card strip (the first failure was the CI runner's Dock); LibraryCoverTests 6/6 on CI (run 40516347473), LibraryOpenTests and the Escape sheet test passed in run 40513853504.
