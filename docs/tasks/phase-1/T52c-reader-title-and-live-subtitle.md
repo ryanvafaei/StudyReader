@@ -50,3 +50,4 @@ Hiding the colour menu and inspector toggle for a missing original (U7), any rep
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
 - 2026-10-26, code-reviewer sonnet medium: APPROVED. Missing-file keeps the title; subtitle follows category rename/delete via observeMetadata; both target UI tests and ReaderModel unit tests pass on CI.
+- 2026-10-27, implementer record (backfill): ui-builder, Haiku per agent file (.claude/agents/ui-builder.md; model not verified at run time), effort medium; no rework.

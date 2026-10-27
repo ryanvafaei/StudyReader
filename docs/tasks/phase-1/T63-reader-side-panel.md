@@ -56,7 +56,7 @@ final class HighlightsPanelModel {
 
 ## Acceptance criteria
 1. Panel order, sections, labels and orphan rows follow the spec. → tests `HighlightsPanelModelTests/*`
-2. Visual check (user): ⌥⌘H opens the panel; highlights are listed in reading order with color, text (or snapshot thumbnail), note, tags and page; clicking one scrolls the PDF/Markdown view to it; deleting from the context menu removes it from the page.
+2. Visual check (user): ⌥⌘I opens the panel; highlights are listed in reading order with color, text (or snapshot thumbnail), note, tags and page; clicking one scrolls the PDF/Markdown view to it; deleting from the context menu removes it from the page.
 3. Visual check, SPEC F-09 AC1: the Notes tab edits the document note; stop typing, wait one second, quit, relaunch → the note is kept; Preview renders lists.
 4. Visual check, SPEC F-08 AC2 (part): image highlights show thumbnails in the panel.
 

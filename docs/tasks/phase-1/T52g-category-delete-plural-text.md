@@ -70,3 +70,4 @@ The tag delete and merge messages, `TagUsageFormat`, `LibraryItemFormat`, the ca
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
 - 2026-10-26, code-reviewer sonnet medium: APPROVED. Plural variations (one/other, %lld) in Localizable.xcstrings via CategoryManagerModel.deleteConfirmationMessage; unit test 0/1/2/21 and CategoryManagerTests 3/3 pass on CI. Test assumes the en locale (app is English-only).
+- 2026-10-27, implementer record (backfill): ui-builder, Haiku per agent file (.claude/agents/ui-builder.md; model not verified at run time), effort medium; no rework.

@@ -2,7 +2,7 @@
 
 - **Phase:** 1 (E1.3: F-03 rendering on screen)
 - **Agent:** pdf-engine
-- **Depends on:** T43, T52
+- **Depends on:** T43, T52, T53 (`ReaderModel.engineFailed(_:)`)
 - **ADRs:** docs/decisions/0005-text-rendering-nstextview.md, docs/decisions/0017-reader-windows-and-commands.md, ARCHITECTURE §5.2, §7
 - **Visual check needed:** yes
 
@@ -47,7 +47,7 @@ final class TextReaderController {
 }
 ```
 Behaviour:
-- `MarkdownReaderView(model:)`: on load, read the stored file as UTF-8 (failure → model shows "Couldn't read this document."), `MarkdownRenderer.render(MarkdownDocumentSource(markdown:, documentId:, fileStore:))`, keep the `RenderedMarkdown` in the coordinator (T58/T60 need `sourceMap`), call `controller.load(rendered.attributedString)`.
+- `MarkdownReaderView(model:)`: on load, read the stored file as UTF-8 (failure → `model.engineFailed(String(localized: "Couldn't read this document."))`, added by T53; the shared chrome then hides the colour menu and inspector toggle, U7), `MarkdownRenderer.render(MarkdownDocumentSource(markdown:, documentId:, fileStore:))`, keep the `RenderedMarkdown` in the coordinator (T58/T60 need `sourceMap`), call `controller.load(rendered.attributedString)`.
 - Content column: `textContainerInset` width = max(24, (scroll view width − 720) / 2), recomputed on resize; vertical inset 32.
 - Decorations: `NSTextLayoutManagerDelegate.textLayoutManager(_:textLayoutFragmentFor:in:)` returns a fragment subclass for paragraphs carrying `.studyCodeBlock` (rounded background, `quaternarySystemFill`), `.studyBlockQuote` (3 pt left bar, `separatorColor`) or `.studyHorizontalRule` (1 pt line across the column). Plain paragraphs use the default fragment.
 - Links: only `http`, `https`, `mailto` open (`NSWorkspace.shared.open`); others are ignored. Override `clicked(onLink:at:)` (or the delegate method) accordingly.
@@ -69,6 +69,7 @@ Model over an in-memory environment with a Markdown document (file = `all-elemen
 
 ## Out of scope
 - Highlights in the text view (T60), find bar wiring beyond the engine action (T67), appearance settings and paged layout (Phase 3).
+- The failed-load chrome (U7): T53 already did it in the shared `ReaderTabContent`; don't change the toolbar or inspector binding here, only call `engineFailed(_:)` on a read failure.
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->

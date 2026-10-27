@@ -16,6 +16,9 @@ Sidebar "Highlights": every highlight in the library as a list (color, rich text
 - `StudyReader/App/RootView.swift` (modify: `.highlights` route)
 - `StudyReaderTests/HighlightsBrowserTests/HighlightsBrowserModelTests.swift` (new)
 
+## Constraint (library window key equivalents, see docs/HANDOFF.md and T52i)
+`LibraryView` has hidden key-equivalent buttons for the whole main window while it is in the hierarchy: Return opens the selected document (T52a) and Escape clears the selection (T52i). The Highlights browser's text fields (note editor, tag field, "Add Tag…" popover, date pickers) live in the same window. They are safe only because the Highlights section replaces `LibraryView` in the detail column (`RootView`). Keep it that way: don't keep `LibraryView` mounted (for example in a `ZStack` or `TabView` to preserve its state) while the Highlights section is shown. If you must, Return and Escape typed in the browser's fields must not open the selected document or clear the library selection, with a UI test that proves it.
+
 ## Interfaces to produce
 ```swift
 @MainActor @Observable

@@ -163,7 +163,7 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 - Clicking an existing highlight opens its popover: color, note, tags, Mastery…, Similar, Copy, Delete.
 - Overlapping highlights are allowed; the most recent one is drawn on top and clicking selects the topmost.
 - Highlights made in PDF view appear only in PDF view; highlights made in text view appear only in text view (same as Readwise Reader). Both appear in the document's highlights panel, labelled "PDF" or "Text".
-- Document highlights panel (right sidebar, toggle ⌘⌥H): list of the document's highlights in reading order with color, text excerpt, note, tags; click scrolls to it.
+- Document highlights panel (right sidebar, toggle ⌥⌘I): list of the document's highlights in reading order with color, text excerpt, note, tags; click scrolls to it.
 - Rich text: highlights keep bold, italic, inline code, and links from the source (F-07).
 - Every highlight stores: document, view type, anchor, plain text, rich text, color, note, tags, created/updated dates, page number (PDF view and PDF text view).
 
@@ -416,7 +416,7 @@ Settings window (⌘,), tabs:
 | Global search | ⌘⇧F |
 | Find in document | ⌘F (reader) |
 | Toggle PDF/Text view | ⌘⇧T |
-| Highlights panel | ⌘⌥H |
+| Highlights panel | ⌥⌘I (⌥⌘H is the system's Hide Others; user decision 2026-10-27) |
 | Highlight in color 1–5 / current | 1–5 / H (with selection) |
 | Snapshot tool | ⌃⌘S |
 | Edit metadata | ⇧⌘M |

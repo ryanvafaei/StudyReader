@@ -75,7 +75,7 @@ struct WindowAccessor: NSViewRepresentable {
 - Toolbar: current color menu (five `HighlightPalette` swatches with the color labels; checkmark on `settings.currentColor`; selecting sets it); "Highlights" toggle button (`sidebar.right`) bound to `isRightPanelVisible`; snapshot and find buttons appear only when `model.engineActions.startSnapshot` / `findInDocument` are non-nil.
 - `model.transientMessage` shows as a small banner at the bottom for 3 s (a view-level `.task(id: message)` with `try? await Task.sleep(for: .seconds(3))` is allowed here: it's view code, not logic).
 - `AppCommands` additions (all read `@FocusedValue(\.readerActions)`; disabled when nil, i.e. when the library tab is selected, or when the engine action is nil):
-  - View menu: Zoom In ⌘+ (`"+"` and `"="` both), Zoom Out ⌘−, Actual Size ⌘0, Fit Width ⌘9, Single Page (toggle), Show Thumbnails, Highlights Panel ⌥⌘H (toggles `isRightPanelVisible` with tab `.highlights`).
+  - View menu: Zoom In ⌘+ (`"+"` and `"="` both), Zoom Out ⌘−, Actual Size ⌘0, Fit Width ⌘9, Single Page (toggle), Show Thumbnails, Highlights Panel ⌥⌘I (was ⌥⌘H, which collides with the system's Hide Others; changed by T52k) (toggles `isRightPanelVisible` with tab `.highlights`).
   - Edit menu: Find in Document ⌘F (`engineActions.findInDocument`).
   - A "Document" menu: Snapshot ⌃⌘S (`startSnapshot`).
   - Edit Metadata… ⇧⌘M already exists from T50 (library). Change that one command (don't add a second command with the same shortcut): if `readerActions` is non-nil, set `windowState.isMetadataSheetPresented = true` (`ReaderWindowView` presents T50's `MetadataSheet` for `model.documentId` with `currentPageIndex: model.engineActions.currentPageIndex?()`); otherwise use `libraryActions` as before. Don't change T51's API.
@@ -92,7 +92,7 @@ struct WindowAccessor: NSViewRepresentable {
 1. Window tabbing settings are applied. → tests `ReaderTabbingTests/*`
 2. Visual check (user), SPEC F-01 AC4: with the library open, double-click a document → it opens as a new tab after the Library tab, titled with the document's title, showing the placeholder for its type; double-click a second document → a third tab; double-click the first document again → its tab is selected and no new tab appears; the Library tab stays first.
 3. Visual check: drag a document tab out of the tab bar → it becomes its own window and still works; drag it back (or Window > Merge All Windows) → it rejoins the group. Closing a tab closes only that document.
-4. Visual check: the toolbar color menu shows the five colors with labels from Settings; the choice persists across relaunch; the Highlights button toggles a right column with Highlights/Notes tabs; ⌥⌘H toggles it too.
+4. Visual check: the toolbar color menu shows the five colors with labels from Settings; the choice persists across relaunch; the Highlights button toggles a right column with Highlights/Notes tabs; ⌥⌘I toggles it too (T52k; originally ⌥⌘H).
 5. Visual check: with a document tab selected, View menu zoom items are disabled until T53 (expected); ⇧⌘M opens the Edit Metadata sheet for that document; with the Library tab selected, ⇧⌘M edits the selected library document.
 6. Visual check: delete a document from the Library tab while its tab is open, quit, and relaunch (macOS restores the tab) → the restored tab shows "This document is no longer in the library."
 7. Full suite passes (logic tests are in T51).

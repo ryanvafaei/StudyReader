@@ -52,3 +52,4 @@ The metadata sheet's loading state (U2), `SettingsView`'s picker, the library fi
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
 - 2026-10-26, code-reviewer sonnet medium: APPROVED. T52b ordering and restore logic preserved; Picker shown only when the selection is valid. Known weakness: ReaderTabbingTests/joinChangesNoFrameSynchronously only covers the property side (the test window has no anchor, so join returns early); the frame timing is checked on a Mac. LibraryOpenTests 8/8 and MetadataSheetTests 6/6 pass on CI; CategoryManagerTests runs in the full UI suite.
+- 2026-10-27, implementer record (backfill): ui-builder, Haiku per agent file (.claude/agents/ui-builder.md; model not verified at run time), effort medium; no rework.

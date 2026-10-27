@@ -15,6 +15,11 @@ A search field in the main window toolbar (⌘F in the library, ⌘⇧F from any
 - `StudyReader/App/RootView.swift` (modify: `.searchable`, results replace the detail while a query is active)
 - `StudyReader/App/AppCommands.swift`, `StudyReader/App/AppSession.swift` (modify)
 - `StudyReaderTests/SearchTests/SearchModelTests.swift` (new)
+- `StudyReader/Features/Library/LibraryView.swift` (modify: only if needed for the Constraint below)
+- `StudyReaderUITests/LibraryOpenTests.swift` (modify: one test, Constraint below)
+
+## Constraint (library window key equivalents, see docs/HANDOFF.md and T52i)
+`LibraryView` has hidden key-equivalent buttons for the whole library window while the Library section is shown: Return opens the selected document (T52a) and Escape clears the selection (T52i). The search field is in the same window, so Return and Escape typed in it must act on the field: Return runs the search (`searchNow()`), Escape clears or leaves the field, and neither opens the selected document nor clears the library selection. Once a query is active, the results replace the detail column, so `LibraryView` (and its buttons) is out of the hierarchy; the risky case is Return or Escape in the focused field while the query is still empty or only whitespace. Handle it, for example by disabling the two buttons while `session.isSearchFocused` is true (pass it into `LibraryView`), and add the UI test `StudyReaderUITests/LibraryOpenTests/testReturnInTheSearchFieldDoesNotOpenTheSelectedDocument`: select a card, focus the search field (⌘F), type Return → no reader tab opens (`tabTitles.isEmpty`); type Escape, then check File > Edit Metadata… is still enabled.
 
 ## Interfaces to produce
 ```swift
