@@ -61,3 +61,4 @@ Resolution algorithm (ARCHITECTURE §5.3, made whitespace-tolerant):
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Algorithm follows §5.3 in order, UTF-16 with grapheme-safe context, deterministic ties; TextAnchorTests 10/10 on CI. Backlog B10: resolve scans the whole text even when the window has candidates; .moved keeps the old prefix/suffix (T60 may refresh).
