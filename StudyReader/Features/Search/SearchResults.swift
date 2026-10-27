@@ -21,6 +21,8 @@ struct DocumentHit: Sendable, Equatable, Identifiable {
     var snippet: String
     /// bm25, lower is better.
     var rank: Double
+    /// Set for `.text` hits; decides "p. N" versus "Section N".
+    var fileType: FileType? = nil
     var id: String { "\(documentId)#\(field.rawValue)#\(unitIndex ?? -1)" }
 }
 

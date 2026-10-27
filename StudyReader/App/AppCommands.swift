@@ -7,6 +7,8 @@ struct ImportActions {
 
 extension FocusedValues {
     @Entry var importActions: ImportActions? = nil
+    /// The session of the focused library window, so the search commands can reach the search field.
+    @Entry var searchSession: AppSession? = nil
 }
 
 /// Menu commands (SPEC F-02, F-04, §5 shortcuts). Library commands read `libraryActions`; reader commands read
@@ -16,6 +18,13 @@ struct AppCommands: Commands {
     @FocusedValue(\.importActions) private var importActions: ImportActions?
     @FocusedValue(\.libraryActions) private var libraryActions: LibraryActions?
     @FocusedValue(\.readerActions) private var readerActions: ReaderActions?
+    @FocusedValue(\.searchSession) private var searchSession: AppSession?
+    @Environment(\.openWindow) private var openWindow
+
+    /// The session whose library search a command can focus: the library window's, or the focused reader's.
+    private var activeSession: AppSession? {
+        searchSession ?? readerActions?.model.session
+    }
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -58,11 +67,25 @@ struct AppCommands: Commands {
         }
 
         CommandGroup(after: .textEditing) {
-            Button("Find in Document") {
-                readerActions?.model.engineActions.findInDocument?()
+            // One ⌘F: finds in the focused reader (disabled until its engine provides it); with the library window in
+            // front it puts the keyboard in the library search field.
+            Button {
+                if let find = readerActions?.model.engineActions.findInDocument {
+                    find()
+                } else if readerActions == nil {
+                    focusLibrarySearch()
+                }
+            } label: {
+                Text(readerActions == nil ? LocalizedStringKey("Find in Library") : LocalizedStringKey("Find in Document"))
             }
             .keyboardShortcut("f")
-            .disabled(readerActions?.model.engineActions.findInDocument == nil)
+            .disabled(readerActions == nil ? searchSession == nil : readerActions?.model.engineActions.findInDocument == nil)
+
+            Button("Search Library") {
+                focusLibrarySearch()
+            }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
+            .disabled(activeSession == nil)
         }
 
         CommandGroup(after: .toolbar) {
@@ -117,6 +140,18 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut("s", modifiers: [.command, .control])
             .disabled(readerActions?.model.engineActions.startSnapshot == nil)
+        }
+    }
+
+    /// Brings the library window forward and puts the keyboard in its search field.
+    @MainActor
+    private func focusLibrarySearch() {
+        guard let session = activeSession else { return }
+        openWindow(id: "main")
+        session.isSearchFocused = false
+        Task { @MainActor in
+            await Task.yield()
+            session.isSearchFocused = true
         }
     }
 

@@ -87,7 +87,7 @@ struct SearchService: Sendable {
     private static func documentTextHits(_ db: Database, match: String, filters: SearchFilters, limit: Int) throws -> [DocumentHit] {
         let filter = filterClause(filters, highlightTags: false)
         let sql = """
-            SELECT dt.documentId AS documentId, d.title AS title, dt.unitIndex AS unitIndex,
+            SELECT dt.documentId AS documentId, d.title AS title, d.fileType AS fileType, dt.unitIndex AS unitIndex,
                    snippet(documentText_fts, 0, '**', '**', '…', 12) AS snippet, bm25(documentText_fts) AS rank
             FROM documentText_fts
             JOIN documentText dt ON dt.rowid = documentText_fts.rowid
@@ -99,7 +99,8 @@ struct SearchService: Sendable {
         return rows.map { row in
             DocumentHit(
                 documentId: row["documentId"], title: row["title"], field: .text,
-                unitIndex: row["unitIndex"], snippet: row["snippet"], rank: row["rank"]
+                unitIndex: row["unitIndex"], snippet: row["snippet"], rank: row["rank"],
+                fileType: row["fileType"]
             )
         }
     }

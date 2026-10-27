@@ -7,6 +7,7 @@ struct RootView: View {
     @State private var model: RootModel
     @State private var isShowingImporter = false
     @State private var isDropTargeted = false
+    @FocusState private var searchFieldFocused: Bool
     let session: AppSession
 
     init(session: AppSession) {
@@ -15,14 +16,17 @@ struct RootView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        @Bindable var search = session.search
+        return NavigationSplitView {
             List(SidebarItem.allCases, selection: $model.selection) { item in
                 Label(item.title, systemImage: item.systemImage)
                     .tag(item)
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 210)
         } detail: {
-            if model.selection == .library {
+            if search.isActive {
+                SearchResultsView(session: session)
+            } else if model.selection == .library {
                 LibraryView(session: session, onImport: { isShowingImporter = true })
             } else if model.selection == .tags {
                 TagManagerView(session: session)
@@ -37,6 +41,18 @@ struct RootView: View {
             } else {
                 ContentUnavailableView("Select a section", systemImage: "sidebar.left")
             }
+        }
+        .searchable(text: $search.query, placement: .toolbar, prompt: "Search library")
+        .searchFocused($searchFieldFocused)
+        // `AppSession.isSearchFocused` mirrors the field's focus: commands set it, LibraryView reads it.
+        .onChange(of: searchFieldFocused) { _, focused in
+            session.isSearchFocused = focused
+        }
+        .onChange(of: session.isSearchFocused) { _, focused in
+            if searchFieldFocused != focused { searchFieldFocused = focused }
+        }
+        .onSubmit(of: .search) {
+            Task { await session.search.searchNow() }
         }
         .frame(minWidth: MainWindowLayout.minWidth, minHeight: MainWindowLayout.minHeight)
         .overlay {
@@ -60,6 +76,7 @@ struct RootView: View {
             }
         }
         .importPrompts(session.importCoordinator)
+        .focusedSceneValue(\.searchSession, session)
         .focusedSceneValue(\.importActions, ImportActions(importFiles: { isShowingImporter = true }))
         // The library window is the first tab of the group that reader windows join (ADR-0017, T52).
         .background(WindowAccessor { ReaderTabbing.configureMain($0) })

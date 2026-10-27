@@ -8,10 +8,14 @@ final class AppSession {
     let settings: AppSettings
     let importCoordinator: ImportCoordinator
     let router = ReaderRouter()
+    let search: SearchModel
+    /// True while the library search field has keyboard focus (bound to `.searchFocused`).
+    var isSearchFocused = false
 
     init(environment: AppEnvironment) {
         self.environment = environment
         self.settings = AppSettings(store: environment.settingsStore)
         self.importCoordinator = ImportCoordinator(importService: environment.importService)
+        self.search = SearchModel(environment: environment)
     }
 }

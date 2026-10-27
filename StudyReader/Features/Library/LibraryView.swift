@@ -173,7 +173,8 @@ struct LibraryView: View {
             Button("Clear Selection") { selection = nil }
                 .keyboardShortcut(.cancelAction)
         }
-        .disabled(currentSelection == nil)
+        // Return and Escape typed in the search field must not reach these window-wide key equivalents.
+        .disabled(currentSelection == nil || session.isSearchFocused)
         .focusable(false)
         .accessibilityHidden(true)
         .opacity(0)
