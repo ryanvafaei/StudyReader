@@ -63,7 +63,8 @@ The main session coordinates and does not write feature code itself. Agents are 
 | Agent | Model | Effort | Role |
 |---|---|---|---|
 | architect | Opus | high | Phase plan, task specs in `docs/tasks/phase-N/`, ADRs |
-| data-layer, ui-builder, review-engine | Haiku | medium | Implement tasks assigned to them |
+| data-layer, review-engine | Haiku | medium | Implement tasks assigned to them |
+| ui-builder | Sonnet | medium | Implement UI and app-shell tasks (Sonnet since 2026-10-27) |
 | pdf-engine, integrations | Sonnet | high | Implement tasks assigned to them |
 | test-runner | Haiku | low | Build + full tests, failures only |
 | code-reviewer | Sonnet | medium | Approve or request changes, per task |
@@ -75,27 +76,30 @@ Effort comes from each agent's file. Override it per call only as the escalation
 ### Per phase
 1. architect plans the phase. Show the user the task list and open questions before implementing.
 2. For each task, in the order of `docs/tasks/phase-N/README.md`:
-   1. Delegate to the task's agent with the spec path. Wait for its report.
-   2. Run test-runner. Wait for the result.
-   3. Run code-reviewer with the spec path, the implementer's report, and the test result.
-   4. Append one line to the spec's "Review log": date, model and effort used, verdict, short reason.
-   5. APPROVED: commit (one task per commit, message `TNN: <title>`), then `git push origin master`. CI on master runs build + unit tests; `./scripts/ci.sh status` must be green before the next task. If the report says "Visual check needed: yes", add its steps to VISUAL_CHECKS.md.
-   6. CHANGES REQUESTED: follow the escalation rule below, then repeat from step 2.
-3. At each checkpoint in VISUAL_CHECKS.md, run ui-tester with the checkpoint name and its checklist. Each FAIL becomes a small fix task through the same loop; ask the user only about NEEDS HUMAN items, then continue.
-4. When all tasks are approved, have test-runner run `./scripts/check-fresh-clone.sh`, then run bug-hunter. Turn its critical and high findings into fix tasks and run them through the same loop.
+   1. Delegate to the task's agent with the spec path. Wait for its report. The implementer verifies with `./scripts/build.sh` and unit-test filters only; no UI test runs.
+   2. As soon as the implementer reports, start code-reviewer (spec path and the implementer's report) and, in parallel, test-runner (CI build + full unit tests). Never run two CI jobs at once: overlapping `ci.sh` runs cancel each other, so only test-runner uses CI.
+   3. Append one line to the spec's "Review log": `date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason`. Approval counts only if CI passes.
+   4. APPROVED and CI green: commit (one task per commit, message `TNN: <title>`), then `git push origin master`. Don't wait for the master CI run before the next task. If the report says "Visual check needed: yes", add its steps to VISUAL_CHECKS.md.
+   5. CHANGES REQUESTED, or CI red: follow the escalation rule below, then repeat from step 2.
+3. XCUITests run only at the checkpoints in VISUAL_CHECKS.md (T63, T69, T74), never per task. At each checkpoint:
+   1. Run `./scripts/ci.sh status`. If a master run failed, stop and fix it first.
+   2. Run ui-tester with the checkpoint name and its checklist (full UI suite, cloud mode on Linux).
+   3. Only spec FAILs become fix tasks (through the same loop). Everything else (UX items, visual nits, open observations) goes into `docs/BACKLOG.md`. No polish tasks mid-phase. Ask the user only about NEEDS HUMAN items, then continue.
+4. At the end of Phase 1, run one fix pass over `docs/BACKLOG.md` (tasks planned by architect).
+5. When all tasks are approved, have test-runner run `./scripts/check-fresh-clone.sh`, then run bug-hunter. Turn its critical and high findings into fix tasks and run them through the same loop.
 
 ### Escalation rule
 Count CHANGES REQUESTED verdicts per task (from its Review log).
-- Haiku agent, 1st rejection: re-run the same agent with effort `high` for that call. Give it the spec and the review report.
+- Haiku agent (data-layer, review-engine), 1st rejection: re-run the same agent with effort `high` for that call. Give it the spec and the review report.
 - Haiku agent, 2nd rejection: re-run the same agent with model `sonnet` and effort `high` for that call. Give it the spec and both review reports.
+- Sonnet agent (ui-builder, pdf-engine, integrations), 1st rejection: re-run the same agent with effort `high` for that call. Give it the spec and the review report. 2nd rejection: stop, summarize the problem, and ask the user how to proceed.
 - Any review of a task that was escalated: run code-reviewer with effort `high` for that call.
-- Sonnet agent (pdf-engine, integrations, or an escalated task) rejected twice: stop, summarize the problem, and ask the user how to proceed.
 - An implementer reporting BLOCKED: answer from the spec or ADRs if possible; otherwise ask the user. Don't guess.
 
 ### General rules
 - Run one implementer at a time. Never run two agents that edit files in parallel.
 - Keep diffs small; one task per commit, pushed to `master` right after (ADR-0020). Never force-push `master`, delete branches or rewrite history. Never base work on the `ci-scratch` branch (`ci.sh` rewrites it).
-- UI and PDF-position changes can't be verified by reading code. Verify them with ui-tester (XCUITests + Peekaboo) instead of claiming they work; ask the user only for what it marks NEEDS HUMAN.
+- UI and PDF-position changes can't be verified by reading code. Verify them with ui-tester (XCUITests + Peekaboo) at the checkpoints instead of claiming they work; until then list them in VISUAL_CHECKS.md. Ask the user only for what ui-tester marks NEEDS HUMAN.
 - Only ui-tester controls the screen. Never run `uitest.sh`, `run-app.sh` or Peekaboo from another agent or in parallel with another agent.
 - Don't read or print anything in `Secrets/`.
 

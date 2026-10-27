@@ -22,15 +22,12 @@ Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. K
 ## Standing rules
 - **Library window Return and Escape.** `LibraryView`'s hidden "Open Selected Document" button (T52a) catches Return window-wide while the Library section is shown, and after T52i a hidden "Clear Selection" button catches Escape. Any task that adds a text field or search field to the library window must keep Return (and Escape) in that field from opening the selected document or clearing the selection, with a UI test. The "Constraint" note is in T52i, T66 (search field) and T69 (Highlights browser fields, safe only while `LibraryView` is out of the hierarchy). Add it to every future spec that puts a text field in the main window.
 - **Review log lines** record implementer and reviewer: `date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason`. The format is also at the top of `docs/tasks/phase-1/README.md` and in `docs/tasks/_TEMPLATE.md`. T52a–T52h have a backfilled implementer line.
-- **Keep CI minutes down.** While fixing, use targeted runs: `./scripts/test.sh StudyReaderTests/<Suite>[/<test>]` and `./scripts/uitest.sh StudyReaderUITests/<Class>[/<test>]` (both go through `ci.sh` in a cloud session). The full UI suite runs only at checkpoints. The per-task full unit run (test-runner) stays.
+- **Speed rules (user, 2026-10-27, in CLAUDE.md "Per phase").** (1) No polish tasks mid-phase: anything that is not a spec FAIL at a checkpoint goes into `docs/BACKLOG.md` and gets one fix pass at the end of Phase 1; only spec FAILs become fix tasks. (2) Per task: implementer → CI build + unit tests → review → commit and push; code-reviewer starts as soon as the implementer reports, in parallel with the test-runner's CI run; approval counts only if CI passes. (3) No per-task UI test runs: XCUITests run only at the checkpoints (T63, T69, T74), full suite there. (4) Don't wait for master CI between tasks; check `./scripts/ci.sh status` at each checkpoint and fix a failed master run first. (5) ui-builder runs on Sonnet (medium) from 2026-10-27, with the Sonnet escalation path (1st rejection → high, 2nd → ask the user); data-layer and review-engine stay on Haiku. Never run two CI jobs at once: overlapping `ci.sh` runs cancel each other.
 - **"Needs a Mac" list:** the user does it at the end of the project. It stays in VISUAL_CHECKS.md and nobody waits for it; keep adding Mac-only steps there with the task ID.
 
 ## Next steps
-1. T52k (ui-builder): ⌥⌘I in `AppCommands`, the doc comment in `ReaderModel`, the renamed UI test.
-2. T52i (ui-builder): library polish.
-3. T52j (ui-builder): metadata sheet, quiet imports, Settings rows (four parts; larger than usual).
-4. T53 (pdf-engine): PDF reader view, including U7.
-- Pending small doc edits outside `docs/` (the architect writes only `docs/`): VISUAL_CHECKS.md T52 row "⌥⌘H" → "⌥⌘I" and "restore after quit" → "(restore after quit: deferred, not in SPEC)"; the ui-tester memory note `.claude/agent-memory/ui-tester/studyreader-ui-facts.md` lines about ⌥⌘H and the "Import finished" alert (update after T52k and T52j land).
+1. T53 (pdf-engine): PDF reader view, including U7 (in progress; T52a–T52k are done and on `master`).
+2. Then T54–T63 in README order; checkpoint at T63 (full UI suite via ui-tester, cloud mode).
 
 ## Session notes (local session: add anything the cloud session needs to know)
 - Unit suite at T52: 355 tests passed, 0 warnings.
