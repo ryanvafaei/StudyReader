@@ -140,18 +140,43 @@ final class MarkdownReaderCoordinator {
         }
     }
 
-    /// Applies a `.highlight` location the model holds and consumes it (other locations belong to T67). Waits for the
-    /// saved reading position to be restored (`onPositionReady` retries) and for the re-anchoring, and stays pending
-    /// while the highlight isn't loaded yet; `highlightsChanged()` retries it. `reveal` draws before it selects.
+    /// Applies a `.highlight` or `.searchHit` location the model holds and consumes it. Waits for the saved reading
+    /// position to be restored (`onPositionReady` retries) and for the re-anchoring, and stays pending while the
+    /// highlight isn't loaded yet; `highlightsChanged()` retries it. `reveal` draws before it selects. A search hit
+    /// selects the first match of the query's first positive term in the section (the start of the document for a
+    /// section that doesn't exist) and just scrolls to the section when the query has no such term or it isn't found.
     func applyPendingLocation() {
         guard rendered != nil, controller.isTrackingPosition, !isReanchoring else { return }
         if !didReanchor, !model.highlights.isEmpty {
             highlightsChanged()
             return
         }
-        guard case .highlight(let id) = model.pendingLocation,
-              highlightController.reveal(highlightId: id) else { return }
+        switch model.pendingLocation {
+        case .highlight(let id):
+            guard highlightController.reveal(highlightId: id) else { return }
+        case .searchHit(let unitIndex, let query):
+            showSearchHit(unitIndex: unitIndex, query: query)
+        default:
+            return
+        }
         model.consumeLocation()
+    }
+
+    private func showSearchHit(unitIndex: Int, query: String) {
+        guard let rendered else { return }
+        let text = rendered.string as NSString
+        let section = rendered.sections.indices.contains(unitIndex)
+            ? rendered.sections[unitIndex]
+            : NSRange(location: 0, length: text.length)
+        // A match outside the section (the search index and this match differ in what they equate) isn't shown.
+        if let term = SearchQueryParser.firstPositiveTerm(in: query),
+           let match = PlainTextFinder.firstRange(of: term, in: text, from: section.location),
+           NSLocationInRange(match.location, section),
+           controller.selectFirstMatch(of: term, from: section.location) {
+            controller.textView.window?.makeFirstResponder(controller.textView)
+        } else {
+            controller.scroll(toOffset: section.location)
+        }
     }
 
     /// The tab is going away: drop the undo action for the last auto-highlight.

@@ -55,9 +55,9 @@ final class ReaderChromeTests: XCTestCase {
         ui.app.typeKey(.escape, modifierFlags: [])
     }
 
-    /// Step 28, updated in T63a: the Find and Snapshot toolbar buttons show only when the engine provides them, and are
-    /// absent otherwise (not just disabled). Failed reader: neither. PDF: Snapshot only (PDF Find arrives with T67).
-    /// Markdown: Find only.
+    /// Step 28, updated in T63a and T67: the Find and Snapshot toolbar buttons show only when the engine provides them,
+    /// and are absent otherwise (not just disabled). Failed reader: neither. PDF: Snapshot and Find (T67 gave the PDF
+    /// reader its find bar). Markdown: Find only.
     @MainActor
     func testFindAndSnapshotButtonsAreAbsentInAFailedReader() {
         let ui = openReader(Sample.pendulum)
@@ -67,13 +67,16 @@ final class ReaderChromeTests: XCTestCase {
     }
 
     @MainActor
-    func testSnapshotButtonShowsForAPDFAndFindDoesNot() {
+    func testSnapshotAndFindButtonsShowForAPDF() {
         let ui = openReader(Sample.lecture)
         XCTAssertTrue(
             ui.app.toolbars.buttons["Snapshot"].waitForExistence(timeout: 10),
             "The Snapshot button is missing for a loaded PDF."
         )
-        XCTAssertFalse(ui.app.toolbars.buttons["Find in Document"].exists, "Find shows for a PDF before T67.")
+        XCTAssertTrue(
+            ui.app.toolbars.buttons["Find in Document"].waitForExistence(timeout: 10),
+            "The Find button is missing for a loaded PDF (T67)."
+        )
     }
 
     @MainActor
@@ -119,14 +122,37 @@ final class ReaderChromeTests: XCTestCase {
         ui.sheet.buttons["Cancel"].click()
     }
 
-    /// Step 33.
+    /// Step 33, updated in T67: Edit lists one Find entry. It is disabled while the reader has no find engine (a failed
+    /// reader registers none) and enabled for a loaded PDF and a loaded Markdown document.
     @MainActor
-    func testFindInDocumentIsDisabledAndListedOnce() {
-        let ui = openReader()
+    func testFindInDocumentIsDisabledInAFailedReaderAndListedOnce() {
+        let ui = openReader(Sample.pendulum)
+        XCTAssertTrue(ui.app.staticTexts["The document file is missing."].waitForExistence(timeout: 5))
         let state = ui.menuItemState("Edit", "Find in Document")
         XCTAssertTrue(state.exists)
-        XCTAssertFalse(state.enabled, "Find in Document is enabled before the engines provide it.")
+        XCTAssertFalse(state.enabled, "Find in Document is enabled in a failed reader.")
         let titles = ui.menuTitles("Edit")
+        XCTAssertEqual(titles.filter { $0.hasPrefix("Find") }.count, 1, "Edit has more than one Find entry: \(titles)")
+    }
+
+    @MainActor
+    func testFindInDocumentIsEnabledForAPDFAndMarkdown() {
+        let ui = openReader(Sample.lecture)
+        XCTAssertTrue(
+            ui.waitUntil(timeout: 10) { ui.menuItemState("Edit", "Find in Document").enabled },
+            "Edit > Find in Document stays disabled for a loaded PDF."
+        )
+        var titles = ui.menuTitles("Edit")
+        XCTAssertEqual(titles.filter { $0.hasPrefix("Find") }.count, 1, "Edit has more than one Find entry: \(titles)")
+
+        ui.tab(at: 0).click()
+        ui.card(Sample.gradient).doubleClick()
+        XCTAssertTrue(ui.waitUntil { ui.tabTitles.contains(Sample.gradient) }, "The Markdown tab didn't open.")
+        XCTAssertTrue(
+            ui.waitUntil(timeout: 10) { ui.menuItemState("Edit", "Find in Document").enabled },
+            "Edit > Find in Document stays disabled for a loaded Markdown document."
+        )
+        titles = ui.menuTitles("Edit")
         XCTAssertEqual(titles.filter { $0.hasPrefix("Find") }.count, 1, "Edit has more than one Find entry: \(titles)")
     }
 

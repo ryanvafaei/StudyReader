@@ -20,6 +20,8 @@ final class PDFReaderController: NSObject {
     private static let positionTolerance = 0.5
 
     let pdfView: StudyPDFView
+    /// In-document find and search-hit selection (T67).
+    let findController: PDFFindController
     private(set) var document: PDFDocument?
     private(set) var outline: [PDFOutlineItem] = []
     private(set) var pageCount = 0
@@ -45,7 +47,9 @@ final class PDFReaderController: NSObject {
     init(model: ReaderModel) {
         self.model = model
         self.invertSettingEnabled = model.session.settings.invertPDFInDarkMode
-        self.pdfView = StudyPDFView(frame: .zero)
+        let pdfView = StudyPDFView(frame: .zero)
+        self.pdfView = pdfView
+        self.findController = PDFFindController(pdfView: pdfView)
         super.init()
         highlightController = PDFHighlightController(model: model, pdfView: pdfView)
         pdfView.onEffectiveAppearanceChange = { [weak self] in self?.refreshInversion() }
@@ -123,6 +127,7 @@ final class PDFReaderController: NSObject {
         model.engineActions.toggleThumbnails = { [weak self] in self?.showsThumbnails.toggle() }
         model.engineActions.currentPageIndex = { [weak self] in self?.currentPageIndex }
         model.engineActions.startSnapshot = { [weak self] in self?.toggleSnapshotMode() }
+        model.engineActions.findInDocument = { [weak self] in self?.findController.show() }
     }
 
     /// Called when the tab goes away: leaves snapshot mode, cancels a running capture and drops the highlight
@@ -253,7 +258,9 @@ final class PDFReaderController: NSObject {
         pdfView.window?.makeFirstResponder(pdfView)
     }
 
-    /// Applies a `.page` or `.highlight` location the model holds and consumes it. Other locations belong to T67.
+    /// Applies a `.page`, `.highlight` or `.searchHit` location the model holds and consumes it. A search hit opens
+    /// the page and selects the first match of the query's first positive term on it (the view stays on the page when
+    /// the term isn't found there). `.documentNote` is the window's.
     /// Before the saved position is restored the call does nothing; `beginTrackingPosition` applies it afterwards.
     /// A `.highlight` location whose highlight isn't loaded yet stays pending; `highlightsChanged()` retries it.
     func applyPendingLocation() {
@@ -263,6 +270,11 @@ final class PDFReaderController: NSObject {
             go(toPage: index)
         case .highlight(let id):
             guard highlightController?.reveal(highlightId: id) == true else { return }
+        case .searchHit(let unitIndex, let query):
+            go(toPage: unitIndex)
+            if let term = SearchQueryParser.firstPositiveTerm(in: query) {
+                findController.selectFirstMatch(of: term, onPage: unitIndex)
+            }
         default:
             return
         }

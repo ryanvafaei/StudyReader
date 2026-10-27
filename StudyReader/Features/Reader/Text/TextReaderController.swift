@@ -215,6 +215,19 @@ final class TextReaderController: NSObject {
         textView.scrollRangeToVisible(clamped)
     }
 
+    /// Selects the first match of `term` at or after `offset` (UTF-16, wrapping to the start of the text) and scrolls
+    /// to it. Case and diacritics are ignored, and whitespace in the term also matches a line break. False when there
+    /// is no match; the view is left alone then. The term is used as a plain string.
+    @discardableResult
+    func selectFirstMatch(of term: String, from offset: Int) -> Bool {
+        guard let range = PlainTextFinder.firstRange(of: term, in: textView.string as NSString, from: offset) else {
+            return false
+        }
+        textView.setSelectedRange(range)
+        scroll(toOffset: range.location)
+        return true
+    }
+
     /// `range` as a text range of the layout manager, or nil when it lies outside the text.
     func textRange(for range: NSRange) -> NSTextRange? {
         guard let contentManager = textView.textLayoutManager?.textContentManager,

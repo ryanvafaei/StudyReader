@@ -38,6 +38,11 @@ private struct PDFReaderContent: View {
                     Divider()
                 }
                 PDFViewHost(controller: controller)
+                    .overlay(alignment: .top) {
+                        if controller.findController.isVisible {
+                            PDFFindBar(find: controller.findController, sleeper: model.session.environment.sleeper)
+                        }
+                    }
             }
             Divider()
             PDFBottomBar(controller: controller)

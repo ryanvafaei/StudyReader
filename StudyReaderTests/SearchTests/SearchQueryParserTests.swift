@@ -161,6 +161,8 @@ import Testing
         #expect(SearchQueryParser.firstPositiveTerm(in: "-x \"a b\" c") == "a b")
         #expect(SearchQueryParser.firstPositiveTerm(in: "-x") == nil)
         #expect(SearchQueryParser.firstPositiveTerm(in: "   ") == nil)
+        #expect(SearchQueryParser.firstPositiveTerm(in: "\" a b \"") == "a b")
+        #expect(SearchQueryParser.firstPositiveTerm(in: "-x \"  padded phrase\t\" y") == "padded phrase")
     }
 
     @Test func expressionsAreValidFTS() throws {

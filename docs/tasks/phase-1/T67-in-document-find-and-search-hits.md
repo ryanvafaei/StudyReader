@@ -66,3 +66,4 @@ Behaviour:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). PDF find bar and search-hit navigation (PDF page+match, Markdown section) met; B20(4) done; 52 unit tests ran on CI; ReaderChromeTests edits are deliberate and unrun (T69 compiles and runs them). BACKLOG B24.

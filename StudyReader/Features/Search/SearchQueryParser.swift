@@ -90,9 +90,10 @@ enum SearchQueryParser {
         return expression
     }
 
-    /// The first positive term's text (for selecting the first match in a document, T67), or nil.
+    /// The first positive term's text, trimmed (a padded phrase `" a "` gives `a`), for selecting the first match in a
+    /// document (T67). Nil when there is none.
     static func firstPositiveTerm(in input: String) -> String? {
-        terms(in: input).first { !$0.isNegated }?.text
+        terms(in: input).first { !$0.isNegated }?.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func isWhitespace(_ scalar: Unicode.Scalar) -> Bool {
