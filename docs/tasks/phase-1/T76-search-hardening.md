@@ -40,3 +40,4 @@ The top-N snippet optimisation (B21 3, waits for a measurement on a big library 
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer data-layer Haiku medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40675061323, 210 tests); deviations (combining-mark test expectations, searchErrorShowsMessage via debounce path, scoped negation) judged legitimate; minor suggestion: add a phrase+combining-mark case to SearchQueryParserTests (backlog)

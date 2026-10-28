@@ -63,6 +63,24 @@ struct SearchModelTests {
         #expect(!search.isActive)
     }
 
+    @Test func searchErrorShowsMessage() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await session.environment.database.writer.write { db in
+            try db.execute(sql: "DROP TABLE highlight_fts")
+        }
+        let search = session.search
+
+        // The debounced search (immediate sleeper) is the only search, so waiting for it avoids superseding it.
+        search.query = "network"
+        let failed = await ReaderTestSupport.waitUntil { search.errorMessage != nil }
+        #expect(failed)
+
+        #expect(search.errorMessage != nil)
+        #expect(search.results.isEmpty)
+        #expect(search.isSearching == false)
+    }
+
     @Test func locations() {
         let text = DocumentHit(documentId: "d", title: "T", field: .text, unitIndex: 3, snippet: "s", rank: 0)
         #expect(SearchModel.location(for: text, query: "q") == .searchHit(unitIndex: 3, query: "q"))

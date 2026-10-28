@@ -108,16 +108,39 @@ import Testing
         let mark = Self.combiningAcute
         // Bare word: the quote belongs to the word and is doubled even though a combining mark follows it.
         #expect(SearchQueryParser.matchExpression(for: "say\"\(mark)hi") == "\"say\"\"\(mark)hi\"")
-        // Phrase: the closing quote ends the phrase even though a combining mark follows it.
+        // Phrase: the closing quote ends the phrase even though a combining mark follows it. The mark alone has
+        // no letter or number, so that term is dropped (the tokenizer would produce no tokens for it).
         #expect(SearchQueryParser.matchExpression(for: "\"a\"\(mark) OR title:x \"\(mark)")
-            == "\"a\" AND \"\(mark)\" AND \"OR\" AND \"title:x\" AND \"\(mark)\"")
+            == "\"a\" AND \"OR\" AND \"title:x\"")
         #expect(SearchQueryParser.matchExpression(for: "\"x\"\(mark) OR y\"")
-            == "\"x\" AND \"\(mark)\" AND \"OR\" AND \"y\"\"\"")
+            == "\"x\" AND \"OR\" AND \"y\"\"\"")
         #expect(SearchQueryParser.terms(in: "\"a\"\(mark)")
             == [
                 .init(text: "a", isPhrase: true, isPrefix: false, isNegated: false),
-                .init(text: "\(mark)", isPhrase: false, isPrefix: false, isNegated: false),
             ])
+    }
+
+    @Test func nulScalarsAreDropped() {
+        #expect(SearchQueryParser.terms(in: "net\u{0}work")
+            == [.init(text: "network", isPhrase: false, isPrefix: false, isNegated: false)])
+        #expect(SearchQueryParser.terms(in: "\u{0}").isEmpty)
+        let expression = SearchQueryParser.matchExpression(for: "a\u{0}\"b")
+        #expect(expression != nil)
+        #expect(expression?.unicodeScalars.contains("\u{0}") == false)
+    }
+
+    @Test func punctuationOnlyTermsAreDropped() {
+        #expect(SearchQueryParser.terms(in: "+").isEmpty)
+        #expect(SearchQueryParser.terms(in: "(*").isEmpty)
+        #expect(SearchQueryParser.terms(in: ".").isEmpty)
+        #expect(SearchQueryParser.terms(in: "\"...\"").isEmpty)
+        #expect(SearchQueryParser.matchExpression(for: "network +") == "\"network\"")
+        #expect(SearchQueryParser.matchExpression(for: "+ -x") == nil)
+    }
+
+    @Test func unicodeLineSeparatorsSplitTerms() {
+        #expect(SearchQueryParser.terms(in: "a\u{2028}b").map(\.text) == ["a", "b"])
+        #expect(SearchQueryParser.terms(in: "a\u{0085}b").map(\.text) == ["a", "b"])
     }
 
     @Test func adversarialWordsAreQuoted() {

@@ -315,8 +315,8 @@ struct SearchTestEnvironment: Sendable {
 
         // NUL truncates the MATCH argument, and punctuation-only terms normalize to no tokens (BACKLOG B20).
         let inputs = [
-            "alpha\u{0}beta", "\u{0}", "+", "+ -x", "(*", "(", ".", "\"+\"", "\"", "a\u{0}",
-            "title:x", "^a", "NOT AND NEAR", "\u{2028}", "\u{0085}alpha",
+            "alpha\u{0}beta", "\u{0}", "\u{0}+\u{0}", "+", "+ -x", "(*", "(", ".", "\"+\"", "\"", "a\u{0}",
+            "network +", "title:x", "^a", "NOT AND NEAR", "\u{2028}", "\u{0085}alpha",
         ]
         for input in inputs {
             do {
@@ -325,6 +325,43 @@ struct SearchTestEnvironment: Sendable {
                 Issue.record("Query \(input.debugDescription) threw \(error)")
             }
         }
+        try await env.checkIntegrity()
+    }
+
+    @Test func negatedTermExcludesAcrossHighlightAndNoteColumns() async throws {
+        let env = try SearchTestEnvironment()
+        let document = try await env.addDocument(title: "Vision")
+        // The first highlight has "convolutional" only in its note, so the negated term must exclude it.
+        try await env.addHighlight(documentId: document.id, text: "network", note: "convolutional")
+        let kept = try await env.addHighlight(documentId: document.id, text: "network")
+
+        let results = try await env.service.search("network -convolutional")
+
+        #expect(results.highlights.map(\.highlightId) == [kept.id])
+        #expect(results.notes.isEmpty)
+        try await env.checkIntegrity()
+    }
+
+    @Test func missingTableIsNotSwallowed() async throws {
+        let env = try SearchTestEnvironment()
+        try await env.database.writer.write { db in
+            try db.execute(sql: "DROP TABLE highlight_fts")
+        }
+
+        await #expect(throws: (any Error).self) {
+            try await env.service.search("network")
+        }
+    }
+
+    @Test func documentHitsTieBreakNumerically() async throws {
+        let env = try SearchTestEnvironment()
+        // Units 2 and 10 hold identical text, so their bm25 ranks are equal and only the unit index orders them.
+        let pages = (0..<11).map { index in index == 2 || index == 10 ? "network layers" : "filler text \(index)" }
+        try await env.addDocument(title: "Lecture", pages: pages)
+
+        let results = try await env.service.search("network")
+
+        #expect(results.documents.compactMap(\.unitIndex) == [2, 10])
         try await env.checkIntegrity()
     }
 
