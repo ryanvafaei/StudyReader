@@ -2,6 +2,8 @@
 
 Rule (user, 2026-10-27): no polish tasks mid-phase. Anything that is not a spec FAIL at a checkpoint (UX items, visual nits, open observations) goes here and gets one fix pass at the end of Phase 1, planned by architect. Only spec FAILs become fix tasks right away.
 
+The end-of-phase pass was planned on 2026-10-28: see "Disposition" at the end of this file and rows 47–55 (T76–T84) in `docs/tasks/phase-1/README.md`.
+
 | ID | Source | Item | Notes |
 |---|---|---|---|
 | O1 | T52 cloud checkpoint | After Move Tab to New Window and Merge All Windows the reader tab comes first and the Library tab second. | Open until the user checks the real tab drag on a Mac. |
@@ -45,3 +47,51 @@ Rule (user, 2026-10-27): no polish tasks mid-phase. Anything that is not a spec 
 | B33 | T73 review | (1) `HighlightsBrowserModel.exportSelection` and `ExportTargetsModel.exportNow` have no in-flight guard (double click can make two Docs / two concurrent exports of one target): add `isExporting` and disable the buttons (T74 serialises per target too). (2) Tighten ExportSheetModelTests: `scopeRequiresId` has a vacuous assertion and misses `.tag(id)`; `notConfiguredMakesNoRequest` should assert the literal "Google export not configured."; `exportShowsOutcome` compares against `message(for:)`. (3) When the scope changes to one with no target, `prefillOptions` keeps the previous scope's options instead of resetting to `ExportOptions()`. (4) GoogleSettingsView may briefly show folder/targets before `refresh()` sets `.notConfigured`. (5) `fetchThemedReviews` has no direct unit test. (6) The context-menu UI test picks the first hittable menu item (flaky if it fails at T74). | Fix pass / T74. |
 | B34 | T74 review | (1) `failureRetries[targetId]` is not reset after a success (reset on `.exported`). (2) An export ending `.queued` while the path is still reported satisfied (or the path flapped in flight) waits for the next change/reconnect: schedule a debounced retry on `.queued` while the path is satisfied. (3) `retryQueued` awaits targets one after another (run in parallel). (4) Untested: stop while an export is in flight; two keep-in-sync targets exported in parallel. (5) Comment that a cancelled waiting export still runs. (B31(2) per-target serialisation is DONE in T74; B33(1) UI isExporting guards still open.) | Fix pass. |
 | B35 | T74 checkpoint | (1) The browser's "Newest first" order is unstable when seeded dates are equal (two screenshots list rows in different orders): the browse query needs a deterministic tie-break key (check the id tie-break in HighlightBrowseSQL for createdNewest and the observation). (2) Opening Settings focuses the first colour label field with its text selected. (3) `TagManagerTests.swift:14` still has isolation warnings. (4) Coverage proposals for the unconfigured build not built: Settings Google tab (unconfigured text, sections hidden), the "Export Selection…" not-configured alert, Export sheet pickers/width, File > Export Highlights… enabled/disabled; S1–S5, F1–F5, H1–H9 from the T69 report (B17 decision still open). | Fix pass. |
+
+## Disposition (end-of-phase pass, planned 2026-10-28)
+
+Verified against the code on `master` after T74a. Keys: **T7x/T8x** = fixed by that task; **done** = already fixed, nothing to do; **drop** = not worth a change (reason given); **Mac** = needs a check on the Mac first (listed in VISUAL_CHECKS.md "Needs a Mac"); **decision** = waits for the user (see docs/HANDOFF.md). Mac and decision items are in no task.
+
+| ID | Disposition |
+|---|---|
+| O1 | Mac: real tab drag, then decide whether the Library tab must stay first. |
+| B1 | drop: not in SPEC; T52j chose a VoiceOver announcement for quiet imports. Propose again only if the user asks. |
+| B2 | Mac (zoom / full screen with a reader open, VISUAL_CHECKS T52b row). |
+| B3 | drop: an anchored variant would tab test windows into the unit-test host's real library window (`ReaderTabbing` keeps static state). The frame is covered by `testOpeningAReaderTabKeepsTheWindowSize` and the T52b Mac row. |
+| B4 | T84. |
+| B5 | T77. |
+| B6 | done in T60 (a link click never reaches `onClick`); the remaining doc-comment line is in T79. |
+| B7 | T79. |
+| B8 | `@preconcurrency` comment: T79. "Open Link" context-menu filter: Mac (VISUAL_CHECKS T55 row); fix only if it bypasses the filter. |
+| B9 | T77. |
+| B10 | T79 (shared normalisation, window-first scan). `.moved` keeps prefix/suffix: drop (that is the contract). |
+| B11 | Export block neutralising: done in T70 (`ExportMarkdownSafety`). Adjacent links, flanking, missing tests, early break: T77. |
+| B12 | (1) done (`reveal` calls `sync` first, PDF and text). (2) done (`tearDown` removes undo actions, PDF and Markdown). (3) flipped `topLeftRect` and rotated-page tests: T77; click/key/undo paths: drop (covered by `ReaderHighlightTests` key 3 and Undo). |
+| B13 | (1)(2)(3): T81. (4) drop: the stored Markdown text doesn't change while a tab is open in Phase 1. |
+| B14 | (1)(3): T77 (the spec note is added to T61). (2) Mac (outline colour in Dark, VISUAL_CHECKS T61 row). |
+| B15 | (1) Mac: build once in Xcode and commit the rewritten `Localizable.xcstrings` (CI doesn't write the catalog back). (2)–(6): T82. |
+| B16 | (1)(3)(4)(5): T82 (repository part of (3) in T78). (2) done (row label is the excerpt). (6) localisation of "PDF"/"Text": T82 ("p. N" is already a localised `Text`); delete confirmation: drop (spec-conform). |
+| B17 | decision: how much XCUITest coverage to build now. |
+| OB1 | T84 (ephemeral settings reset per in-memory launch). |
+| OB2 | Mac: judge page contrast in light and dark on a real display; a one-line background change only if wanted. |
+| OB3 | drop: one brief layout change while the Markdown reader loads; harmless. Revisit only if the user notices it on the Mac. |
+| OB4 | done: T63a; the T69 run shows the seeded Markdown highlights drawn. |
+| OB6 | same as B17 (decision). |
+| B18 | Undo/Redo replacement: decision after the user tries it on the Mac (VISUAL_CHECKS T60 row). "Redo always sends `redo:`": part of that decision. Unit test for `isReaderUndoContext`: T82. `ensureLayout` in `drawBackground`: T79. |
+| B19 | (1) T81. (2) drop: rare (another tab or a same-colour bulk recolour) and it clears after one ⌘Z. (3) done in this pass (notes added to the T38 and T51 specs). |
+| B20 | (1)(2)(3): T76. (4) done (`firstPositiveTerm` trims). |
+| B21 | (1)(2)(4): T76; (5) doc-comment note in T76, no move. (3) Mac: measure search time on a big real library; optimise only if it misses 200 ms. |
+| B22 | (1) decision (hoist the library selection). (2) Mac (⇧⌘F focus when the window must be created). (3) error-path test: T76; stale-result test: drop (needs a service seam). (4) done (the filter bar shows a "Searching" spinner). |
+| B23 | done in T69a (test proves real focus; the guard is defence in depth, not observable on CI). (3) assertion order: T84. |
+| B24 | (1) Mac: try a very large PDF; move to `beginFindString` only if find blocks. (2) Shift-Return: covered by F2 if B17 is approved, otherwise Mac. (3) drop: re-selecting the first match while typing is standard incremental find. |
+| B25 | T78. |
+| B26 | (1) done in T69a (`accessibilityValue`). (2) T83. (3) done in this pass (T69 spec "As built" note). |
+| B27 | (1) T84. (2) T83. (3)(5) part of B17. (4) T84 (OB1). |
+| B28 | (1) drop: the T74 run shows the fixed 455/360 split works at 1024 pt; the user can ask for a divider. (2)(3) T84. (4) drop: keep the guard (defence in depth, T69a). |
+| B29 | decision: escape titles/authors and/or notes in the export. |
+| B30 | (1)(2)(3) and the (5) doc comment: T78. (4) and the (5) same-length edit test: T80. |
+| B31 | (1) drop: accepted risk (pre-generated IDs would be a later change). (2) done in T74. (3)(4) T80. |
+| B32 | Mac (VISUAL_CHECKS T72 row): fix only what the sign-in check shows. |
+| B33 | (1)(2)(3)(4) T83. (5) T78. (6) drop: didn't flake at T74; revisit if it does. |
+| B34 | T80. |
+| B35 | (1) the query already breaks ties by id; the screenshots differed because each launch seeds new random ids with equal times: T84 seeds distinct times. (2) T83 (UI test in T84). (3) T84. (4) part of B17. |

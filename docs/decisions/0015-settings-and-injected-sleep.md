@@ -1,6 +1,6 @@
 # ADR-0015: Settings storage and injected sleeping
 
-- Status: Accepted
+- Status: Accepted (amended 2026-10-28, backlog pass T84)
 - Date: 2026-10-24 (Phase 1 planning)
 
 ## Context
@@ -13,12 +13,15 @@ Phase 1 needs per-Mac preferences (default import category, auto-highlight, curr
 - `AppSettings` (`@MainActor @Observable`) mirrors the store for SwiftUI and writes through on every change. Exactly one instance exists per app, owned by `AppSession`, which `AppLaunchModel` creates when the library is ready. Views and models never use `@AppStorage`.
 - `Sleeper` protocol (`func sleep(for: Duration) async throws`): logic waits only through an injected `Sleeper` (`SystemSleeper` in the app, `ImmediateSleeper` / `ManualSleeper` in tests). Never call `Task.sleep` in logic. `AppEnvironment.sleeper` carries it.
 - `Debouncer` (actor) runs only the last scheduled action after its delay, using a generation counter, and has `flush()` (run the pending action now) and `cancel()`.
+- Amendment 2026-10-28 (T84): an in-memory launch requested by the launch argument or environment variable outside the unit-test host (UI tests, `run-app.sh`) first clears the ephemeral suite (`SettingsStore.resetEphemeral()`), so every such launch starts with default settings. The unit-test host never clears it.
 
 ## Alternatives considered
 - A `setting` table in SQLite: needs migration `v3` and couples Mac preferences to the library file.
 - `@AppStorage` in views: untestable, scattered keys, and it writes to the real defaults from the test host.
 - Swift `Clock` injection: needs a hand-written test clock with the same effort and less clarity than a one-method protocol.
+- Overriding settings with launch arguments in UI tests: the argument domain would also mask the user's choices inside the test (choosing a colour would not stick).
 
 ## Consequences
 - Settings are not part of the library backup; acceptable for a single-Mac app.
 - Every waiting component takes a `Sleeper`, so its tests run instantly and deterministically.
+- UI tests no longer depend on the order they run in for settings (BACKLOG OB1).

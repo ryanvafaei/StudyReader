@@ -1,6 +1,6 @@
 # ADR-0018: Google export seams, statuses and signing
 
-- Status: Accepted (one-off "Export selection" confirmed by the user 2026-10-24, Q3)
+- Status: Accepted (one-off "Export selection" confirmed by the user 2026-10-24, Q3; amended 2026-10-28, T80)
 - Date: 2026-10-24 (Phase 1 planning)
 
 ## Context
@@ -15,6 +15,7 @@ ADR-0007 and ARCHITECTURE §9 define the Drive calls. Tests must cover create, u
 - Signing (ADR-0011, amended): the user already set `DEVELOPMENT_TEAM: "597KGSTZWJ"` and `keychain-access-groups = ["$(AppIdentifierPrefix)com.ryanvafaei.StudyReader"]` in `project.yml`; the scripts pass `-allowProvisioningUpdates`. No export task touches signing. GoogleSignIn keeps its tokens in that keychain group, so a sign-in survives an app restart; the sign-in task (T72) verifies this.
 - "Export selection" from the highlights browser creates a new Doc each time and saves no export target.
 - Never log tokens, auth codes, emails or document contents; log status codes and target IDs only.
+- Amendment 2026-10-28 (T80): `ExportOutcome.cancelled` for a cancelled request or backoff wait. Like `notConfigured` it writes nothing to the target (no status, no error); the scheduler doesn't retry it. The stored status values above are unchanged.
 
 ## Alternatives considered
 - Calling GoogleSignIn directly from the service: untestable without a Google account.

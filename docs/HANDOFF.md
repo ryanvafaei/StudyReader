@@ -1,38 +1,50 @@
-# Handoff: local Mac session ↔ cloud session (updated 2026-10-27)
+# Handoff: local Mac session ↔ cloud session (updated 2026-10-28)
 
-Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. Keep it current at each phase or checkpoint change, and push it.
+Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. Run `./scripts/ci.sh status` at the start. Keep this file current at each phase or checkpoint change and push it.
 
 ## Where the project is
-- Phase 1 (study loop). T29–T52 are committed. T52 was the first visual checkpoint.
-- T52 checkpoint, manual run: `docs/checkpoints/T52-manual-2026-10-25.md`. Step 1 passed: reader tabs join the library window, so the reader work isn't blocked.
-- T52a–T52h are done and on `master` (CI green at `fee871d`). Full UI suite on CI (run 40424857937): 39 tests, 38 pass. The only failure is `ReaderChromeTests/testOptionCommandHTogglesTheInspector` (⌥⌘H); T52k replaces it with `testOptionCommandITogglesTheInspector`. Never weaken it.
-- T52 checkpoint, cloud run: `docs/checkpoints/T52-cloud-2026-10-27.md`.
-- New fix specs from the user's triage (2026-10-27), in `docs/tasks/phase-1/` and the Phase 1 README rows 24k, 24i, 24j: **T52k** (⌥⌘I), **T52i** (library polish), **T52j** (sheets, imports, Settings). U7 went into T53's spec.
-- Known test gaps: `ReaderTabbingTests/joinChangesNoFrameSynchronously` only covers the property side; resize/move/zoom restore after the last reader closes is untested (zoom may be reverted).
+- **Phase 1 is complete** and green on `master`: T29–T75, the checkpoint fixes T52a–T52k, T63a, T69a, T74a. All three visual checkpoints ran in cloud mode (`docs/checkpoints/T52-cloud-2026-10-27.md`, `T63-cloud-2026-10-27.md`, `T69-cloud-2026-10-28.md`, `T74-cloud-2026-10-28.md`; T74 found the Open With regression fixed by T74a).
+- **Now: the end-of-phase backlog pass** (CLAUDE.md "Per phase" step 4). Planned 2026-10-28 as nine tasks, rows 47–55 in `docs/tasks/phase-1/README.md`. Every backlog item has a disposition at the end of `docs/BACKLOG.md` (task, done, drop with reason, Mac, or user decision).
 
-## User decisions (2026-10-27)
-- **Highlights panel shortcut: ⌥⌘I** (⌥⌘H is the system's Hide Others). SPEC §5 and F-06, and the T52 and T63 specs, are updated. **T52k** does the code and the UI test.
-- **Tab restore after quit and relaunch: deferred (user decision 2026-10-27), not in SPEC.** Nothing restores reader tabs; no task builds it. T52 step 38 is closed as "not required".
-- **U1–U7 triage** (T52 manual report):
-  - U1 focus-ring line at the library's left edge, U3 clearing the grid selection (click on empty space, Escape), U4 placeholder covers vs selection fill (with S2), plus S3 cover hairline and `.accessibilityHidden(true)` on the hidden "Open Selected Document" button → **T52i**.
-  - U2 metadata sheet loading flash, U5 no alert for a successful import (alerts stay for problems; VoiceOver announcement instead), U6 Settings colour-label rows and cut-off list, plus S1 blank-title error next to Title → **T52j**.
-  - U7 failed-load reader hides the colour menu and inspector toggle → **T53** (shared chrome; T55 only calls `engineFailed(_:)`).
-- **O1 stays open:** after Window > Move Tab to New Window + Merge All Windows, the Library tab comes second. Not specced. It waits for the user's real tab-drag check on a Mac; decide afterwards whether the Library tab must stay first.
+| Task | Agent | Covers |
+|---|---|---|
+| T76 Search hardening | data-layer | B20, B21, B22 3 |
+| T77 PDF reader and rich-text robustness | pdf-engine | B5, B9, B11 rest, B12 3, B14 1/3 |
+| T78 Highlight, tag and export queries | data-layer | B25, B30 1–3/5, B16 3 (repo), B33 5 |
+| T79 Text reader and anchoring | pdf-engine | B6 rest, B7, B8 comment, B10, B18 painting |
+| T80 Export service and scheduler hardening | integrations | B30 4/5, B31 3/4, B34 |
+| T81 Highlight controllers and undo mark | pdf-engine | B13 1–3, B19 1 |
+| T82 Reader panel, Notes tab and popover polish | ui-builder | B15 2–6, B16 1/3–6, B18 test |
+| T83 Export UI guards, browser and Settings polish | ui-builder | B26 2, B27 2, B33 1–4, B35 2 |
+| T84 UI-test hygiene and deterministic seed | ui-builder | OB1, B4, B23 3, B27 1, B28 2/3, B35 1/3 |
+
+Only T84 runs XCUITests (its own targeted classes, max 2 attempts). T76–T83 use build + unit-test filters only.
+
+## Decisions waiting for the user (no task built until answered)
+1. **B17: how much XCUITest coverage to build now.** Proposals: T63 report C3–C8, C11–C19; T69 report S1–S5, F1–F5, H1–H9; T74 report unconfigured Settings > Google tab, "Export Selection…" not-configured alert, Export sheet pickers and File-menu enabled state. Recommendation: one or two test-writing tasks (T85, T86) right after T84, before bug-hunter, limited to reliable non-pixel, non-drag tests: S1, S3, S4, F1–F3 (F2 also settles B24 Shift-Return), H1, H2, H4–H6, H9, C3, C6, C17, C18 and the unconfigured Google/export tests. Pixel, drag and dark-mode tests (C5, C13, C14, C15) stay on the Mac list.
+2. **B29: notes, document notes, titles and authors are exported raw** (only highlight bodies are neutralised). Recommendation: escape titles and authors (plain metadata, `*`/`_` shouldn't style them); keep notes raw (users write Markdown in notes and the Notes preview renders it); record it in ADR-0007. Goldens don't change. If accepted it is a small integrations task.
+3. **B18: the app-wide Undo/Redo replacement** (static titles, never disabled) was accepted for now. Recommendation: keep it until you try it on the Mac (VISUAL_CHECKS "Backlog pass" row); if it bothers you, plan the narrow per-view `undo:` alternative then.
+4. **B22 1: library selection resets after a search** (LibraryView is replaced while a query is active; sort and layout already persist in Settings). Recommendation: yes, hoist the selection into `AppSession` (a small ui-builder task), so clearing the search returns to the same selection.
+5. **Closing UI run:** XCUITests normally run only at T63/T69/T74. Recommendation: let ui-tester run the full UI suite once after T84 (cloud mode), since T76–T83 touch reader, browser, export and Settings code with no UI run of their own.
+
+## Remaining steps
+1. Backlog pass T76 → T84, in README order, through the normal loop.
+2. Any tasks from the decisions above (T85+), if the user approves them.
+3. test-runner: `./scripts/check-fresh-clone.sh`.
+4. bug-hunter (report in `docs/bugs/`); its critical and high findings become fix tasks through the same loop.
+5. The user's "Needs a Mac" list in VISUAL_CHECKS.md (done at the end on the Mac; nobody waits for it). It also holds O1, B2, B8 Open Link, B14 2, B15 1, B21 3, B24 1, B32, OB2.
+
+## Settled user decisions (still in force)
+- Highlights panel shortcut ⌥⌘I (⌥⌘H is Hide Others). Tab restore after relaunch: deferred, not in SPEC. O1 (Library tab second after Merge All Windows) waits for the real tab drag on a Mac.
 
 ## Standing rules
-- **Library window Return and Escape.** `LibraryView`'s hidden "Open Selected Document" button (T52a) catches Return window-wide while the Library section is shown, and after T52i a hidden "Clear Selection" button catches Escape. Any task that adds a text field or search field to the library window must keep Return (and Escape) in that field from opening the selected document or clearing the selection, with a UI test. The "Constraint" note is in T52i, T66 (search field) and T69 (Highlights browser fields, safe only while `LibraryView` is out of the hierarchy). Add it to every future spec that puts a text field in the main window.
-- **Review log lines** record implementer and reviewer: `date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason`. The format is also at the top of `docs/tasks/phase-1/README.md` and in `docs/tasks/_TEMPLATE.md`. T52a–T52h have a backfilled implementer line.
-- **Speed rules (user, 2026-10-27, in CLAUDE.md "Per phase").** (1) No polish tasks mid-phase: anything that is not a spec FAIL at a checkpoint goes into `docs/BACKLOG.md` and gets one fix pass at the end of Phase 1; only spec FAILs become fix tasks. (2) Per task: implementer → CI build + unit tests → review → commit and push; code-reviewer starts as soon as the implementer reports, in parallel with the test-runner's CI run; approval counts only if CI passes. (3) No per-task UI test runs: XCUITests run only at the checkpoints (T63, T69, T74), full suite there. (4) Don't wait for master CI between tasks; check `./scripts/ci.sh status` at each checkpoint and fix a failed master run first. (5) ui-builder runs on Sonnet (medium) from 2026-10-27, with the Sonnet escalation path (1st rejection → high, 2nd → ask the user); data-layer and review-engine stay on Haiku. Never run two CI jobs at once: overlapping `ci.sh` runs cancel each other.
-- **"Needs a Mac" list:** the user does it at the end of the project. It stays in VISUAL_CHECKS.md and nobody waits for it; keep adding Mac-only steps there with the task ID.
+- **Library window Return and Escape.** LibraryView's hidden buttons catch Return (open selected) and Escape (clear selection) window-wide while the Library section is shown. Any task that adds a text or search field to the main window must keep Return and Escape in that field from opening or clearing, with a UI test. Put the "Constraint" note into every such spec.
+- **Review log lines:** `date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason`.
+- **Speed rules (user, 2026-10-27):** no polish tasks mid-phase (non-FAIL findings go to BACKLOG.md); per task: implementer → CI build + unit tests (test-runner) with code-reviewer in parallel → commit and push; approval counts only with green CI; no per-task UI runs except tasks that fix or add XCUITests (targeted classes only); don't wait for master CI between tasks; check `./scripts/ci.sh status` at checkpoints. Never run two CI jobs at once (overlapping `ci.sh` runs cancel each other).
+- **Agents:** ui-builder on Sonnet medium (escalation: high, then ask the user); data-layer and review-engine on Haiku (escalation: high, then Sonnet high); pdf-engine and integrations on Sonnet high.
+- **"Needs a Mac":** keep adding Mac-only steps to VISUAL_CHECKS.md with the task ID.
 
-## Next steps
-1. T53 (pdf-engine): PDF reader view, including U7 (in progress; T52a–T52k are done and on `master`).
-2. Then T54–T63 in README order; checkpoint at T63 (full UI suite via ui-tester, cloud mode).
-
-## Session notes (local session: add anything the cloud session needs to know)
-- Unit suite at T52: 355 tests passed, 0 warnings.
-- The user's own edits to `StudyReaderUITests/Support/` (selector helpers) are part of the UI-test setup commit; don't revert them.
-- Secrets/ was removed from git history before the first push (2026-10-26). CI gets the Google config from the GOOGLE_XCCONFIG repo secret; cloud sessions don't need it. Never read or print `Secrets/`.
-- A fresh clone and CI without the GOOGLE_XCCONFIG secret build with Google export not configured; this is expected (`Config/Base.xcconfig` uses `#include?`). `scripts/check-fresh-clone.sh` deliberately doesn't copy `Secrets/`.
-- Cleanup left from the manual T52 run: the document "Checkpoint Drop C" is in the user's real library (not in the in-memory test library).
-- Mac-only checks from the T52 checkpoint are in VISUAL_CHECKS.md under "Needs a Mac" (T52a drop, T52b tab "+" and window size/position/zoom/full screen, T52d swatches in dark mode, T52e cover tint, T52h console warnings), plus tab drag-out (also for O1), Open With, Dock icon count, dark mode. T52i and T52j add their own rows when they land.
+## Session notes
+- The user's edits to `StudyReaderUITests/Support/` (selector helpers) are part of the UI-test setup; don't revert them (T84 only adds a helper).
+- Never read or print `Secrets/`. CI gets the Google config from the GOOGLE_XCCONFIG repo secret; a fresh clone and CI without it build with Google export "not configured" (expected; `Config/Base.xcconfig` uses `#include?`).
+- The real library on the Mac still has the document "Checkpoint Drop C" from the manual T52 run.

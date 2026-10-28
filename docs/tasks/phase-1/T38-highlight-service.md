@@ -83,6 +83,9 @@ actor HighlightService {
 ## Out of scope
 - Anchors and positionKey math (T56, T57), PNG rendering (T61), UI (T59–T63).
 
+## Note (backlog pass 2026-10-28, BACKLOG B19 3)
+Superseded by T63a: the service no longer has `undoLastAutoHighlight()`. It has `undoAutoHighlight(id:)`, which removes the highlight only if it is still the one it remembers; `ReaderModel.undoLastAutoHighlight()` (T51) passes the id of the auto-highlight that tab created. Read the code, not this spec, for the current signature.
+
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
 - 2026-10-24, code-reviewer (sonnet, medium): APPROVED. All spec assertions present; 215 tests pass. Minor: no test for PNG cleanup on insert failure; undoLastAutoHighlight clears the id before delete; snapshotURL errors not mapped to snapshotWriteFailed.

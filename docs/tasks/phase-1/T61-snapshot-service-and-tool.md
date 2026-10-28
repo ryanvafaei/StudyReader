@@ -52,6 +52,9 @@ Tool and creation:
 ## Out of scope
 - Showing image highlights in review (Phase 2), notes/tags UI (T62).
 
+## Note (backlog pass 2026-10-28, BACKLOG B14 3)
+As built, `positionKey` for a snapshot is `PDFAnchorBuilder.positionKey(pageIndex:pageHeight: cropBox.height, topOfFirstRect: clipped.maxY - cropBox.minY)`: the top is measured from the crop box's bottom, the same convention as text highlights. The literal formula above differs only for a crop box with a non-zero origin. T77 adds the code comment.
+
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
 - 2026-10-27, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run, which must include SnapshotServiceTests and ReaderModelTests). Snapshots render from the PDFPage in a detached task with its own PDFDocument (uninverted), rotation maths tested, image highlights drawn as display-only outlines. positionKey uses clipped.maxY - cropBox.minY (same convention as PDFAnchorBuilder; the spec's literal formula differs only for a non-zero crop box origin). BACKLOG B14.

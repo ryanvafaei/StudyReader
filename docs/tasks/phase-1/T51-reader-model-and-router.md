@@ -157,6 +157,9 @@ final class ReaderModel {
 ## Out of scope
 - Any view or AppKit code (T52, T53, T55), engine geometry (T56, T57).
 
+## Note (backlog pass 2026-10-28, BACKLOG B19 3)
+As built since T63a: `ReaderModel.undoLastAutoHighlight()` calls `highlightService.undoAutoHighlight(id:)` with the id of the auto-highlight this model created (its private undo mark), not `undoLastAutoHighlight()` on the service. T81 makes the mark survive a failed delete.
+
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
 - 2026-10-25, Sonnet (code-reviewer, effort medium): APPROVED. 353 tests pass, 0 warnings. No visual check (no views). Minor: a pending router location stays if load() fails; onlyLatestPositionIsSaved checks only the final position.
