@@ -176,6 +176,36 @@ struct ExportRepositoryTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func contentForHighlightIdsReadsOnlyThose() async throws {
+        let db = try await Self.makeDatabase()
+        let hC1 = "20000000-0000-0000-0000-0000000000C1"
+        try await HighlightRepository(database: db).insert(
+            TestData.highlight(documentId: Self.docC, id: hC1, text: "Fifth", positionKey: 1)
+        )
+        let content = try await ExportRepository(database: db)
+            .content(forHighlightIds: [Self.hA1, hC1], scopeName: "x")
+        #expect(content.scopeName == "x")
+        #expect(titles(content) == ["Alpha", "Gamma"])
+        #expect(highlightIds(content) == [[Self.hA1], [hC1]])
+        #expect(content.documents[0].documentNote == "A note")
+        #expect(content.documents[1].documentNote == "C note")
+        try await Self.checkFTS(db)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func fetchThemedReviewsOrdersByName() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let t0 = TestData.referenceDate
+        try await db.writer.write { db in
+            try TestData.themedReview(name: "beta", id: "40000000-0000-0000-0000-0000000000B1", createdAt: t0).insert(db)
+            try TestData.themedReview(name: "Alpha", id: "40000000-0000-0000-0000-0000000000A1", createdAt: t0).insert(db)
+            try TestData.themedReview(name: "gamma", id: "40000000-0000-0000-0000-0000000000C1", createdAt: t0).insert(db)
+        }
+        let reviews = try await ExportRepository(database: db).fetchThemedReviews()
+        #expect(reviews.map(\.name) == ["Alpha", "beta", "gamma"])
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func bodyFollowsEditedTextThenRichTextThenText() async throws {
         let db = try await Self.makeDatabase()
         let highlights = HighlightRepository(database: db)

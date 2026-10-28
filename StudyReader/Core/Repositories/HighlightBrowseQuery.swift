@@ -38,26 +38,8 @@ struct HighlightListItem: Sendable, Equatable, Identifiable {
     var id: String { highlight.id }
 }
 
-extension HighlightRepository {
-    /// One read: the matching highlights, then their tags in one more query over the same conditions (no per-row fetch).
-    func browse(filter: HighlightBrowserFilter, sort: HighlightBrowserSort) async throws -> [HighlightListItem] {
-        try await writer.read { db in
-            try HighlightBrowseSQL.items(db, filter: filter, sort: sort)
-        }
-    }
-
-    /// Live version of `browse(filter:sort:)`. The first element is the current value.
-    func observeBrowse(filter: HighlightBrowserFilter, sort: HighlightBrowserSort) -> AsyncValueObservation<[HighlightListItem]> {
-        ValueObservation
-            .tracking { db in
-                try HighlightBrowseSQL.items(db, filter: filter, sort: sort)
-            }
-            .values(in: writer)
-    }
-}
-
 /// Builds the browse SQL. Only fixed SQL fragments are interpolated; every user value is a bound argument.
-private enum HighlightBrowseSQL {
+enum HighlightBrowseSQL {
     typealias Arguments = [(any DatabaseValueConvertible)?]
 
     /// A tag link of one highlight, read from the tag query.
@@ -66,8 +48,16 @@ private enum HighlightBrowseSQL {
         let name: String
     }
 
-    static func items(_ db: Database, filter: HighlightBrowserFilter, sort: HighlightBrowserSort) throws -> [HighlightListItem] {
-        let conditions = conditions(for: filter)
+    /// `onlyIds` nil: every highlight matching `filter`; non-nil: additionally `h.id IN (onlyIds)` (bound arguments;
+    /// an empty set returns []).
+    static func items(
+        _ db: Database,
+        filter: HighlightBrowserFilter,
+        sort: HighlightBrowserSort,
+        onlyIds: Set<String>? = nil
+    ) throws -> [HighlightListItem] {
+        if let onlyIds, onlyIds.isEmpty { return [] }
+        let conditions = conditions(for: filter, onlyIds: onlyIds)
         let rows = try Row.fetchAll(
             db,
             sql: """
@@ -115,7 +105,10 @@ private enum HighlightBrowseSQL {
     }
 
     /// The WHERE clause (`1 = 1` when nothing is set) and its arguments, for the highlight alias `h` and document alias `d`.
-    static func conditions(for filter: HighlightBrowserFilter) -> (sql: String, arguments: Arguments) {
+    static func conditions(
+        for filter: HighlightBrowserFilter,
+        onlyIds: Set<String>? = nil
+    ) -> (sql: String, arguments: Arguments) {
         var clauses: [String] = []
         var arguments: Arguments = []
 
@@ -166,6 +159,11 @@ private enum HighlightBrowseSQL {
         if let createdBefore = filter.createdBefore {
             clauses.append("h.createdAt < ?")
             arguments.append(createdBefore.databaseUnixSeconds)
+        }
+        if let onlyIds, !onlyIds.isEmpty {
+            let ids = onlyIds.sorted()
+            clauses.append("h.id IN (\(placeholders(ids.count)))")
+            arguments += ids.map { $0 as (any DatabaseValueConvertible)? }
         }
 
         let sql = clauses.isEmpty ? "1 = 1" : clauses.joined(separator: " AND ")

@@ -14,5 +14,7 @@ HighlightRepository lives at `StudyReader/Core/Repositories/HighlightRepository.
 
 - Review round 2: `updates` uses distinct `updatedAt` per call (referenceDate +60/+120/+180) and fetches after each step. The FTS check compares `highlight_fts` MATCH rowids with `SELECT rowid FROM highlight`. Ordering test covers positionKey, createdAt and id tie-breaks.
 
-**Why:** Hit both pitfalls while writing T35 tests.
+- T78 (highlight/tag/export queries): `HighlightBrowseSQL.items(db, filter:, sort:, onlyIds:)` is the shared browse query. Call it inside one `writer.read` (or inside `ValueObservation.tracking`) and do not reintroduce a separate browse read. `HighlightRepository.writer` is private again. Batched tag names come from `TagRepository.tagNamesByHighlight(inDocument:)`, one query, not per-highlight lookups. `ExportRepository` reads each export in a single `writer.read`.
+
+**Why:** Hit both pitfalls while writing T35 tests. T78 consolidated the browse and export reads.
 **How to apply:** Check these before writing tests that call FTSIntegrity or use HighlightColor.

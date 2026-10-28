@@ -179,4 +179,54 @@ struct TagRepositoryTests {
         #expect(secondCounts?[1].2 == 1)
         try await db.writer.write { db in try FTSIntegrity.check(db) }
     }
+
+    @Test(.timeLimit(.minutes(1)))
+    func tagNamesByHighlightInDocument() async throws {
+        let db = try AppDatabase.makeInMemory()
+        try await Self.seed(db)
+        let documentTwo = "10000000-0000-0000-0000-0000000000D2"
+        let highlightThree = "20000000-0000-0000-0000-0000000000A3"
+        try await DocumentRepository(database: db).insert(TestData.document(id: documentTwo, title: "Two"))
+        try await HighlightRepository(database: db).insert(
+            TestData.highlight(documentId: documentTwo, id: highlightThree, positionKey: 1)
+        )
+        let repo = TagRepository(database: db)
+        let t0 = TestData.referenceDate
+        let beta = try await repo.findOrCreate(name: "beta", at: t0)
+        let alpha = try await repo.findOrCreate(name: "Alpha", at: t0)
+        try await repo.setTags([beta.id, alpha.id], forHighlight: Self.highlightOne)
+        try await repo.addTag(beta.id, toHighlights: [highlightThree])
+
+        let names = try await repo.tagNamesByHighlight(inDocument: Self.documentOne)
+        #expect(names == [Self.highlightOne: ["Alpha", "beta"]])
+        #expect(names[Self.highlightTwo] == nil)
+        #expect(names[highlightThree] == nil)
+
+        let other = try await repo.tagNamesByHighlight(inDocument: documentTwo)
+        #expect(other == [highlightThree: ["beta"]])
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func observeTagNamesByHighlightEmitsOnRename() async throws {
+        let db = try AppDatabase.makeInMemory()
+        try await Self.seed(db)
+        let repo = TagRepository(database: db)
+        let beta = try await repo.findOrCreate(name: "beta", at: TestData.referenceDate)
+        try await repo.setTags([beta.id], forHighlight: Self.highlightOne)
+
+        var iterator = repo.observeTagNamesByHighlight(inDocument: Self.documentOne).makeAsyncIterator()
+        let first = try #require(try await iterator.next())
+        #expect(first == [Self.highlightOne: ["beta"]])
+
+        try await repo.rename(id: beta.id, to: "gamma")
+        let renamed = try #require(try await iterator.next())
+        #expect(renamed == [Self.highlightOne: ["gamma"]])
+
+        try await repo.removeTag(beta.id, fromHighlights: [Self.highlightOne])
+        let removed = try #require(try await iterator.next())
+        #expect(removed[Self.highlightOne] == nil)
+        #expect(removed.isEmpty)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
 }

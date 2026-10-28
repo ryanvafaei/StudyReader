@@ -4,10 +4,26 @@ import GRDB
 /// Highlight rows for the readers, popover and panel (ARCHITECTURE §4–§5). Frequent non-text saves
 /// (color, anchor) use column-limited `update(db, columns:)` so `highlight_fts_au` doesn't re-index (ADR-0013).
 struct HighlightRepository: Sendable {
-    let writer: any DatabaseWriter
+    private let writer: any DatabaseWriter
 
     init(database: AppDatabase) {
         self.writer = database.writer
+    }
+
+    /// One read: the matching highlights, then their tags in one more query over the same conditions (no per-row fetch).
+    func browse(filter: HighlightBrowserFilter, sort: HighlightBrowserSort) async throws -> [HighlightListItem] {
+        try await writer.read { db in
+            try HighlightBrowseSQL.items(db, filter: filter, sort: sort)
+        }
+    }
+
+    /// Live version of `browse(filter:sort:)`. The first element is the current value.
+    func observeBrowse(filter: HighlightBrowserFilter, sort: HighlightBrowserSort) -> AsyncValueObservation<[HighlightListItem]> {
+        ValueObservation
+            .tracking { db in
+                try HighlightBrowseSQL.items(db, filter: filter, sort: sort)
+            }
+            .values(in: writer)
     }
 
     /// One transaction: the highlight, then one `HighlightTag` per distinct tag id (duplicates ignored).

@@ -59,3 +59,4 @@ The side panel using the new tag observation (T82), any renderer change (T80), s
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer data-layer Haiku medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40679523642, 645 tests, export goldens unchanged); deviations (existing six-highlight seed, fifth highlight added in contentForHighlightIdsReadsOnlyThose) accepted

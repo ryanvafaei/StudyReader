@@ -160,6 +160,23 @@ struct TagRepository: Sendable {
             .values(in: writer)
     }
 
+    /// Tag names of every highlight of the document that has at least one tag, keyed by highlight id, names sorted
+    /// case-insensitively (same order as HighlightListItem.tagNames). One query.
+    func tagNamesByHighlight(inDocument documentId: String) async throws -> [String: [String]] {
+        try await writer.read { db in
+            try Self.tagNamesByHighlight(inDocument: documentId, db)
+        }
+    }
+
+    /// Live version of `tagNamesByHighlight(inDocument:)`. The first element is the current value.
+    func observeTagNamesByHighlight(inDocument documentId: String) -> AsyncValueObservation<[String: [String]]> {
+        ValueObservation
+            .tracking { db in
+                try Self.tagNamesByHighlight(inDocument: documentId, db)
+            }
+            .values(in: writer)
+    }
+
     /// Replaces the highlight's tag set with exactly `tagIds` (duplicates ignored) in one transaction.
     func setTags(_ tagIds: [String], forHighlight highlightId: String) async throws {
         try await writer.write { db in
@@ -250,6 +267,28 @@ struct TagRepository: Sendable {
                 """,
             arguments: [documentId]
         )
+    }
+
+    private static func tagNamesByHighlight(inDocument documentId: String, _ db: Database) throws -> [String: [String]] {
+        let rows = try Row.fetchAll(
+            db,
+            sql: """
+                SELECT ht.highlightId AS highlightId, t.name AS name
+                FROM highlight h
+                JOIN highlightTag ht ON ht.highlightId = h.id
+                JOIN tag t ON t.id = ht.tagId
+                WHERE h.documentId = ?
+                """,
+            arguments: [documentId]
+        )
+        var names: [String: [String]] = [:]
+        for row in rows {
+            let highlightId: String = row["highlightId"]
+            names[highlightId, default: []].append(row["name"])
+        }
+        return names.mapValues { list in
+            list.sorted { ($0.lowercased(), $0) < ($1.lowercased(), $1) }
+        }
     }
 
     private static func highlightLinkExists(_ highlightId: String, tagId: String, _ db: Database) throws -> Bool {

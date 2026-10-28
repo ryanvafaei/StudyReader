@@ -2,14 +2,13 @@ import Foundation
 import GRDB
 
 /// Export data: loads highlights, notes and metadata for an export scope, and stores export targets (ARCHITECTURE §9,
-/// ADR-0018). No network. Highlight loading reuses `HighlightRepository.browse`, so scopes and the browser agree.
+/// ADR-0018). No network. Highlight loading uses `HighlightBrowseSQL.items`, the same SQL as the browser, so scopes
+/// and the browser agree. Each export reads inside one `writer.read` (one snapshot).
 struct ExportRepository: Sendable {
     private let writer: any DatabaseWriter
-    private let highlights: HighlightRepository
 
     init(database: AppDatabase) {
         self.writer = database.writer
-        self.highlights = HighlightRepository(database: database)
     }
 
     // MARK: Content
@@ -22,36 +21,45 @@ struct ExportRepository: Sendable {
         }
     }
 
+    /// One read: the scope name, the highlights and the documents with their notes, all from one snapshot.
     func content(for scope: ExportScope) async throws -> ExportContent {
-        let (name, filter, alwaysIncludedDocumentId) = try await writer.read { db in
+        try await writer.read { db in
             let name = try Self.scopeName(for: scope, db)
             let filter = try Self.browseFilter(for: scope, db)
-            return (name, filter, scope.kind == .document ? scope.id : nil)
+            let items = try HighlightBrowseSQL.items(db, filter: filter, sort: .documentPosition)
+            let noteOnlyDocuments: NoteOnlyDocuments? = switch scope.kind {
+            case .category: NoteOnlyDocuments(categoryId: scope.id)
+            case .all: NoteOnlyDocuments(categoryId: nil)
+            case .document, .tag, .themedReview: nil
+            }
+            return try Self.assemble(
+                db,
+                scopeName: name,
+                items: items,
+                extraDocumentId: scope.kind == .document ? scope.id : nil,
+                noteOnlyDocuments: noteOnlyDocuments
+            )
         }
-        let items = try await highlights.browse(filter: filter, sort: .documentPosition)
-        let noteOnlyDocuments: NoteOnlyDocuments? = switch scope.kind {
-        case .category: NoteOnlyDocuments(categoryId: scope.id)
-        case .all: NoteOnlyDocuments(categoryId: nil)
-        case .document, .tag, .themedReview: nil
-        }
-        return try await assemble(
-            scopeName: name,
-            items: items,
-            extraDocumentId: alwaysIncludedDocumentId,
-            noteOnlyDocuments: noteOnlyDocuments
-        )
     }
 
     /// Only the given highlights (the one-off "Export selection"); documents that contribute at least one, with their notes.
+    /// One read, filtered in SQL by `onlyIds`.
     func content(forHighlightIds ids: [String], scopeName: String) async throws -> ExportContent {
-        let wanted = Set(ids)
-        let items = try await highlights.browse(filter: HighlightBrowserFilter(), sort: .documentPosition)
-            .filter { wanted.contains($0.id) }
-        return try await assemble(scopeName: scopeName, items: items, extraDocumentId: nil, noteOnlyDocuments: nil)
+        try await writer.read { db in
+            let items = try HighlightBrowseSQL.items(
+                db,
+                filter: HighlightBrowserFilter(),
+                sort: .documentPosition,
+                onlyIds: Set(ids)
+            )
+            return try Self.assemble(db, scopeName: scopeName, items: items, extraDocumentId: nil, noteOnlyDocuments: nil)
+        }
     }
 
     /// Emits when anything an export reads changes: highlight, highlightTag, tag, document, documentTag, documentNote
     /// or category. The value is a digest of the exported columns; the first element is the current value (T74).
+    ///
+    /// The digest uses `Hasher`, which is seeded per process: compare tokens only within one app run.
     func observeChangeToken() -> AsyncValueObservation<Int> {
         ValueObservation
             .tracking { db in
@@ -238,61 +246,83 @@ struct ExportRepository: Sendable {
         var categoryId: String?
     }
 
-    private func assemble(
+    /// Builds the export from rows already read in the caller's transaction. Batched: one query each for the notes,
+    /// the documents and their categories.
+    private static func assemble(
+        _ db: Database,
         scopeName: String,
         items: [HighlightListItem],
         extraDocumentId: String?,
         noteOnlyDocuments: NoteOnlyDocuments?
-    ) async throws -> ExportContent {
-        let contributingIds = Set(items.map { $0.highlight.documentId })
-        return try await writer.read { db in
-            let categoryNames = Dictionary(
-                uniqueKeysWithValues: try DocumentCategory.fetchAll(db).map { ($0.id, $0.name) }
+    ) throws -> ExportContent {
+        var documentIds = Set(items.map { $0.highlight.documentId })
+        if let extraDocumentId { documentIds.insert(extraDocumentId) }
+        var notes = try noteTexts(db, documentIds: documentIds)
+        if let noteOnlyDocuments {
+            let noteOnly = try noteTexts(db, categoryId: noteOnlyDocuments.categoryId)
+            notes.merge(noteOnly) { current, _ in current }
+            documentIds.formUnion(noteOnly.keys)
+        }
+
+        let documents = try LibraryDocument.filter(keys: Array(documentIds)).fetchAll(db)
+        let categoryIds = Array(Set(documents.map(\.categoryId)))
+        let categoryNames = Dictionary(
+            uniqueKeysWithValues: try DocumentCategory.filter(keys: categoryIds).fetchAll(db).map { ($0.id, $0.name) }
+        )
+
+        var byDocument: [String: [ExportHighlight]] = [:]
+        for item in items {
+            byDocument[item.highlight.documentId, default: []].append(Self.exportHighlight(item))
+        }
+
+        var exportDocuments = documents.map { document in
+            let sorted = (byDocument[document.id] ?? []).sorted {
+                ($0.positionKey, $0.id) < ($1.positionKey, $1.id)
+            }
+            return ExportDocument(
+                id: document.id,
+                title: document.title,
+                author: document.author,
+                categoryName: categoryNames[document.categoryId] ?? "",
+                documentNote: notes[document.id],
+                highlights: sorted
             )
-            let notes = try DocumentNote.fetchAll(db).reduce(into: [String: String]()) { result, note in
-                let trimmed = note.body.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty { result[note.documentId] = trimmed }
-            }
+        }
+        exportDocuments.sort { left, right in
+            let order = left.title.localizedStandardCompare(right.title)
+            return order == .orderedSame ? left.id < right.id : order == .orderedAscending
+        }
+        return ExportContent(scopeName: scopeName, documents: exportDocuments)
+    }
 
-            var documentIds = contributingIds
-            if let extraDocumentId { documentIds.insert(extraDocumentId) }
-            if let noteOnlyDocuments {
-                for documentId in notes.keys {
-                    guard let categoryId = noteOnlyDocuments.categoryId else {
-                        documentIds.insert(documentId)
-                        continue
-                    }
-                    if let document = try LibraryDocument.fetchOne(db, key: documentId), document.categoryId == categoryId {
-                        documentIds.insert(documentId)
-                    }
-                }
-            }
+    /// Trimmed, non-empty note bodies keyed by document id, for the given documents.
+    /// Trimming happens in Swift because SQL `TRIM` strips only spaces.
+    private static func noteTexts(_ db: Database, documentIds: Set<String>) throws -> [String: String] {
+        trimmedBodies(try DocumentNote.filter(keys: Array(documentIds)).fetchAll(db))
+    }
 
-            var byDocument: [String: [ExportHighlight]] = [:]
-            for item in items {
-                byDocument[item.highlight.documentId, default: []].append(Self.exportHighlight(item))
-            }
+    /// Trimmed, non-empty note bodies of the documents in `categoryId` (every document when nil).
+    /// The category filter runs in SQL.
+    private static func noteTexts(_ db: Database, categoryId: String?) throws -> [String: String] {
+        guard let categoryId else {
+            return trimmedBodies(try DocumentNote.fetchAll(db))
+        }
+        let notes = try DocumentNote.fetchAll(
+            db,
+            sql: """
+                SELECT documentNote.* FROM documentNote
+                JOIN document ON document.id = documentNote.documentId
+                WHERE document.categoryId = ?
+                """,
+            arguments: [categoryId]
+        )
+        return trimmedBodies(notes)
+    }
 
-            var documents: [ExportDocument] = []
-            for documentId in documentIds {
-                guard let document = try LibraryDocument.fetchOne(db, key: documentId) else { continue }
-                let sorted = (byDocument[documentId] ?? []).sorted {
-                    ($0.positionKey, $0.id) < ($1.positionKey, $1.id)
-                }
-                documents.append(ExportDocument(
-                    id: document.id,
-                    title: document.title,
-                    author: document.author,
-                    categoryName: categoryNames[document.categoryId] ?? "",
-                    documentNote: notes[document.id],
-                    highlights: sorted
-                ))
-            }
-            documents.sort { left, right in
-                let order = left.title.localizedStandardCompare(right.title)
-                return order == .orderedSame ? left.id < right.id : order == .orderedAscending
-            }
-            return ExportContent(scopeName: scopeName, documents: documents)
+    private static func trimmedBodies(_ notes: [DocumentNote]) -> [String: String] {
+        notes.reduce(into: [String: String]()) { result, note in
+            let trimmed = note.body.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { result[note.documentId] = trimmed }
         }
     }
 

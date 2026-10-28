@@ -229,6 +229,69 @@ struct HighlightBrowseQueryTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func onlyIdsLimitsTheItems() async throws {
+        let db = try AppDatabase.makeInMemory()
+        _ = try await Self.seed(db)
+        let items = try await db.writer.read { db in
+            try HighlightBrowseSQL.items(
+                db,
+                filter: HighlightBrowserFilter(),
+                sort: .documentPosition,
+                onlyIds: [Self.h1, Self.h3]
+            )
+        }
+        #expect(Self.ids(items) == [Self.h1, Self.h3])
+        let byId = Dictionary(uniqueKeysWithValues: items.map { ($0.highlight.id, $0) })
+        #expect(byId[Self.h1]?.tagNames == ["apple", "Banana"])
+        #expect(byId[Self.h3]?.tagNames == ["apple"])
+
+        let none = try await db.writer.read { db in
+            try HighlightBrowseSQL.items(db, filter: HighlightBrowserFilter(), sort: .documentPosition, onlyIds: [])
+        }
+        #expect(none.isEmpty)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func observeBrowseFollowsTagAndDocumentChanges() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = try await Self.seed(db)
+        let observation = repo.observeBrowse(filter: HighlightBrowserFilter(), sort: .createdNewest)
+        var iterator = observation.makeAsyncIterator()
+        _ = try #require(try await iterator.next())
+
+        // (a) A tag added to h4 shows up in its row.
+        try await TagRepository(database: db).addTag(Self.tagB, toHighlights: [Self.h4])
+        var afterTag: [HighlightListItem]?
+        for _ in 0..<5 {
+            let next = try #require(try await iterator.next())
+            if next.first(where: { $0.highlight.id == Self.h4 })?.tagNames.contains("apple") == true {
+                afterTag = next
+                break
+            }
+        }
+        let tagged = try #require(afterTag?.first { $0.highlight.id == Self.h4 })
+        #expect(tagged.tagNames == ["apple"])
+        #expect(tagged.tagIds == [Self.tagB])
+
+        // (b) Moving the document of h3 to another category shows the new categoryId.
+        try await DocumentRepository(database: db).updateMetadata(
+            id: Self.docB, title: "Beta paper", author: "", categoryId: BuiltinCategory.lectureSlides.id
+        )
+        var afterMove: [HighlightListItem]?
+        for _ in 0..<5 {
+            let next = try #require(try await iterator.next())
+            if next.first(where: { $0.highlight.id == Self.h3 })?.categoryId == BuiltinCategory.lectureSlides.id {
+                afterMove = next
+                break
+            }
+        }
+        let moved = try #require(afterMove?.first { $0.highlight.id == Self.h3 })
+        #expect(moved.categoryId == BuiltinCategory.lectureSlides.id)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func datesAreBoundAsNumbers() async throws {
         let db = try AppDatabase.makeInMemory()
         let repo = try await Self.seed(db)
