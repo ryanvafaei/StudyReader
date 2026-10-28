@@ -50,3 +50,5 @@ The sign-in restore refresh (B32, Mac first), a draggable list/detail divider (B
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium, reviewer code-reviewer Sonnet medium: CHANGES REQUESTED (1st), CI green (run 40690997136, 681 tests); missing test that a different target is not blocked while one export is in flight (acceptance criterion 2)
+2026-10-28, implementer ui-builder Sonnet high (rework after 1st rejection; reworks: high), reviewer code-reviewer Sonnet high: APPROVED, CI green (run 40692222844, 682 tests); missing different-target test added (exportNowDoesNotBlockADifferentTarget); minor: Settings first-responder fix may need a later pass, check on the Mac (VISUAL_CHECKS T83 row)

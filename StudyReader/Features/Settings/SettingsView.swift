@@ -34,6 +34,11 @@ struct SettingsView: View {
         }
         .frame(width: Self.width)
         .scenePadding()
+        .background(WindowAccessor { window in
+            // No colour label starts as first responder with its text selected. A click still edits it.
+            window.initialFirstResponder = nil
+            Task { @MainActor in window.makeFirstResponder(nil) }
+        })
     }
 }
 

@@ -16,6 +16,8 @@ final class GoogleAccountModel {
     private let signInProvider: (any GoogleAccountSigningIn)?
 
     private(set) var isConfigured = false
+    /// true after the first `refresh()` finished, so the view doesn't flash "not configured" while loading.
+    private(set) var hasLoaded = false
     private(set) var isSigningIn = false
     /// Never logged.
     private(set) var email: String?
@@ -42,6 +44,7 @@ final class GoogleAccountModel {
         if !isSigningIn {
             email = currentEmail
         }
+        hasLoaded = true
     }
 
     func signIn(presenting window: NSWindow) async {
@@ -86,28 +89,12 @@ struct GoogleSettingsView: View {
     var body: some View {
         Form {
             Section("Account") {
-                switch model.state {
-                case .notConfigured:
-                    Text("Google export not configured")
-                    Text("Set GOOGLE_CLIENT_ID as described in DEPENDENCIES.md §4.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                case .signedOut:
-                    signInButton
-                    Text("StudyReader only asks for access to the files it creates in your Google Drive.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                case .signingIn:
-                    HStack {
-                        ProgressView().controlSize(.small)
-                        Text("Signing in…")
-                    }
-                case .signedIn(let email):
-                    LabeledContent("Signed in as") {
-                        Text(email).textSelection(.enabled)
-                    }
-                    Button("Sign Out") { model.signOut() }
-                        .accessibilityLabel("Sign out of Google")
+                if !model.hasLoaded {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Loading Google account")
+                } else {
+                    accountContent
                 }
                 if let message = model.errorMessage {
                     Text(message)
@@ -115,7 +102,7 @@ struct GoogleSettingsView: View {
                         .accessibilityLabel(message)
                 }
             }
-            if model.state != .notConfigured {
+            if model.hasLoaded, model.state != .notConfigured {
                 folderSection
                 targetsSection
             }
@@ -141,6 +128,33 @@ struct GoogleSettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await model.refresh() }
+        }
+    }
+
+    @ViewBuilder
+    private var accountContent: some View {
+        switch model.state {
+        case .notConfigured:
+            Text("Google export not configured")
+            Text("Set GOOGLE_CLIENT_ID as described in DEPENDENCIES.md §4.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        case .signedOut:
+            signInButton
+            Text("StudyReader only asks for access to the files it creates in your Google Drive.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        case .signingIn:
+            HStack {
+                ProgressView().controlSize(.small)
+                Text("Signing in…")
+            }
+        case .signedIn(let email):
+            LabeledContent("Signed in as") {
+                Text(email).textSelection(.enabled)
+            }
+            Button("Sign Out") { model.signOut() }
+                .accessibilityLabel("Sign out of Google")
         }
     }
 
@@ -217,9 +231,12 @@ struct GoogleSettingsView: View {
                         NSWorkspace.shared.open(ExportTargetsModel.docURL(fileId: fileId))
                     }
                 }
+                let inFlight = targets.exportingIds.contains(target.id)
                 Button("Export Now") { Task { await targets.exportNow(target.id) } }
+                    .disabled(inFlight)
                 if target.lastStatus == ExportStatus.docMissing.rawValue {
                     Button("Create New Doc") { Task { await targets.createNewDoc(target.id) } }
+                        .disabled(inFlight)
                 }
                 Divider()
                 Button("Remove…", role: .destructive) { pendingRemove = target }

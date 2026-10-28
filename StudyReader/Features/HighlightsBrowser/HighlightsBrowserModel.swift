@@ -29,6 +29,8 @@ final class HighlightsBrowserModel {
     private(set) var errorMessage: String?
     /// Outcome of "Export Selection…", shown in an alert.
     private(set) var exportMessage: String?
+    /// true while `exportSelection()` runs, so a double click can't start two exports.
+    private(set) var isExporting = false
 
     @ObservationIgnored private let environment: AppEnvironment
     @ObservationIgnored private let calendar: Calendar
@@ -73,6 +75,9 @@ final class HighlightsBrowserModel {
 
     /// One-off export of the selected highlights to a new Google Doc. No export target is created.
     func exportSelection() async {
+        guard !isExporting else { return }
+        isExporting = true
+        defer { isExporting = false }
         let outcome = await environment.googleExportService.exportSelection(
             highlightIds: Array(selection),
             options: ExportOptions()
@@ -155,7 +160,7 @@ final class HighlightsBrowserModel {
         }
         // A cancelled observation (the filter changed meanwhile) must not overwrite what its successor loaded.
         guard !Task.isCancelled else { return }
-        thumbnails.merge(loaded) { _, new in new }
+        thumbnails = loaded
     }
 
     // MARK: - Filters

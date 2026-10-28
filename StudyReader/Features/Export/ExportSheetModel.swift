@@ -82,9 +82,9 @@ final class ExportSheetModel {
     /// Takes the saved options of the target for the current scope, when there is one.
     func prefillOptions() async {
         guard let scope else { return }
-        if let target = try? await environment.exportRepository.target(for: scope), scope == self.scope {
-            options = target.options
-        }
+        let target = try? await environment.exportRepository.target(for: scope)
+        guard scope == self.scope else { return }
+        options = target?.options ?? ExportOptions()
     }
 
     // MARK: - Export

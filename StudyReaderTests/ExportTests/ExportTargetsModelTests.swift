@@ -45,6 +45,86 @@ struct ExportTargetsModelTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func exportNowIgnoresASecondCallForTheSameTarget() async throws {
+        let base = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        let gated = GatedHTTPClient([])
+        let environment = AppEnvironment(
+            fileStore: base.fileStore,
+            database: base.database,
+            now: base.now,
+            settingsStore: TestSettings.make(),
+            httpClient: gated,
+            googleAuth: StubGoogleAuth()
+        )
+        let session = AppSession(environment: environment)
+        defer { ReaderTestSupport.cleanUp(session) }
+        let target = TestData.exportTarget()
+        try await environment.exportRepository.insertTarget(target)
+
+        let model = ExportTargetsModel(session: session)
+        let first = Task { await model.exportNow(target.id) }
+        var polls = 0
+        while await gated.requestCount < 1, polls < 400 {
+            polls += 1
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(model.exportingIds == [target.id])
+
+        // A second call for the same target returns at once and sends nothing.
+        await model.exportNow(target.id)
+        #expect(await gated.requestCount == 1)
+        #expect(model.exportingIds == [target.id])
+
+        await gated.open()
+        await first.value
+        #expect(model.exportingIds.isEmpty)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func exportNowDoesNotBlockADifferentTarget() async throws {
+        let base = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        let gated = GatedHTTPClient([])
+        let environment = AppEnvironment(
+            fileStore: base.fileStore,
+            database: base.database,
+            now: base.now,
+            settingsStore: TestSettings.make(),
+            httpClient: gated,
+            googleAuth: StubGoogleAuth()
+        )
+        let session = AppSession(environment: environment)
+        defer { ReaderTestSupport.cleanUp(session) }
+        let target = TestData.exportTarget()
+        let other = TestData.exportTarget()
+        try await environment.exportRepository.insertTarget(target)
+        try await environment.exportRepository.insertTarget(other)
+
+        let model = ExportTargetsModel(session: session)
+        let first = Task { await model.exportNow(target.id) }
+        var polls = 0
+        while await gated.requestCount < 1, polls < 400 {
+            polls += 1
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(model.exportingIds == [target.id])
+
+        // A different target is not blocked: its request reaches the client while the first is still held.
+        let second = Task { await model.exportNow(other.id) }
+        polls = 0
+        while await gated.requestCount < 2, polls < 400 {
+            polls += 1
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(await gated.requestCount == 2)
+        #expect(model.exportingIds == [target.id, other.id])
+
+        await gated.open()
+        await first.value
+        await second.value
+        #expect(model.exportingIds.isEmpty)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func removeKeepsDoc() async throws {
         let base = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
         let http = StubHTTPClient([])

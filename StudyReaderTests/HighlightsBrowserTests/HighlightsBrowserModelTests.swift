@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import GRDB
 import Testing
@@ -70,6 +71,78 @@ struct HighlightsBrowserModelTests {
             try? await Task.sleep(for: .milliseconds(25))
         }
         return ids(model)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func exportSelectionIgnoresASecondCall() async throws {
+        let base = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        let gated = GatedHTTPClient([
+            .response(status: 200, body: #"{"importFormats":{"text/markdown":["application/vnd.google-apps.document"]}}"#),
+            .response(status: 200, body: #"{"id": "FILE1"}"#)
+        ])
+        let env = AppEnvironment(
+            fileStore: base.fileStore,
+            database: base.database,
+            now: base.now,
+            settingsStore: TestSettings.make(),
+            httpClient: gated,
+            googleAuth: StubGoogleAuth()
+        )
+        try await env.documentRepository.insert(TestData.document(id: Self.docA, title: "alpha"))
+        try await env.highlightRepository.insert(TestData.highlight(documentId: Self.docA, id: Self.h1))
+        let model = HighlightsBrowserModel(environment: env)
+        model.selection = [Self.h1]
+
+        let first = Task { await model.exportSelection() }
+        var polls = 0
+        while await gated.requestCount < 1, polls < 400 {
+            polls += 1
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(model.isExporting)
+
+        await model.exportSelection()
+        #expect(await gated.requestCount == 1)
+        #expect(model.isExporting)
+
+        await gated.open()
+        await first.value
+        #expect(model.isExporting == false)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func thumbnailsArePrunedWithTheList() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        try await env.documentRepository.insert(TestData.document(id: Self.docA, title: "alpha"))
+        let url = try env.fileStore.snapshotURL(documentId: Self.docA, highlightId: Self.h1)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let image = NSImage(size: NSSize(width: 4, height: 4), flipped: false) { rect in
+            NSColor.red.setFill()
+            rect.fill()
+            return true
+        }
+        let tiff = try #require(image.tiffRepresentation)
+        let png = try #require(NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]))
+        try png.write(to: url)
+
+        let path = "\(Self.docA)/snapshots/\(Self.h1).png"
+        var highlight = TestData.highlight(documentId: Self.docA, id: Self.h1)
+        highlight.imagePath = path
+        try await env.highlightRepository.insert(highlight)
+
+        let model = HighlightsBrowserModel(environment: env)
+        let task = Task { await model.observe() }
+        defer { task.cancel() }
+        for _ in 0..<200 where model.thumbnails[path] == nil {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(model.thumbnails[path] != nil)
+
+        _ = try await env.highlightRepository.delete(id: Self.h1, fileStore: env.fileStore)
+        for _ in 0..<200 where model.thumbnails[path] != nil {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(model.thumbnails[path] == nil)
     }
 
     @Test(.timeLimit(.minutes(1)))

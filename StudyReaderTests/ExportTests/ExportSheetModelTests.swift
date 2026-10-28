@@ -44,7 +44,6 @@ struct ExportSheetModelTests {
         defer { h.cleanUp() }
         let model = ExportSheetModel(session: h.session, initialScope: nil)
         #expect(model.scope == .all)
-        #expect(model.canExport == false || model.scope != nil)
 
         model.scopeKind = .document
         #expect(model.scope == nil)
@@ -58,6 +57,29 @@ struct ExportSheetModelTests {
         model.scopeKind = .tag
         #expect(model.selectedId == nil)
         #expect(model.scope == nil)
+        model.selectedId = "tag-1"
+        #expect(model.scope == .tag("tag-1"))
+
+        model.scopeKind = .category
+        #expect(model.selectedId == nil)
+        #expect(model.scope == nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func scopeWithoutTargetResetsOptions() async throws {
+        let h = try await Harness(replies: [])
+        defer { h.cleanUp() }
+        var target = TestData.exportTarget(scope: .document(Self.docId))
+        target.options = ExportOptions(includeNotes: false, includeDocumentNotes: false, includeImages: false, groupBy: .tag)
+        try await h.session.environment.exportRepository.insertTarget(target)
+
+        let model = ExportSheetModel(session: h.session, initialScope: .document(Self.docId))
+        await model.load()
+        #expect(model.options == target.options)
+
+        model.scopeKind = .all
+        await model.prefillOptions()
+        #expect(model.options == ExportOptions())
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -87,7 +109,7 @@ struct ExportSheetModelTests {
         #expect(model.outcome == .exported(fileId: "FILE1"))
         #expect(model.exportedFileId == "FILE1")
         #expect(model.isExporting == false)
-        #expect(model.outcomeMessage == ExportSheetModel.message(for: .exported(fileId: "FILE1")))
+        #expect(model.outcomeMessage == "Exported. The Google Doc is up to date.")
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -100,6 +122,7 @@ struct ExportSheetModelTests {
         #expect(model.canExport == false)
         await model.export()
         #expect(model.outcome == .notConfigured)
-        #expect(await h.http.requests.isEmpty)
+        #expect(model.outcomeMessage == "Google export not configured.")
+        #expect(await h.http.requests.count == 0)
     }
 }

@@ -81,6 +81,15 @@ struct GoogleSignInAuthTests {
     }
 
     @Test
+    func accountModelHasLoadedAfterRefresh() async {
+        let model = GoogleAccountModel(auth: StubGoogleAuth(email: nil), signIn: nil)
+        #expect(model.hasLoaded == false)
+        await model.refresh()
+        #expect(model.hasLoaded)
+        #expect(model.state == .signedOut)
+    }
+
+    @Test
     func accountModelSignedOut() async {
         let model = GoogleAccountModel(auth: StubGoogleAuth(email: nil), signIn: StubSigner(result: .success("a@example.com")))
         await model.refresh()

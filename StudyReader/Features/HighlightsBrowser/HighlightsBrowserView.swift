@@ -167,16 +167,15 @@ struct HighlightsBrowserView: View {
                 .fixedSize()
                 .accessibilityLabel("Filter by note")
 
+                let dateFilterOn = model.filter.createdFrom != nil || model.filter.createdBefore != nil
                 Button {
                     isShowingDates.toggle()
                 } label: {
-                    Label(
-                        model.filter.createdFrom != nil || model.filter.createdBefore != nil
-                            ? String(localized: "Date range (on)") : String(localized: "Date range"),
-                        systemImage: "calendar"
-                    )
+                    Label("Date range", systemImage: dateFilterOn ? "calendar.badge.checkmark" : "calendar")
                 }
+                .fixedSize()
                 .accessibilityLabel("Filter by date")
+                .accessibilityValue(dateFilterOn ? String(localized: "On") : String(localized: "Off"))
                 .popover(isPresented: $isShowingDates) { datePopover }
 
                 Picker("Sort", selection: $model.sort) {
@@ -188,6 +187,7 @@ struct HighlightsBrowserView: View {
                 .accessibilityLabel("Sort highlights")
 
                 Button("Clear") { model.clearFilters() }
+                    .fixedSize()
                     .disabled(!model.isFiltered)
                     .accessibilityLabel("Clear filters")
 
@@ -349,6 +349,7 @@ struct HighlightsBrowserView: View {
             .accessibilityLabel("Change color of selection")
 
             Button("Export Selection…") { Task { await model.exportSelection() } }
+                .disabled(model.isExporting)
                 .accessibilityLabel("Export selection")
 
             Spacer()

@@ -8,6 +8,8 @@ final class ExportTargetsModel {
     private(set) var targets: [ExportTarget] = []
     var folderLink: String
     private(set) var folderError: String?
+    /// Targets with an Export Now / Create New Doc in flight.
+    private(set) var exportingIds: Set<String> = []
 
     @ObservationIgnored private let session: AppSession
     @ObservationIgnored private var environment: AppEnvironment { session.environment }
@@ -47,6 +49,17 @@ final class ExportTargetsModel {
     }
 
     func exportNow(_ id: String) async {
+        guard !exportingIds.contains(id) else { return }
+        exportingIds.insert(id)
+        defer { exportingIds.remove(id) }
+        _ = await environment.googleExportService.export(targetId: id)
+    }
+
+    private func clearAndExport(_ id: String) async {
+        guard !exportingIds.contains(id) else { return }
+        exportingIds.insert(id)
+        defer { exportingIds.remove(id) }
+        try? await environment.exportRepository.clearFileId(id: id)
         _ = await environment.googleExportService.export(targetId: id)
     }
 
@@ -61,8 +74,7 @@ final class ExportTargetsModel {
 
     /// For a missing Doc: forgets the file ID and exports again, which creates a new Doc.
     func createNewDoc(_ id: String) async {
-        try? await environment.exportRepository.clearFileId(id: id)
-        await exportNow(id)
+        await clearAndExport(id)
     }
 
     nonisolated static func docURL(fileId: String) -> URL {
