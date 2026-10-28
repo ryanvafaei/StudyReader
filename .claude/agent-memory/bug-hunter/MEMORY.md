@@ -1,2 +1,2 @@
-- [Bug patterns](bug-patterns.md) — phase 0 hazards (Date query args as TEXT, frozen v1/v2, FTS triggers, test-host guard timing, unknown migrations)
-- [Verification techniques](verification-techniques.md) — reproduce without editing code: GRDB sources, sqlite3/python/fts5vocab, read-only real library + golden diff
+- [Bug patterns](bug-patterns.md) — phase 0 hazards (Date args, frozen migrations, FTS, upsert) + phase 1 patterns (service side doors, 403 mapping, unowned queued states, JSON scope refs, no quit flush, unfiltered link renderers, RMW tag writes, SQLite TRIM/NOCASE)
+- [Verification techniques](verification-techniques.md) — reproduce without editing code: GRDB sources, sqlite3/python/fts5vocab, read-only real library + golden diff; cloud sessions have no GRDB checkout and no Xcode

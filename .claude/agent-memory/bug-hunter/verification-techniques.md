@@ -15,3 +15,5 @@ Verify findings outside the repo. Don't write test files; only the report may be
 
 **Why:** the bug-hunter role forbids changing code, but the report requires concrete reproductions.
 **How to apply:** for every finding, either reproduce it this way or mark clearly what was derived from code rather than executed.
+
+Cloud sessions (Linux, 2026-10-28): no Xcode, no `build/DerivedData`, so no GRDB checkout and no real library. Use python3 -I sqlite3 (3.45) in the scratchpad for SQL semantics, read `build/ci/<run>/summary.md` for the latest CI baseline, and mark anything that depends on GRDB internals, SwiftUI click behaviour or Google's API as PLAUSIBLE with a Mac step.
