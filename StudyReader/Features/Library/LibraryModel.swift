@@ -51,6 +51,11 @@ final class LibraryModel {
     /// User-facing message from the last failed observation, delete or retry. Nil after a successful delete.
     private(set) var errorMessage: String?
 
+    /// Latest run number of each observation loop; a run whose number is no longer current must not assign.
+    @ObservationIgnored private var documentsGeneration = 0
+    @ObservationIgnored private var categoriesGeneration = 0
+    @ObservationIgnored private var tagsGeneration = 0
+
     @ObservationIgnored private let documents: DocumentRepository
     @ObservationIgnored private let categoryRepository: CategoryRepository
     @ObservationIgnored private let tagRepository: TagRepository
@@ -70,39 +75,52 @@ final class LibraryModel {
     }
 
     /// Runs the live list until the calling task is cancelled (`.task {}` in the view).
+    ///
+    /// SwiftUI can restart the view's `.task`. A cancelled run may still deliver one buffered emission after the
+    /// new run delivered a newer one, so each run takes a generation token and assigns only while it is the latest
+    /// and not cancelled.
     func observe() async {
+        documentsGeneration += 1
+        let generation = documentsGeneration
         do {
             for try await observed in documents.observeItems() {
+                guard generation == documentsGeneration, !Task.isCancelled else { break }
                 // CoverService replaces the file before it updates the row, so this emission sees the new date.
                 coverVersions = Self.coverVersions(for: observed, fileStore: fileStore)
                 items = observed
             }
         } catch {
-            guard !Task.isCancelled else { return }
+            guard generation == documentsGeneration, !Task.isCancelled else { return }
             errorMessage = Self.message(for: error)
         }
     }
 
-    /// Runs the category list for the filter menu until cancelled.
+    /// Runs the category list for the filter menu until cancelled. Stale runs never assign (see `observe()`).
     func observeCategories() async {
+        categoriesGeneration += 1
+        let generation = categoriesGeneration
         do {
             for try await observed in categoryRepository.observeAll() {
+                guard generation == categoriesGeneration, !Task.isCancelled else { break }
                 categories = observed
             }
         } catch {
-            guard !Task.isCancelled else { return }
+            guard generation == categoriesGeneration, !Task.isCancelled else { return }
             errorMessage = Self.message(for: error)
         }
     }
 
-    /// Runs the tag list for the filter menu until cancelled.
+    /// Runs the tag list for the filter menu until cancelled. Stale runs never assign (see `observe()`).
     func observeTags() async {
+        tagsGeneration += 1
+        let generation = tagsGeneration
         do {
             for try await observed in tagRepository.observeAll() {
+                guard generation == tagsGeneration, !Task.isCancelled else { break }
                 tags = observed
             }
         } catch {
-            guard !Task.isCancelled else { return }
+            guard generation == tagsGeneration, !Task.isCancelled else { return }
             errorMessage = Self.message(for: error)
         }
     }

@@ -64,3 +64,4 @@ If run 2 has not confirmed a cause, **stop and report BLOCKED** with the probe v
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium (no reworks; 3 targeted UI runs used: 40732189336 and 40734033032 diagnostic, 40736977188 after the fix), reviewer code-reviewer Sonnet medium: APPROVED, CI green (unit run 40738460679, 697 tests; UI run 40736977188: ExternalOpenTests 4/4 and LibraryOpenTests 11/11); the cause is UNCONFIRMED (user-decided hypothesis: a cancelled observe() run overwrites the newer list), the generation guard in LibraryModel is a defensive fix; unit test restartedObservationKeepsTheNewestList is a smoke test only (no seam), so AC4 is only partly met; AC7 stays a Mac check (VISUAL_CHECKS T90); follow-ups in BACKLOG (HighlightsBrowserModel has the same unguarded pattern)

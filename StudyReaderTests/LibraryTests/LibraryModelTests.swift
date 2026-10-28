@@ -195,6 +195,39 @@ struct LibraryModelTests {
         #expect(listed.document.lastOpenedAt == TestData.referenceDate)
     }
 
+    @Test("a restarted observation is not overwritten by the cancelled run before it", .timeLimit(.minutes(1)))
+    func restartedObservationKeepsTheNewestList() async throws {
+        let fileStore = TestFileStore.make()
+        let settings = TestSettings.make()
+        defer {
+            TestFileStore.remove(fileStore)
+            TestSettings.remove(settings)
+        }
+        let environment = try AppEnvironment.make(fileStore: fileStore, settingsStore: settings)
+        try await environment.documentRepository.insert(
+            TestData.document(id: "10000000-0000-0000-0000-0000000000C1", title: "First")
+        )
+        let model = LibraryModel(environment: environment)
+
+        // The view's .task restarts: run A is superseded by run B and cancelled before either has delivered.
+        let runA = Task { await model.observe() }
+        let runB = Task { await model.observe() }
+        runA.cancel()
+        try await waitUntil { model.items.count == 1 }
+
+        try await environment.documentRepository.insert(
+            TestData.document(id: "10000000-0000-0000-0000-0000000000C2", title: "Second")
+        )
+        try await waitUntil { model.items.count == 2 }
+        await runA.value
+        // Give the cancelled run every chance to deliver late: it has finished, so nothing may change the list.
+        #expect(model.items.count == 2)
+
+        runB.cancel()
+        await runB.value
+        #expect(model.items.count == 2)
+    }
+
     @Test func sortAndLayoutPersist() throws {
         let settings = TestSettings.make()
         defer { TestSettings.remove(settings) }

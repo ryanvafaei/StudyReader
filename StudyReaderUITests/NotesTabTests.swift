@@ -18,6 +18,7 @@ final class NotesTabTests: XCTestCase {
         ui.settle(0.5)
     }
 
+    @MainActor
     private func value(of editor: XCUIElement) -> String {
         editor.value as? String ?? ""
     }
