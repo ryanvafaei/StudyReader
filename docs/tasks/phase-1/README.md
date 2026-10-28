@@ -79,6 +79,7 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 44 | [T72 Google sign-in and session restore](T72-google-sign-in-and-session-restore.md) | integrations | T45, T71 | yes |
 | 45 | [T73 Export UI](T73-export-ui.md) | ui-builder | T69, T72 | yes |
 | 46 | [T74 ExportSyncScheduler](T74-export-sync-scheduler.md) | integrations | T73 | no |
+| 46a | [T74a Open With / Finder file opening regression from T72](T74a-open-with-regression.md) (spec FAIL from the T74 checkpoint) | ui-builder | T72 | yes (Mac) |
 
 Task numbers continue after Phase 0's last commit (T28). Rows 24a–24k (T52a–T52k) are fixes from the T52 checkpoint (`docs/checkpoints/T52-manual-2026-10-25.md`, `docs/checkpoints/T52-cloud-2026-10-27.md`); they run after T52 and before T53. T52a–T52h ran in letter order (T52h after T52b). T52i–T52k come from the user's triage on 2026-10-27 and run in row order: T52k, then T52i, then T52j (T52j adds to `MetadataSheetTests.swift` after T52i). U7 from the triage is part of T53; O1 (Library tab order after Move Tab to New Window + Merge All Windows) stays open until the user's real tab-drag check on a Mac (docs/HANDOFF.md). Tasks with "none" or early dependencies (T42, T57, T64) may run earlier if a chain is blocked, but keep one implementer at a time.
 
