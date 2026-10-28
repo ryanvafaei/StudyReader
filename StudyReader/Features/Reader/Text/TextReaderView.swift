@@ -14,8 +14,6 @@ final class TextReaderView: NSTextView {
     /// Key handling hook for 1-5 / H (T60); return true if handled.
     var onKeyDown: (@MainActor (NSEvent) -> Bool)?
 
-    /// Link schemes that open outside the app; every other link is ignored.
-    static let openableLinkSchemes: Set<String> = ["http", "https", "mailto"]
     private static let clickTolerance: CGFloat = 3
     /// Set by `clicked(onLink:at:)` while `super.mouseDown` tracks the click, so a link click isn't also a highlight click.
     private var didClickLink = false
@@ -181,7 +179,7 @@ final class TextReaderView: NSTextView {
     /// Opens `http`, `https` and `mailto` links in the default app; ignores every other scheme.
     override func clicked(onLink link: Any, at charIndex: Int) {
         didClickLink = true
-        guard let url = Self.url(forLink: link), Self.isOpenable(url) else { return }
+        guard let url = Self.url(forLink: link), LinkPolicy.isOpenable(url) else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -189,10 +187,5 @@ final class TextReaderView: NSTextView {
         if let url = link as? URL { return url }
         if let string = link as? String { return URL(string: string) }
         return nil
-    }
-
-    static func isOpenable(_ url: URL) -> Bool {
-        guard let scheme = url.scheme?.lowercased() else { return false }
-        return openableLinkSchemes.contains(scheme)
     }
 }

@@ -9,13 +9,16 @@ struct RichTextView: View {
     }
 
     var body: some View {
-        if let attributed = try? AttributedString(
-            markdown: markdown,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        ) {
-            Text(attributed)
-        } else {
-            Text(verbatim: markdown)
+        Group {
+            if let attributed = try? AttributedString(
+                markdown: markdown,
+                options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+            ) {
+                Text(attributed)
+            } else {
+                Text(verbatim: markdown)
+            }
         }
+        .studyReaderLinkPolicy()
     }
 }

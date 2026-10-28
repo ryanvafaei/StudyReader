@@ -55,3 +55,4 @@ extension View {
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40757997896, 742 tests); no spec deviations; the SwiftUI-level application of the filter is not unit-testable (covered by the Mac row T95 in VISUAL_CHECKS); PDF link annotations inside a user PDF are opened by PDFKit and are out of scope

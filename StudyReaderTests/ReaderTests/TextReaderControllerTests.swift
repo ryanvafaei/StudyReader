@@ -255,10 +255,10 @@ struct TextReaderControllerTests {
     @Test
     func onlyWebAndMailLinksOpen() throws {
         for allowed in ["https://www.apple.com", "http://example.com/a", "mailto:a@example.com", "HTTPS://example.com"] {
-            #expect(TextReaderView.isOpenable(try #require(URL(string: allowed))), "\(allowed)")
+            #expect(LinkPolicy.isOpenable(try #require(URL(string: allowed))), "\(allowed)")
         }
         for blocked in ["file:///etc/passwd", "javascript:alert(1)", "ftp://example.com", "x-apple.systempreferences:", "images/a.png"] {
-            #expect(!TextReaderView.isOpenable(try #require(URL(string: blocked))), "\(blocked)")
+            #expect(!LinkPolicy.isOpenable(try #require(URL(string: blocked))), "\(blocked)")
         }
         #expect(TextReaderView.url(forLink: "https://www.apple.com") == URL(string: "https://www.apple.com"))
         #expect(TextReaderView.url(forLink: 42) == nil)

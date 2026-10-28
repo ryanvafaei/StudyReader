@@ -171,6 +171,7 @@ struct NoteMarkdownView: View {
                 }
             }
         }
+        .studyReaderLinkPolicy()
     }
 
     @ViewBuilder
