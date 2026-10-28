@@ -56,7 +56,8 @@ final class ExportTargetsModel {
             exportingIds.remove(id)
             refreshAppFolder(account: appFolderAccount)
         }
-        _ = await environment.googleExportService.export(targetId: id)
+        let outcome = await environment.googleExportService.export(targetId: id)
+        await environment.exportSyncScheduler.manualExportEnded(targetId: id, outcome: outcome)
     }
 
     private func clearAndExport(_ id: String) async {
@@ -67,7 +68,8 @@ final class ExportTargetsModel {
             refreshAppFolder(account: appFolderAccount)
         }
         try? await environment.exportRepository.clearFileId(id: id)
-        _ = await environment.googleExportService.export(targetId: id)
+        let outcome = await environment.googleExportService.export(targetId: id)
+        await environment.exportSyncScheduler.manualExportEnded(targetId: id, outcome: outcome)
     }
 
     func setKeepInSync(_ id: String, _ on: Bool) async {

@@ -103,3 +103,4 @@ In `GoogleExportService`, replace `Reply.denied` with `case notFound` (404) and 
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer integrations Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40756173747, 740 tests); no spec deviations except fixed log names (noAccess covers two reasons); existing test errorsForbiddenUpdate deliberately changed from .docMissing to .failed (a 403 on update no longer means Doc missing); the 403 and 404 mapping, trashed-file detection, manualExportEnded retry (capped by maxFailureRetries) all reviewed; minor follow-ups in BACKLOG

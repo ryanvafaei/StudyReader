@@ -64,7 +64,7 @@ struct DriveUploadRequestTests {
         #expect(request.httpMethod == "PATCH")
         #expect(
             request.url?.absoluteString
-                == "https://www.googleapis.com/upload/drive/v3/files/FILE1?uploadType=multipart&fields=id,modifiedTime"
+                == "https://www.googleapis.com/upload/drive/v3/files/FILE1?uploadType=multipart&fields=id,modifiedTime,trashed"
         )
         let expected = [
             "--studyreader-boundary",
@@ -103,7 +103,7 @@ struct DriveUploadRequestTests {
     @Test func fileIdIsPercentEncodedInPath() throws {
         let request = try make(fileId: "a/b?c")
         #expect(request.url?.path(percentEncoded: true) == "/upload/drive/v3/files/a%2Fb%3Fc")
-        #expect(request.url?.query() == "uploadType=multipart&fields=id,modifiedTime")
+        #expect(request.url?.query() == "uploadType=multipart&fields=id,modifiedTime,trashed")
     }
 
     @Test func randomBoundaryDiffersAndMatchesHeader() throws {

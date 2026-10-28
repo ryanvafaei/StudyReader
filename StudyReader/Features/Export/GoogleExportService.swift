@@ -4,10 +4,10 @@ import Markdown
 /// Result of one export attempt. `failed` carries a short user-facing text, never a response body.
 enum ExportOutcome: Equatable, Sendable {
     case exported(fileId: String)
-    /// Offline; T74 retries.
+    /// Offline. Saved targets are retried by `ExportSyncScheduler`; Export Selection saves no target and never returns it.
     case queued
     case signInRequired
-    /// 403/404 on update.
+    /// A 404 on update, or a 200 that says the Doc is in the trash. Never a 403: Drive's 403 reasons map to `failed`.
     case docMissing
     case notConfigured
     /// The request or a backoff wait was cancelled. Nothing is written to the target.
@@ -28,6 +28,13 @@ actor GoogleExportService {
     private static let busyText = "Google Drive is busy. Try again later."
     private static let folderRefusedText = "Couldn't use the StudyReader folder in Google Drive."
     private static let unexpectedResponseText = "Google Drive returned an unexpected response."
+    private static let dailyLimitText = "Google Drive's daily limit for StudyReader is used up. Try again tomorrow."
+    private static let storageFullText = "Your Google Drive storage is full. Free up space, then export again."
+    private static let noAccessText = "StudyReader can no longer write to this Google Doc. "
+        + "Remove the export target and export again to make a new Doc."
+    private static let updateRefusedText = "Google Drive refused the update. Try again later."
+    private static let uploadRefusedText = "Google Drive refused the upload."
+    private static let selectionOfflineText = "Couldn't reach Google Drive. Check your connection and try again."
 
     /// Gate key of the app-folder resolution. Not a UUID, so it can't collide with a target id.
     private static let folderGateKey = "#app-folder"
@@ -181,6 +188,7 @@ actor GoogleExportService {
     }
 
     /// One-off Doc from a selection, created in the app folder; always creates a new Doc and saves no target (ADR-0018).
+    /// Nothing would retry it, so an offline result is `.failed` ("try again"), never `.queued`.
     func exportSelection(highlightIds: [String], options: ExportOptions) async -> ExportOutcome {
         guard await auth.isConfigured else { return .notConfigured }
         guard !highlightIds.isEmpty else { return .failed("No highlights selected.") }
@@ -202,6 +210,8 @@ actor GoogleExportService {
         case .success(let success):
             Self.log.info("Selection export finished")
             return .exported(fileId: success.fileId)
+        case .failure(.queued):
+            return .failed(Self.selectionOfflineText)
         case .failure(let outcome):
             return outcome
         }
@@ -223,8 +233,10 @@ actor GoogleExportService {
 
     private enum Reply {
         case success(Data)
-        /// 403 or 404.
-        case denied
+        /// 404.
+        case notFound
+        /// 403 that isn't a rate limit (a rate limit is retried inside `send`). The callers map it by reason.
+        case forbidden(DriveErrorReason)
         case failure(ExportOutcome)
     }
 
@@ -235,6 +247,7 @@ actor GoogleExportService {
 
     private struct FileResponse: Decodable {
         var id: String?
+        var trashed: Bool?
     }
 
     private struct AboutResponse: Decodable {
@@ -303,13 +316,18 @@ actor GoogleExportService {
         }
         switch reply {
         case .success(let data):
-            let returnedId = (try? JSONDecoder().decode(FileResponse.self, from: data))?.id
-            guard let resolved = returnedId ?? fileId else {
+            let response = try? JSONDecoder().decode(FileResponse.self, from: data)
+            if fileId != nil, response?.trashed == true {
+                return .failure(.docMissing)
+            }
+            guard let resolved = response?.id ?? fileId else {
                 return .failure(.failed(Self.unexpectedResponseText))
             }
             return .success(UploadSuccess(fileId: resolved, format: format, folderId: folderId))
-        case .denied:
-            return .failure(fileId == nil ? .failed("Google Drive refused the upload.") : .docMissing)
+        case .notFound:
+            return .failure(fileId == nil ? .failed(Self.uploadRefusedText) : .docMissing)
+        case .forbidden(let reason):
+            return .failure(Self.outcome(forForbidden: reason, isUpdate: fileId != nil))
         case .failure(let outcome):
             return .failure(outcome)
         }
@@ -332,7 +350,7 @@ actor GoogleExportService {
             let supported = formats["text/markdown"]?.contains(DriveUploadRequest.documentMimeType) ?? false
             markdownImport[account] = supported
             return .supported(supported)
-        case .denied:
+        case .notFound, .forbidden:
             return .supported(true)
         case .failure(let outcome):
             return .failure(outcome)
@@ -365,8 +383,10 @@ actor GoogleExportService {
                     Self.log.info("App folder reused for \(logId, privacy: .public)")
                     return .folder(stored)
                 }
-            case .denied:
+            case .notFound:
                 break
+            case .forbidden(let reason):
+                if let outcome = Self.limitOutcome(for: reason) { return .failure(outcome) }
             case .failure(let outcome):
                 return .failure(outcome)
             }
@@ -385,8 +405,10 @@ actor GoogleExportService {
                 Self.log.info("App folder reused for \(logId, privacy: .public)")
                 return .folder(found)
             }
-        case .denied:
+        case .notFound:
             return .failure(.failed(Self.folderRefusedText))
+        case .forbidden(let reason):
+            return .failure(Self.limitOutcome(for: reason) ?? .failed(Self.folderRefusedText))
         case .failure(let outcome):
             return .failure(outcome)
         }
@@ -403,15 +425,19 @@ actor GoogleExportService {
             let what = recreated ? "recreated" : "created"
             Self.log.info("App folder \(what, privacy: .public) for \(logId, privacy: .public)")
             return .folder(created)
-        case .denied:
+        case .notFound:
             return .failure(.failed(Self.folderRefusedText))
+        case .forbidden(let reason):
+            return .failure(Self.limitOutcome(for: reason) ?? .failed(Self.folderRefusedText))
         case .failure(let outcome):
             return .failure(outcome)
         }
     }
 
     /// Sends the request built by `build`. 401: refresh the token once and retry, then `.signInRequired`.
-    /// 429 and 5xx: wait `backoff[i]` through the sleeper and retry, at most `backoff.count` times.
+    /// 429, 5xx and a 403 whose reason is a rate limit: wait `backoff[i]` through the sleeper and retry, at most
+    /// `backoff.count` times, then `.failed(busy)`. 404 → `.notFound`; any other 403 → `.forbidden(reason)`.
+    /// The error body is decoded for its reason only; the reason name is logged when known, never the body.
     private func send(
         token: inout String,
         logId: String,
@@ -450,20 +476,33 @@ actor GoogleExportService {
                 } catch {
                     return .failure(Self.outcome(forAuthError: error))
                 }
-            case 403, 404:
-                return .denied
+            case 404:
+                return .notFound
+            case 403:
+                let reason = DriveErrorReason.parse(data)
+                Self.log.info("Drive refused with \(reason.logName, privacy: .public) for \(logId, privacy: .public)")
+                guard reason == .rateLimited else { return .forbidden(reason) }
+                if let stop = await backOff(retry: retries) { return .failure(stop) }
+                retries += 1
             case 429, 500..<600:
-                guard retries < Self.backoff.count else { return .failure(.failed(Self.busyText)) }
-                do {
-                    try await sleeper.sleep(for: Self.backoff[retries])
-                } catch {
-                    return .failure(.cancelled)
-                }
+                if let stop = await backOff(retry: retries) { return .failure(stop) }
                 retries += 1
             default:
                 return .failure(.failed("Google Drive returned an error (\(status))."))
             }
         }
+    }
+
+    /// Waits `backoff[retry]` through the sleeper. nil: waited, retry the request. Else the outcome to stop with:
+    /// busy after the last retry, or cancelled.
+    private func backOff(retry: Int) async -> ExportOutcome? {
+        guard retry < Self.backoff.count else { return .failed(Self.busyText) }
+        do {
+            try await sleeper.sleep(for: Self.backoff[retry])
+        } catch {
+            return .cancelled
+        }
+        return nil
     }
 
     // MARK: Recording
@@ -593,6 +632,23 @@ actor GoogleExportService {
     private static func outcome(forTransportError error: any Error) -> ExportOutcome {
         if isCancellation(error) { return .cancelled }
         return isOffline(error) ? .queued : .failed("Couldn't reach Google Drive.")
+    }
+
+    /// A 403 (not a rate limit) on a Doc request. Storage and daily limit hold for create and update; the Doc link is
+    /// kept either way (only a 404 or a trashed Doc is `docMissing`).
+    private static func outcome(forForbidden reason: DriveErrorReason, isUpdate: Bool) -> ExportOutcome {
+        if let limit = limitOutcome(for: reason) { return limit }
+        guard isUpdate else { return .failed(uploadRefusedText) }
+        return .failed(reason == .noAccess ? noAccessText : updateRefusedText)
+    }
+
+    /// The outcome of a full Drive or a used-up daily limit; nil for any other reason.
+    private static func limitOutcome(for reason: DriveErrorReason) -> ExportOutcome? {
+        switch reason {
+        case .storageFull: .failed(storageFullText)
+        case .dailyLimit: .failed(dailyLimitText)
+        case .rateLimited, .noAccess, .other: nil
+        }
     }
 
     private static func outcome(forAuthError error: any Error) -> ExportOutcome {

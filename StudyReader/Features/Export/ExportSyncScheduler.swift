@@ -143,6 +143,17 @@ actor ExportSyncScheduler {
         await schedule(targetId: targetId)
     }
 
+    /// A manual export of a saved target finished (Settings Export Now / Create New Doc, the Export sheet).
+    /// Only `.queued` does something: the target's retry count starts over, and if the network path is satisfied a
+    /// retry is scheduled `syncDelay` later (counts toward `maxFailureRetries`, like the scheduler's own queued
+    /// results). If the path is unsatisfied, the reconnect retry (`retryQueued`) covers it. Does nothing while the
+    /// scheduler isn't running (tests, previews, the in-memory library).
+    func manualExportEnded(targetId: String, outcome: ExportOutcome) async {
+        guard outcome == .queued, isRunning else { return }
+        failureRetries[targetId] = nil
+        await scheduleRetryIfFailed(.queued, targetId: targetId)
+    }
+
     private func schedule(targetId: String) async {
         let debouncer: Debouncer
         if let existing = debouncers[targetId] {

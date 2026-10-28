@@ -286,7 +286,10 @@ struct GoogleExportServiceTests {
         defer { TestSettings.remove(h.settings) }
         let created = await h.service.exportScope(.all, options: ExportOptions())
         let id = try #require(created.targetId)
-        #expect(await h.service.export(targetId: id) == .docMissing)
+        #expect(await h.service.export(targetId: id) == .failed(Self.updateRefusedText))
+        let target = try await h.target(id)
+        #expect(target.lastStatus == "failed")
+        #expect(target.googleFileId == "FILE1")
     }
 
     @Test func errorsCreateRefusedIsFailure() async throws {
@@ -328,6 +331,210 @@ struct GoogleExportServiceTests {
         let target = try await busy.target(failed.targetId)
         #expect(target.lastStatus == "failed")
         #expect(target.lastError == "Google Drive is busy. Try again later.")
+    }
+
+    // MARK: Drive 403 reasons (T94, M1)
+
+    private static let storageFullText = "Your Google Drive storage is full. Free up space, then export again."
+    private static let dailyLimitText = "Google Drive's daily limit for StudyReader is used up. Try again tomorrow."
+    private static let noAccessText = "StudyReader can no longer write to this Google Doc. "
+        + "Remove the export target and export again to make a new Doc."
+    private static let updateRefusedText = "Google Drive refused the update. Try again later."
+    private static let busyText = "Google Drive is busy. Try again later."
+
+    private static func forbidden(_ reason: String) -> StubHTTPClient.Reply {
+        .response(
+            status: 403,
+            body: #"{"error":{"errors":[{"domain":"usageLimits","reason":"\#(reason)"}],"code":403}}"#
+        )
+    }
+
+    /// A saved target that already has a Doc, so the export is an update: requests are about, then PATCH.
+    private static func updateHarness(_ patches: [StubHTTPClient.Reply]) async throws -> (Harness, String) {
+        let h = try await Harness(replies: [about] + patches)
+        var target = TestData.exportTarget()
+        target.googleFileId = "FILE1"
+        try await h.repository.insertTarget(target)
+        return (h, target.id)
+    }
+
+    @Test func errors403StorageQuotaKeepsTheDocLink() async throws {
+        let (h, id) = try await Self.updateHarness([Self.forbidden("storageQuotaExceeded")])
+        defer { TestSettings.remove(h.settings) }
+        #expect(await h.service.export(targetId: id) == .failed(Self.storageFullText))
+        let target = try await h.target(id)
+        #expect(target.lastStatus == "failed")
+        #expect(target.lastError == Self.storageFullText)
+        #expect(target.googleFileId == "FILE1")
+        #expect(await h.sleeper.durations.isEmpty)
+    }
+
+    @Test func errors403UserRateLimitBacksOff() async throws {
+        let (h, id) = try await Self.updateHarness([Self.forbidden("userRateLimitExceeded"), Self.ok("FILE1")])
+        defer { TestSettings.remove(h.settings) }
+        #expect(await h.service.export(targetId: id) == .exported(fileId: "FILE1"))
+        #expect(await h.sleeper.durations == [.seconds(1)])
+        #expect(await h.http.requests.map(\.httpMethod) == ["GET", "PATCH", "PATCH"])
+    }
+
+    @Test func errors403RateLimitBacksOffThenFails() async throws {
+        let rate = Self.forbidden("rateLimitExceeded")
+        let (h, id) = try await Self.updateHarness([rate, rate, rate, rate])
+        defer { TestSettings.remove(h.settings) }
+        #expect(await h.service.export(targetId: id) == .failed(Self.busyText))
+        #expect(await h.sleeper.durations == [.seconds(1), .seconds(4), .seconds(16)])
+        let target = try await h.target(id)
+        #expect(target.googleFileId == "FILE1")
+        #expect(target.lastStatus == "failed")
+    }
+
+    @Test func errors403DailyLimitFailsWithoutBackoff() async throws {
+        let (h, id) = try await Self.updateHarness([Self.forbidden("dailyLimitExceeded")])
+        defer { TestSettings.remove(h.settings) }
+        #expect(await h.service.export(targetId: id) == .failed(Self.dailyLimitText))
+        #expect(await h.sleeper.durations.isEmpty)
+        let target = try await h.target(id)
+        #expect(target.lastStatus == "failed")
+        #expect(target.googleFileId == "FILE1")
+    }
+
+    @Test func errors403NoAccessKeepsTheDocLink() async throws {
+        for reason in ["appNotAuthorizedToFile", "insufficientFilePermissions"] {
+            let (h, id) = try await Self.updateHarness([Self.forbidden(reason)])
+            defer { TestSettings.remove(h.settings) }
+            #expect(await h.service.export(targetId: id) == .failed(Self.noAccessText))
+            let target = try await h.target(id)
+            #expect(target.lastStatus == "failed")
+            #expect(target.lastError == Self.noAccessText)
+            #expect(target.googleFileId == "FILE1")
+        }
+    }
+
+    @Test func errors403UnknownReasonFails() async throws {
+        for reply in [StubHTTPClient.Reply.response(status: 403, body: ""), Self.forbidden("somethingNew")] {
+            let (h, id) = try await Self.updateHarness([reply])
+            defer { TestSettings.remove(h.settings) }
+            #expect(await h.service.export(targetId: id) == .failed(Self.updateRefusedText))
+            let target = try await h.target(id)
+            #expect(target.lastStatus == "failed")
+            #expect(target.googleFileId == "FILE1")
+            #expect(await h.sleeper.durations.isEmpty)
+        }
+    }
+
+    @Test func errorsTrashedDocIsDocMissing() async throws {
+        let (h, id) = try await Self.updateHarness([.response(status: 200, body: #"{"id":"FILE1","trashed":true}"#)])
+        defer { TestSettings.remove(h.settings) }
+        #expect(await h.service.export(targetId: id) == .docMissing)
+        let target = try await h.target(id)
+        #expect(target.lastStatus == "docMissing")
+        #expect(target.googleFileId == "FILE1")
+
+        let (kept, keptId) = try await Self.updateHarness([
+            .response(status: 200, body: #"{"id":"FILE1","trashed":false}"#),
+        ])
+        defer { TestSettings.remove(kept.settings) }
+        #expect(await kept.service.export(targetId: keptId) == .exported(fileId: "FILE1"))
+        #expect(try await kept.target(keptId).lastStatus == "ok")
+    }
+
+    @Test func updateRequestAsksForTheTrashedFlag() async throws {
+        let (h, id) = try await Self.updateHarness([Self.ok("FILE1")])
+        defer { TestSettings.remove(h.settings) }
+        _ = await h.service.export(targetId: id)
+        let requests = await h.http.requests
+        #expect(requests.last?.url?.query()?.contains("fields=id,modifiedTime,trashed") == true)
+    }
+
+    @Test func errors403OnCreateIsRefusedUpload() async throws {
+        let refused = "Google Drive refused the upload."
+        let h = try await Harness(replies: [Self.about, Self.folderOK, Self.forbidden("appNotAuthorizedToFile")])
+        defer { TestSettings.remove(h.settings) }
+        let result = await h.service.exportScope(.all, options: ExportOptions())
+        #expect(result.outcome == .failed(refused))
+        let target = try await h.target(result.targetId)
+        #expect(target.lastStatus == "failed")
+        #expect(target.googleFileId == nil)
+
+        let storage = try await Harness(replies: [Self.about, Self.folderOK, Self.forbidden("storageQuotaExceeded")])
+        defer { TestSettings.remove(storage.settings) }
+        let full = await storage.service.exportScope(.all, options: ExportOptions())
+        #expect(full.outcome == .failed(Self.storageFullText))
+    }
+
+    @Test func appFolderRateLimitBacksOff() async throws {
+        let h = try await Harness(replies: [
+            Self.about, Self.forbidden("userRateLimitExceeded"), Self.folderOK, Self.ok("FILE1"),
+        ])
+        defer { TestSettings.remove(h.settings) }
+        let result = await h.service.exportScope(.all, options: ExportOptions())
+        #expect(result.outcome == .exported(fileId: "FILE1"))
+        #expect(await h.sleeper.durations == [.seconds(1)])
+        let paths = await h.http.requests.map { $0.url?.path() }
+        #expect(paths == [
+            "/drive/v3/about", "/drive/v3/files/APPFOLDER", "/drive/v3/files/APPFOLDER", "/upload/drive/v3/files",
+        ])
+
+        let full = try await Harness(replies: [Self.about, Self.forbidden("storageQuotaExceeded")])
+        defer { TestSettings.remove(full.settings) }
+        let failed = await full.service.exportScope(.all, options: ExportOptions())
+        #expect(failed.outcome == .failed(Self.storageFullText))
+        #expect(await full.http.requests.count == 2)
+    }
+
+    @Test func appFolderForbiddenWithoutLimitIsLookedUpAgain() async throws {
+        let h = try await Harness(replies: [
+            Self.about,
+            Self.forbidden("insufficientFilePermissions"),
+            .response(status: 200, body: #"{"files":[]}"#),
+            Self.ok("NEWFOLDER"),
+            Self.ok("FILE1"),
+        ])
+        defer { TestSettings.remove(h.settings) }
+        let result = await h.service.exportScope(.all, options: ExportOptions())
+        #expect(result.outcome == .exported(fileId: "FILE1"))
+        #expect(h.settings.googleAppFolderId(forAccount: "student@example.com") == "NEWFOLDER")
+    }
+
+    @Test func appFolderCreateForbiddenFails() async throws {
+        let h = try await Harness(
+            replies: [
+                Self.about,
+                .response(status: 200, body: #"{"files":[]}"#),
+                Self.forbidden("somethingNew"),
+            ],
+            seedFolder: false
+        )
+        defer { TestSettings.remove(h.settings) }
+        let result = await h.service.exportScope(.all, options: ExportOptions())
+        #expect(result.outcome == .failed("Couldn't use the StudyReader folder in Google Drive."))
+
+        let daily = try await Harness(
+            replies: [Self.about, .response(status: 200, body: #"{"files":[]}"#), Self.forbidden("dailyLimitExceeded")],
+            seedFolder: false
+        )
+        defer { TestSettings.remove(daily.settings) }
+        let limited = await daily.service.exportScope(.all, options: ExportOptions())
+        #expect(limited.outcome == .failed(Self.dailyLimitText))
+    }
+
+    @Test func aboutForbiddenAssumesMarkdown() async throws {
+        let h = try await Harness(replies: [Self.forbidden("somethingNew"), Self.folderOK, Self.ok("FILE1")])
+        defer { TestSettings.remove(h.settings) }
+        let result = await h.service.exportScope(.all, options: ExportOptions())
+        #expect(result.outcome == .exported(fileId: "FILE1"))
+        #expect(try await h.body(2).contains("text/markdown"))
+    }
+
+    // MARK: Offline
+
+    @Test func selectionOfflineDoesNotPromiseALaterRun() async throws {
+        let h = try await Harness(replies: [.failure(URLError(.notConnectedToInternet))])
+        defer { TestSettings.remove(h.settings) }
+        let outcome = await h.service.exportSelection(highlightIds: [Self.highlightId], options: ExportOptions())
+        #expect(outcome == .failed("Couldn't reach Google Drive. Check your connection and try again."))
+        #expect(!ExportSheetModel.message(for: outcome).contains("when you're back online"))
+        #expect(try await h.repository.fetchTargets().isEmpty)
     }
 
     @Test func errorsOffline() async throws {

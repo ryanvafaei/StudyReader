@@ -446,4 +446,85 @@ struct ExportSyncSchedulerTests {
         #expect(await h.exporter.exported == ["T1"])
         #expect(await h.sleeper.pendingCount == 0)
     }
+
+    // MARK: Manual exports (T94, M2 b)
+
+    @Test(.timeLimit(.minutes(1)))
+    func manualQueuedExportRetriesWhileOnline() async throws {
+        let h = try await Harness(targets: [Self.target(id: "T1", keepInSync: false, status: .queued)])
+        await h.start()
+
+        h.network.emit(true)
+        await h.exporter.waitForExports(1)
+        for _ in 0..<100 {
+            await Task.yield()
+        }
+        #expect(await h.sleeper.pendingCount == 0)
+
+        await h.scheduler.manualExportEnded(targetId: "T1", outcome: .queued)
+        await h.sleeper.waitForSleepers(1)
+        #expect(await h.sleeper.requested == [ExportSyncScheduler.syncDelay])
+        #expect(await h.exporter.exported == ["T1"])
+
+        await h.sleeper.resumeAll()
+        await h.exporter.waitForExports(2)
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        #expect(await h.exporter.exported == ["T1", "T1"])
+        await h.scheduler.stop()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func manualQueuedExportWaitsForTheNetworkWhenOffline() async throws {
+        let h = try await Harness(targets: [Self.target(id: "T1", keepInSync: false, status: .queued)])
+        await h.start()
+
+        await h.scheduler.manualExportEnded(targetId: "T1", outcome: .queued)
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        #expect(await h.sleeper.pendingCount == 0)
+        #expect(await h.sleeper.requested.isEmpty)
+        #expect(await h.exporter.exported.isEmpty)
+
+        h.network.emit(true)
+        await h.exporter.waitForExports(1)
+        for _ in 0..<100 {
+            await Task.yield()
+        }
+        #expect(await h.exporter.exported == ["T1"])
+        await h.scheduler.stop()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func manualExportEndedIgnoresOtherOutcomes() async throws {
+        let h = try await Harness(targets: [Self.target(id: "T1", keepInSync: false, status: .ok)])
+        let outcomes: [ExportOutcome] = [
+            .exported(fileId: "FILE1"), .failed("Couldn't reach Google Drive."), .docMissing,
+            .signInRequired, .cancelled, .notConfigured,
+        ]
+
+        await h.scheduler.manualExportEnded(targetId: "T1", outcome: .queued)
+        #expect(await h.sleeper.requested.isEmpty)
+
+        await h.start()
+        h.network.emit(true)
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        for outcome in outcomes {
+            await h.scheduler.manualExportEnded(targetId: "T1", outcome: outcome)
+        }
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        #expect(await h.sleeper.requested.isEmpty)
+        #expect(await h.exporter.exported.isEmpty)
+
+        await h.scheduler.manualExportEnded(targetId: "T1", outcome: .queued)
+        await h.sleeper.waitForSleepers(1)
+        #expect(await h.sleeper.requested == [ExportSyncScheduler.syncDelay])
+        await h.scheduler.stop()
+    }
 }

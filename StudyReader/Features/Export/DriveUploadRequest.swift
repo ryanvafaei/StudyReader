@@ -27,7 +27,7 @@ enum DriveUploadRequest {
         components.host = "www.googleapis.com"
         if let fileId {
             components.percentEncodedPath = "/upload/drive/v3/files/" + encodePathSegment(fileId)
-            components.percentEncodedQuery = "uploadType=multipart&fields=id,modifiedTime"
+            components.percentEncodedQuery = "uploadType=multipart&fields=id,modifiedTime,trashed"
         } else {
             components.percentEncodedPath = "/upload/drive/v3/files"
             components.percentEncodedQuery = "uploadType=multipart&fields=id,webViewLink"

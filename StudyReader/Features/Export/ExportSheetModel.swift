@@ -96,6 +96,9 @@ final class ExportSheetModel {
         let result = await environment.googleExportService.exportScope(scope, options: options)
         outcome = result.outcome
         isExporting = false
+        if let targetId = result.targetId {
+            await environment.exportSyncScheduler.manualExportEnded(targetId: targetId, outcome: result.outcome)
+        }
     }
 
     /// "Create New Doc" after a missing Doc: forgets the file ID of the scope's target, then exports again.
