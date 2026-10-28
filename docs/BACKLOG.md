@@ -6,6 +6,8 @@ The end-of-phase pass was planned on 2026-10-28: see "Disposition" at the end of
 
 The closing UI run (`docs/checkpoints/closing-cloud-2026-10-28.md`) added B36, B38 and B39; its proposed B37 went straight into T90 (row 61), the fix task for that run's spec FAIL.
 
+The Phase 1 bug hunt (`docs/bugs/phase-1.md`, 2026-10-28) added B40–B51: M3, the lows L1–L10 and the Google Picker idea. By the user's decision of 2026-10-28 they are backlog only; H1, H2, M1, M2, M4 and M5 are fix tasks T91–T95 (rows 62–67).
+
 | ID | Source | Item | Notes |
 |---|---|---|---|
 | O1 | T52 cloud checkpoint | After Move Tab to New Window and Merge All Windows the reader tab comes first and the Library tab second. | Open until the user checks the real tab drag on a Mac. |
@@ -52,6 +54,18 @@ The closing UI run (`docs/checkpoints/closing-cloud-2026-10-28.md`) added B36, B
 | B36 | Closing UI run 2026-10-28 | (UX) Highlights browser bulk bar and count text wrap and truncate at 1024 pt ("2 select-ed", "Ad...", "Exp...", "De...", "10 high-lights"); closing run 2026-10-28, screenshots FD7E5357, 58502634. | Mac check first. |
 | B38 | Closing UI run 2026-10-28 | (test) H9 testOpenInDocument... failed once with page "2" (flake on re-run); add a failure attachment and watch for a position-restore versus highlight-reveal race in a freshly opened reader. | Flake, not a fix task. |
 | B39 | Closing UI run 2026-10-28 | (test) ExternalOpenTests.testDuplicateOpenWithStillShowsTheSummaryAlert: attach the hierarchy when the first import card is missing (as the While Running test does). | With T90. |
+| B40 | Phase 1 bug hunt M3 | Export targets whose document, tag or category was deleted, or whose tag was merged into another, fail forever with "Couldn't prepare the export." (`ExportRepository.scopeName` throws `notFound`; merge and deletes leave the JSON-scoped targets alone; keep-in-sync retries the failing export on every change). | Fix direction in the report: merge moves tag-scoped targets to the surviving tag; deleting a scope removes its targets or marks them with a clear status and turns Keep in sync off; never delete the Doc. |
+| B41 | Phase 1 bug hunt L1 | Every note save re-adds all `#tags` in the note, which undoes tag deletes, merges and tag-field removals. | Fix: add only `hashTags(new) − hashTags(savedText)`, case-insensitive. |
+| B42 | Phase 1 bug hunt L2 | Tag field and note editors read, then write in separate transactions (lost updates: a note autosave's `#tag` dropped by `setTags`; the same note open in two windows, last save wins). | Use `addTag`/`removeTag` instead of `setTags`; optionally compare `updatedAt` before a note save. |
+| B43 | Phase 1 bug hunt L3 | Deleting a document leaves its open reader tab working on a deleted row (failed highlight saves, Notes errors, an orphan snapshot folder until the next launch). | Close the tab on delete, or show "This document is no longer in the library." |
+| B44 | Phase 1 bug hunt L4 | A password or large-file prompt for a Dock or Open With import while the library window is closed blocks every later import until the library window is reopened. | Bring the library window forward when a prompt is requested, or show prompts window-independently. |
+| B45 | Phase 1 bug hunt L5 | The "With note" filter counts newline-only notes because SQL `TRIM` strips spaces only. | `TRIM(h.note, ' ' \|\| char(9) \|\| char(10) \|\| char(13))`, or trim on save. |
+| B46 | Phase 1 bug hunt L6 | Tag names are unique only for ASCII case (`Über`/`über`), and the export merges such tags into one section. | Compare Swift-folded names before insert and rename. |
+| B47 | Phase 1 bug hunt L7 | The fourth T87 spec hole: a note heading inside a list item or quote (`- # of samples`, `> # Quote`, a continuation line `    - # x`) still becomes an H1 in the exported Doc. | Needs the same spec amendment the T87 holes (1)–(3) wait for (Follow-ups, T87). |
+| B48 | Phase 1 bug hunt L8 | Extends B29: tag names (raw in the export), and PDF-metadata titles or authors with line breaks, break the export structure; in HTML-fallback mode an HTML title or tag goes into the Doc as markup. | Folds into the open B29 decision (escaping titles, authors and tag names); at least replace line breaks with spaces. |
+| B49 | Phase 1 bug hunt L9 | Changing a colour label never triggers Keep in sync (labels live in UserDefaults, the change token reads only DB tables). | Let `AppSettings.setLabel` nudge the scheduler, or put the labels into the token. |
+| B50 | Phase 1 bug hunt L10 | Each reader tab watches its metadata through the whole-library `observeItems()` query, re-run on every highlight or tag write. | Add `observeItem(id:)`; matters at the SPEC §4 library size. |
+| B51 | Phase 1 bug hunt H2 (user decision 2026-10-28) | Google Picker for desktop apps: let the user pick any Drive folder for exports (browser flow with the Picker API and `trigger_onepick`), so `drive.file` gets access to it. | Possible later work, not built. T92a/T92b use the app's own "StudyReader" folder (ADR-0018 amendment). |
 
 ## Disposition (end-of-phase pass, planned 2026-10-28)
 
@@ -104,6 +118,18 @@ Verified against the code on `master` after T74a. Keys: **T7x/T8x** = fixed by t
 | B37 | Not a backlog line: the closing run's proposed B37 (`NotesTabTests.swift:22` `value(of:)` needs `@MainActor`) is folded into T90. |
 | B38 | Mac (VISUAL_CHECKS T89 H9 row); undecided whether a test or product change follows. Not part of T90. |
 | B39 | T90 (keeps the hierarchy attachment from its diagnosis). |
+| B40 | Backlog only (user decision 2026-10-28, bug hunt M3); no task in Phase 1. |
+| B41 | Backlog only (user decision 2026-10-28, bug hunt L1). |
+| B42 | Backlog only (user decision 2026-10-28, bug hunt L2). |
+| B43 | Backlog only (user decision 2026-10-28, bug hunt L3). |
+| B44 | Backlog only (user decision 2026-10-28, bug hunt L4). |
+| B45 | Backlog only (user decision 2026-10-28, bug hunt L5). T91 trims in Swift for its own check and doesn't change the filter. |
+| B46 | Backlog only (user decision 2026-10-28, bug hunt L6). |
+| B47 | Backlog only (user decision 2026-10-28, bug hunt L7); waits for the same user spec amendment as the T87 holes. |
+| B48 | Backlog only (user decision 2026-10-28, bug hunt L8); part of the open B29 decision. |
+| B49 | Backlog only (user decision 2026-10-28, bug hunt L9). |
+| B50 | Backlog only (user decision 2026-10-28, bug hunt L10). |
+| B51 | Backlog only (user decision 2026-10-28): possible later work, not built. |
 
 ## Follow-ups from the backlog pass
 - T76 (reviewer, minor): add a phrase case such as `"a\u{301}"` to `SearchQueryParserTests` to make phrase-plus-combining-mark safety explicit.
@@ -120,3 +146,4 @@ Verified against the code on `master` after T74a. Keys: **T7x/T8x** = fixed by t
 - T90 (reviewer): the generation guard in `LibraryModel` is a defensive fix; the cause of the Open With miss is the most likely one but UNCONFIRMED (no failing-then-passing pair; the UI test also passed in diagnostic run 2 and at T74a), and the new unit test is a smoke test only (no seam to hold back a stale emission, spec AC4 partly met). The Mac check in VISUAL_CHECKS row T90 is the real confirmation; the 'no card' hierarchy attachment in ExternalOpenTests will diagnose a recurrence.
 - T90 (reviewer, next-most-likely stale state): `HighlightsBrowserModel.observe()` is restarted by `.task(id: model.query)` on every query change and builds its observation from the current filter/sort, so a cancelled run could write an older filter's rows after the new run's (same shape as the T90 symptom); apply the same generation guard. Check whether `TagFieldModel`'s target can change on a live model (late emission from the old target could overwrite `tags`). Lower risk (single, non-restarting observers): SearchModel tags/categories, TagManagerModel, CategoryManagerModel, ExportTargetsModel, HighlightsPanelModel, HighlightPopoverModel, ReaderModel.
 - T90 (reviewer, optional): in each `observe…()` return early when the task is already cancelled before incrementing the generation, so a run cancelled before it starts cannot supersede a live one.
+- Phase 1 bug hunt (2026-10-28), on the T90 follow-up above: the stale-run path in `HighlightsBrowserModel.observe()` is real but narrow (the old run must be suspended in `loadThumbnails` reading an uncached snapshot while a write emits and the filter changes; the old filter's rows then show until the next change). Low; no task. `TagFieldModel`'s target is a `let`, so it can't cross targets.

@@ -481,12 +481,23 @@ _{Author} · {Category}_
 ### 9.2 Upload (`GoogleExportService`, actor)
 
 - Auth: GoogleSignIn (`GIDSignIn.sharedInstance`), scope `drive.file`. Get a fresh access token before each request (`currentUser.refreshTokensIfNeeded`).
+- App folder (ADR-0018 amendment, T92a): every create goes into the app's own `StudyReader` folder, because `drive.file` can't use folders the app didn't create. Before each create, behind one actor-wide folder gate:
+  1. Stored ID for the signed-in account (`SettingsStore.googleAppFolderId(forAccount:)`) → `GET https://www.googleapis.com/drive/v3/files/{folderId}?fields=id,mimeType,trashed`. Not trashed and a folder → use it.
+  2. Otherwise (no ID, 404, trashed, not a folder) → `GET https://www.googleapis.com/drive/v3/files?q=…&spaces=drive&orderBy=createdTime&pageSize=1&fields=files(id)` with `q = name = 'StudyReader' and mimeType = 'application/vnd.google-apps.folder' and trashed = false` (only app-visible files are listed). First hit → use it.
+  3. None → `POST https://www.googleapis.com/drive/v3/files?fields=id` with JSON `{"mimeType":"application/vnd.google-apps.folder","name":"StudyReader"}` (My Drive root).
+  The resolved ID is stored for the account (key = SHA-256 of the lowercased email; nothing is stored when the email is unknown) and written to the target's `googleFolderId` on success. A pasted folder ID from older builds (`settings.googleExportFolderId`) and an older target's `googleFolderId` are never used as a parent.
 - Create: `POST https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink`
-  - metadata `{"name": title, "mimeType": "application/vnd.google-apps.document", "parents": [folderId]?}`
+  - metadata `{"name": title, "mimeType": "application/vnd.google-apps.document", "parents": [appFolderId]}`
   - media part `Content-Type: text/markdown; charset=UTF-8`
-- Update: `PATCH https://www.googleapis.com/upload/drive/v3/files/{fileId}?uploadType=multipart&fields=id,modifiedTime` with metadata `{"name": title}` and the new media. Drive replaces the whole Doc content on a converting update.
+- Update: `PATCH https://www.googleapis.com/upload/drive/v3/files/{fileId}?uploadType=multipart&fields=id,modifiedTime,trashed` with metadata `{"name": title}` and the new media. Drive replaces the whole Doc content on a converting update. A response with `"trashed": true` means the Doc is in the trash → `docMissing` (T94).
 - Format check: on first export per account, `GET https://www.googleapis.com/drive/v3/about?fields=importFormats` and confirm `text/markdown` lists `application/vnd.google-apps.document`. If not, set the target's `format = 'html'` and upload HTML (swift-markdown `HTMLFormatter`) with `Content-Type: text/html`.
-- Errors: 401 → refresh once then ask to sign in; 403/404 on update → mark "Doc missing or no access", offer "Create new Doc"; 429/5xx → exponential backoff 1s/4s/16s; offline (`URLError.notConnectedToInternet`) → status `queued`, retry on network path change (`NWPathMonitor`).
+- Errors (amended 2026-10-28, bug hunt M1/M2, T94):
+  - 401 → refresh once, then ask to sign in.
+  - 429, 5xx, and 403 with reason `rateLimitExceeded` or `userRateLimitExceeded` → exponential backoff 1s/4s/16s, then `failed` "Google Drive is busy. Try again later.".
+  - 404 on update, or an update response with `"trashed": true` → `docMissing`, offer "Create New Doc". Nothing else is `docMissing`.
+  - Other 403s, by `error.errors[].reason` (`DriveErrorReason`): `storageQuotaExceeded` → `failed` "Your Google Drive storage is full…"; `dailyLimitExceeded` → `failed` (no backoff); `appNotAuthorizedToFile`, `insufficientFilePermissions` → `failed` "StudyReader can no longer write to this Google Doc…"; missing or unknown reason → `failed` "Google Drive refused the update." (create: "Google Drive refused the upload."). Every `failed` keeps `googleFileId`; the scheduler retries failures as before.
+  - Offline (`notConnectedToInternet`, `networkConnectionLost`, `dataNotAllowed`, `cannotFindHost`) → status `queued`; `ExportSyncScheduler` exports queued targets when the path becomes satisfied (including the first update at launch), and a manual export that ends `queued` while the path is satisfied reports it with `manualExportEnded(targetId:outcome:)`, which retries after 60 s, at most 3 times. Export Selection maps offline to `failed` "Couldn't reach Google Drive. Check your connection and try again." (no target, nothing to retry).
+  - The response body is parsed only for the reason; it is never logged or shown.
 - Keep-in-sync: `ExportSyncScheduler` observes DB changes affecting a target's scope (GRDB `DatabaseRegionObservation`) and debounces 60 s per target.
 - Never log tokens, auth codes, or document contents. Log status codes and target IDs only.
 

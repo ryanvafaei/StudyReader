@@ -6,7 +6,7 @@ Epics (SPEC §6): E1.1 Import + library (F-01, F-02, F-11), E1.2 PDF reader (F-0
 
 Done when (SPEC §6): import a lecture PDF, highlight it, add notes/tags, search it, export highlights to a Google Doc, and add that Doc to Gemini Notebook.
 
-New ADRs: [0015 settings and injected sleep](../../decisions/0015-settings-and-injected-sleep.md), [0016 import pipeline and stored files](../../decisions/0016-import-pipeline-and-stored-files.md), [0017 reader windows and commands](../../decisions/0017-reader-windows-and-commands.md), [0018 Google export seams, statuses and signing](../../decisions/0018-google-export-seams-and-status.md). Amended: ADR-0011 (fourth test-host signal for Xcode Previews, T31; signing already set up by the user), ARCHITECTURE §6 rule 5 (soft hyphen at line end, backlog L3) and §9.1 (image placeholder text follows SPEC F-21).
+New ADRs: [0015 settings and injected sleep](../../decisions/0015-settings-and-injected-sleep.md), [0016 import pipeline and stored files](../../decisions/0016-import-pipeline-and-stored-files.md), [0017 reader windows and commands](../../decisions/0017-reader-windows-and-commands.md), [0018 Google export seams, statuses and signing](../../decisions/0018-google-export-seams-and-status.md). Amended: ADR-0011 (fourth test-host signal for Xcode Previews, T31; signing already set up by the user), ARCHITECTURE §6 rule 5 (soft hyphen at line end, backlog L3) and §9.1 (image placeholder text follows SPEC F-21). After the bug hunt (2026-10-28): ADR-0018 (app "StudyReader" folder; Drive 403 mapping), SPEC F-03 (link schemes), F-06 (undo), F-09 AC1 (quit), F-21 (folder, errors, AC3/AC5), F-22 (Google tab), ARCHITECTURE §9.2.
 
 ## No schema change in Phase 1 (no `v3`)
 The registered migrations are `v1` and `v2` (`AppDatabase.migrator`, `SchemaSnapshotTests/registeredMigrationsInOrder`), so the next one would be `v3`. Every Phase 1 feature fits the v2 schema: settings live in `UserDefaults` (ADR-0015), Markdown image names are derived (ADR-0016), export statuses are free-text values (ADR-0018), counts and tags are queried. So no task adds `v3`. If an implementer finds a real need for a schema change, they report BLOCKED; the architect then plans one dedicated `v3` task (golden `Fixtures/schema/v3.sql`, upgrade test from `V1FixtureDatabase`, `registeredMigrationsInOrder` extended).
@@ -95,6 +95,12 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 59 | [T88 UI tests, part 1: global search, PDF find bar, reader panel, Notes tab](T88-ui-tests-search-find-panel-notes.md) (backlog B17 reliable subset: S1, S3, S4, F1–F3, C3, C6, C17, C18) | ui-builder | T84, T85, T86 | no (runs its own targeted UI tests) |
 | 60 | [T89 UI tests, part 2: Highlights browser and the unconfigured Google export](T89-ui-tests-browser-and-unconfigured-google.md) (backlog B17 reliable subset: H1, H2, H4–H6, H9, Export Selection alert, Settings > Google) | ui-builder | T88 (order only), T83, T84 | no (runs its own targeted UI tests) |
 | 61 | [T90 Open With right after launch imports the file (diagnose first, then fix the root cause)](T90-open-with-right-after-launch.md) (spec FAIL from the closing UI run, `docs/checkpoints/closing-cloud-2026-10-28.md`; + NotesTabTests `@MainActor` warning, BACKLOG B37, B39) | ui-builder | T89 | yes (Mac row; runs at most 3 targeted UI runs) |
+| 62 | [T91 ⌘Z never deletes an auto-highlight that has a note, tags or edited text](T91-undo-never-deletes-an-annotated-highlight.md) (bug hunt H1) | pdf-engine | T90 (order only) | yes (Mac row T91 from the report) |
+| 63 | [T92a Exports go into the app's own "StudyReader" Drive folder (service side)](T92a-app-export-folder-service.md) (bug hunt H2, user decision 2026-10-28) | integrations | T91 (order only) | yes (Mac rows T92 (1), T92 (2), real Google account) |
+| 64 | [T92b Settings > Google: no folder-link field, "Open in Drive", one-time notice](T92b-settings-export-folder-without-link-field.md) (bug hunt H2) | ui-builder | T92a | yes (Mac look row from the report); changes one `SettingsTests` expectation → closing targeted UI run |
+| 65 | [T93 Quitting never loses the last typed note text](T93-flush-notes-on-quit.md) (bug hunt M4) | ui-builder | T92b (order only), T91 (`ReaderModel`) | yes (Mac row T93 from the report) |
+| 66 | [T94 Drive errors mapped by reason; queued exports are always retried](T94-drive-error-reasons-and-queued-retries.md) (bug hunt M1, M2) | integrations | T92a, T92b, T93 (order only) | no |
+| 67 | [T95 One link filter for every clickable link from imported Markdown and notes](T95-one-link-filter-everywhere.md) (bug hunt M5) | pdf-engine | T94 (order only) | yes (Mac row T95 from the report) |
 
 Task numbers continue after Phase 0's last commit (T28). Rows 24a–24k (T52a–T52k) are fixes from the T52 checkpoint (`docs/checkpoints/T52-manual-2026-10-25.md`, `docs/checkpoints/T52-cloud-2026-10-27.md`); they run after T52 and before T53. T52a–T52h ran in letter order (T52h after T52b). T52i–T52k come from the user's triage on 2026-10-27 and run in row order: T52k, then T52i, then T52j (T52j adds to `MetadataSheetTests.swift` after T52i). U7 from the triage is part of T53; O1 (Library tab order after Move Tab to New Window + Merge All Windows) stays open until the user's real tab-drag check on a Mac (docs/HANDOFF.md). Tasks with "none" or early dependencies (T42, T57, T64) may run earlier if a chain is blocked, but keep one implementer at a time.
 
@@ -114,7 +120,18 @@ The user answered the open backlog decisions; the tasks run after T84, in row or
 - After the closing run: test-runner runs `./scripts/check-fresh-clone.sh`, then bug-hunter (CLAUDE.md step 5).
 
 ### Closing UI run fix (row 61, planned 2026-10-28)
-The closing run (`docs/checkpoints/closing-cloud-2026-10-28.md`: 93 tests, 1 spec FAIL, 1 flake) found one spec FAIL: Open With right after launch, with only the library open, imports nothing (`ExternalOpenTests/testDuplicateOpenWithStillShowsTheSummaryAlert`, 2/2). T90 diagnoses it first (no commit bisect: `ci.sh` can only run `HEAD` plus the working tree) and fixes the root cause, with at most 3 targeted UI runs. The H9 flake and the UX items went to BACKLOG (B36, B38); B37 and B39 are folded into T90. After T90: `./scripts/check-fresh-clone.sh`, then bug-hunter.
+The closing run (`docs/checkpoints/closing-cloud-2026-10-28.md`: 93 tests, 1 spec FAIL, 1 flake) found one spec FAIL: Open With right after launch, with only the library open, imports nothing (`ExternalOpenTests/testDuplicateOpenWithStillShowsTheSummaryAlert`, 2/2). T90 diagnoses it first (no commit bisect: `ci.sh` can only run `HEAD` plus the working tree) and fixes the root cause, with at most 3 targeted UI runs. The H9 flake and the UX items went to BACKLOG (B36, B38); B37 and B39 are folded into T90. After T90: `./scripts/check-fresh-clone.sh`, then bug-hunter (done: `docs/bugs/phase-1.md`, fixes in rows 62–67 below).
+
+### Bug hunt fixes (rows 62–67, planned 2026-10-28)
+bug-hunter's report `docs/bugs/phase-1.md` (critical 0, high 2, medium 5, low 10). The user decided on 2026-10-28 which findings become tasks; everything else is in `docs/BACKLOG.md` (B40–B51, with dispositions). Run in row order, one at a time, through the normal loop (implementer → CI build + unit tests by test-runner with code-reviewer in parallel → commit and push): **T91 → T92a → T92b → T93 → T94 → T95.**
+- **H1 → T91** (pdf-engine): Undo removes an auto-highlight only while it is bare; opening its popover, a note or edited text ends the undo window (SPEC F-06 amended).
+- **H2 → T92a + T92b** (split because service and Settings UI are different agents and files): the export target folder is the app's own "StudyReader" folder, created on the first export, stored per account, verified before each create, recreated when deleted or trashed; the pasted-link field and `DriveFolderLink` are removed (SPEC F-21/F-22, ADR-0018 amendment, ARCHITECTURE §9.2). The Google Picker is BACKLOG only (B51).
+- **M4 → T93** (ui-builder): quit waits for pending note and position saves (`PendingWrites`, `applicationShouldTerminate`).
+- **M1 + M2 → T94** (integrations): 403s mapped by Drive reason, only 404 or a trashed Doc is "Doc missing"; Export Selection never promises a later run; manual exports that end queued while online are retried (`ExportSyncScheduler.manualExportEnded`).
+- **M5 → T95** (pdf-engine): one `LinkPolicy` applied in `RichTextView` and `NoteMarkdownView`.
+- **UI tests:** none of T91–T95 runs XCUITests; each verifies with `./scripts/build.sh` and unit-test filters only. T92b changes one existing UI-test expectation (`SettingsTests/testGoogleTabShowsNotConfiguredAndHidesFolderAndTargets`), so the closing state gets **one targeted UI run** by ui-tester after T95: `./scripts/uitest.sh StudyReaderUITests/SettingsTests` (cloud mode on Linux; never in parallel with another CI job). No other task changes UI-test expectations.
+- **Closing steps after T95:** (1) the targeted `SettingsTests` UI run; (2) test-runner `./scripts/check-fresh-clone.sh`; (3) the Phase 1 summary. No second bug hunt.
+- **Shared files in this block, in order:** `ReaderModel.swift` (T91, T93), `GoogleExportService.swift` (T92a, T94), `ExportTargetsModel.swift` (T92b, T94), `SettingsStore.swift` (T92a, T92b), `GoogleExportServiceTests.swift` (T92a, T94), `ExportSheetModelTests.swift` (T92a), `ExportSheetModel.swift` (T94).
 
 ## Points of care for the orchestrator
 - **T30** is done and committed.
@@ -178,12 +195,18 @@ The closing run (`docs/checkpoints/closing-cloud-2026-10-28.md`: 93 tests, 1 spe
 | `ExportMarkdownSafety.note(_:headings:)`, `ExportMarkdownSafety.NoteHeadings` | T87 |
 | Accessibility ids `search-hit-document` / `search-hit-highlight` / `search-hit-note`; UI helpers in `StudyReaderUI+SearchAndReader.swift` | T88 |
 | Open With delivery from `AppDelegate` to `ImportCoordinator` regardless of launch stage (exact change named in the T90 report) | T90 |
+| `HighlightRepository.deleteIfUnannotated(id:fileStore:)`; `HighlightService.undoAutoHighlight(id:)` returns nil for an annotated row | T91 |
+| `SettingsStore.googleAppFolderId(forAccount:)` / `setGoogleAppFolderId(_:forAccount:)`, `DriveUploadRequest.folder(id:accessToken:)` / `findAppFolder(accessToken:)` / `createAppFolder(accessToken:)`, `folderMimeType`, `appFolderName` | T92a |
+| `ExportTargetsModel.appFolderId`, `refreshAppFolder(account:)`, `showsLegacyFolderNotice`, `consumeLegacyFolderNotice()`, `folderURL(folderId:)`; `SettingsStore.legacyGoogleExportFolderId` (replaces `googleExportFolderId`); `DriveFolderLink` and `AppSettings.googleExportFolderId` removed | T92b |
+| `PendingWriteFlushing`, `PendingWrites` (`AppEnvironment.pendingWrites`), `AppDelegate.terminationWrites` | T93 |
+| `DriveErrorReason`, `ExportSyncScheduler.manualExportEnded(targetId:outcome:)` | T94 |
+| `LinkPolicy` (`openableSchemes`, `isOpenable(_:)`), `View.studyReaderLinkPolicy()`; `TextReaderView.openableLinkSchemes`/`isOpenable` removed | T95 |
 
 ## Module map after Phase 1
 ```
 StudyReader/App/                       StudyReaderApp, AppDelegate, AppCommands, ReaderTabbing, AppEnvironment, AppLaunchModel, AppSession,
-                                       AppSettings, LaunchView, RootView, RootModel, SidebarItem, MainWindowLayout
-StudyReader/Core/Support/              Now, Logging, Hashing, Sleeper, Debounce, SettingsStore, HTTPClient
+                                       AppSettings, LaunchView, RootView, RootModel, SidebarItem, MainWindowLayout, PendingWrites (T93)
+StudyReader/Core/Support/              Now, Logging, Hashing, Sleeper, Debounce, SettingsStore, HTTPClient, LinkPolicy (T95)
 StudyReader/Core/Files/                FileStore (+ storedFileExtension, markdownImageURL)
 StudyReader/Core/Models/               (Phase 0 records) + LibraryItem
 StudyReader/Core/Database/             unchanged schema (v1, v2) + AppDatabaseError cases
@@ -204,9 +227,9 @@ StudyReader/Features/Annotations/      HighlightService, HighlightPalette, Highl
                                        SelectionToolbarView, Tags/
 StudyReader/Features/Search/           SearchQueryParser, SearchService, SearchResults, SearchModel, SearchResultsView
 StudyReader/Features/HighlightsBrowser/ HighlightsBrowserModel/View, HighlightDetailView
-StudyReader/Features/Export/           ExportContent, ExportRenderer, DriveFolderLink, DriveUploadRequest, GoogleAuthProviding,
+StudyReader/Features/Export/           ExportContent, ExportRenderer, DriveUploadRequest, DriveErrorReason (T94), GoogleAuthProviding,
                                        GoogleSignInAuth, GoogleExportService, ExportSheet*, ExportTargetsModel,
-                                       ExportSyncScheduler, NetworkPathMonitoring
+                                       ExportSyncScheduler, NetworkPathMonitoring (DriveFolderLink removed in T92b)
 StudyReader/Features/Settings/         SettingsView, GoogleSettingsView
 StudyReaderTests/                      + LibraryTests, ExtractionTests, MarkdownTests, ReaderTests, AnnotationsTests,
                                        SearchTests, HighlightsBrowserTests, ExportTests; Support/ + TestSleepers, TestSettings,
@@ -223,8 +246,8 @@ StudyReaderTests/                      + LibraryTests, ExtractionTests, Markdown
 - **Q7 (T65, T70):** tag filter semantics as specified. Confirmed.
 
 ## Phase done when
-- All 76 tasks (rows 1–46; T75 in row 2a; the T52 checkpoint fixes T52a–T52k in rows 24a–24k; the checkpoint fixes T63a, T69a, T74a in rows 24n, 41a, 46a; the backlog pass T76–T84 in rows 47–55; the user-decision tasks T85–T89 in rows 56–60; and the closing-run fix T90 in row 61) are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
-- The closing full UI run by ui-tester (after T89) has no open spec FAIL (its one FAIL is T90; T90's own run 3 shows `ExternalOpenTests` green).
+- All 82 tasks (rows 1–46; T75 in row 2a; the T52 checkpoint fixes T52a–T52k in rows 24a–24k; the checkpoint fixes T63a, T69a, T74a in rows 24n, 41a, 46a; the backlog pass T76–T84 in rows 47–55; the user-decision tasks T85–T89 in rows 56–60; the closing-run fix T90 in row 61; and the bug hunt fixes T91, T92a, T92b, T93, T94, T95 in rows 62–67) are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
+- The closing full UI run by ui-tester (after T89) has no open spec FAIL (its one FAIL is T90; T90's own run 3 shows `ExternalOpenTests` green), and the targeted `SettingsTests` run after T95 is green.
 - The full suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes.
 - The SPEC §6 "done when" flow works on the user's Mac with a real lecture PDF and Gemini Notebook.
-- bug-hunter has run; critical/high findings (and mediums that get more expensive later) are fixed; the rest are in `docs/bugs/backlog.md`.
+- bug-hunter has run (`docs/bugs/phase-1.md`); the findings the user chose (H1, H2, M1, M2, M4, M5) are fixed by T91–T95; the rest are in `docs/BACKLOG.md` B40–B51 (pointer in `docs/bugs/backlog.md`).

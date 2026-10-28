@@ -106,7 +106,7 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 
 **Behavior**
 - Parse with Apple `swift-markdown` (CommonMark + GFM tables, strikethrough, task lists).
-- Render: headings H1–H6, paragraphs, emphasis, strong, inline code, code blocks (monospace, no syntax highlighting required), block quotes, ordered/unordered/task lists, tables, links (open in browser), horizontal rules, images.
+- Render: headings H1–H6, paragraphs, emphasis, strong, inline code, code blocks (monospace, no syntax highlighting required), block quotes, ordered/unordered/task lists, tables, links (open in browser), horizontal rules, images. Only `http`, `https` and `mailto` links open; every other scheme (`file:`, `smb:`, `javascript:`, app schemes) does nothing. The same rule applies wherever a link copied into a highlight or written in a note is clickable: popover, highlights panel, highlights browser rows and detail pane, note previews (bug hunt M5, `LinkPolicy`).
 - Images: on import, relative image paths that exist next to the source file are copied into the document folder. If the sandbox can't read them (a single `.md` file was imported), the app asks once per import and folder for access to the file's folder (a folder picker preselected on it, "Allow access to this folder so StudyReader can copy the images."); on approval the images are copied and the access isn't kept. If the user cancels, those images become placeholders. Missing images render as a placeholder box with the alt text. Remote image URLs are not fetched (privacy); show the placeholder with the URL.
 - The rendered text is selectable and highlightable exactly like the PDF text view (F-05, F-06).
 - Front matter (YAML between `---` lines at the top) is hidden from the rendered view; `title` and `author` keys, if present, prefill metadata.
@@ -156,7 +156,7 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 **Behavior**
 - Colors: Yellow (default), Green, Blue, Pink, Purple. Each color has an editable label in Settings (defaults: Key concept, Exam, Connection, Question, Don't understand).
 - Creating: select text in PDF view, text view, or Markdown view.
-  - Auto-highlight on (default): releasing the mouse after a selection creates a highlight in the current color immediately. Pressing ⌘Z right after removes it.
+  - Auto-highlight on (default): releasing the mouse after a selection creates a highlight in the current color immediately. Pressing ⌘Z right after removes it. Annotating it ends that chance (bug hunt H1, 2026-10-28): once the highlight is recoloured, its popover is opened, or it has a note, tags or edited text, ⌘Z no longer removes it, so ⌘Z can never delete a note or tags.
   - Auto-highlight off: a floating toolbar appears over the selection: 5 color dots, Note, Tag, Copy.
   - Keyboard: with a selection, press 1–5 to highlight in that color, H for the current color.
 - Selections across lines and columns become one highlight with multiple rectangles. Selections across pages in PDF view become one highlight spanning pages.
@@ -168,7 +168,7 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 - Every highlight stores: document, view type, anchor, plain text, rich text, color, note, tags, created/updated dates, page number (PDF view and PDF text view).
 
 **AC**
-1. Selecting text with auto-highlight on creates a highlight in the current color; ⌘Z removes it. → test `HighlightServiceTests/autoHighlightUndo` + visual check
+1. Selecting text with auto-highlight on creates a highlight in the current color; ⌘Z removes it, but never once it has a note, tags or edited text. → tests `HighlightServiceTests/autoHighlightUndo`, `HighlightServiceTests/undoKeepsAnAnnotatedAutoHighlight`, `ReaderModelTests/undoIsClearedWhenANoteIsSaved` + visual check
 2. Multi-line and cross-page selections produce one highlight with the right rectangles per page. → test `PDFAnchorTests/multiLineAndCrossPage`
 3. Highlights redraw in exactly the same place after zoom, window resize, and app restart. → test `PDFAnchorTests/roundTrip` + visual check
 4. Text-view and Markdown highlights re-anchor after restart even if whitespace normalization changed. → test `TextAnchorTests/reanchorWithPrefixSuffix`
@@ -208,7 +208,7 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 - Both are full-text searchable and included in exports.
 
 **AC**
-1. Notes autosave and survive restart. → test `NotesRepositoryTests/autosaveAndRestore`
+1. Notes autosave and survive restart, also when the app quits within the 500 ms autosave delay (bug hunt M4). → tests `NotesRepositoryTests/autosaveAndRestore`, `PendingWritesTests/flushAllSavesNoteTypedWithinTheDebounce`
 2. Notes appear in search results and exports. → tests `SearchServiceTests/findsNotes`, `ExportRendererTests/includesNotes`
 3. Note headings render bold and larger by level, lists and line breaks keep their structure, `#todo` stays plain text, in the panel rows, browser rows and Notes preview. → tests `NotePreviewTests/headingLevelsAndStyling`, `NotePreviewTests/hashTagIsNotAHeading`, UI test `NotesTabTests/testPreviewRendersHeadingsListsAndTags` + visual check (Mac)
 4. Exported notes keep their inline Markdown and lists, headings are demoted below the export's own headings, and a line-start `#tag` is escaped. → tests `ExportRendererTests/notesByDocument`, `ExportRendererTests/notesByTag`, `ExportRendererTests/noteRules`
@@ -376,17 +376,23 @@ Definition for this app: every highlight becomes a flashcard automatically as a 
 - Export options: include highlight notes (default on), include document notes (default on), include image highlights as a text placeholder "[Image highlight, page N]" with note (default on), group by document (default) or by tag.
 - Output: a Markdown file uploaded to Google Drive with conversion to a Google Doc (Drive API import, Markdown → Docs). Format in ARCHITECTURE §9.
 - Notes (highlight and document notes) are exported as the user wrote them, with inline formatting and lists kept, except: headings are demoted below the export's own headings, a line-start `#tag` is escaped so it never becomes a heading (F-09 rule), and `<`, `|`, `~` are escaped (ADR-0007 amendment 2026-10-28). Highlight text is neutralised as before. Titles and authors are exported as typed (escaping them is undecided, BACKLOG B29).
-- Doc title: `StudyReader – <scope name>`. Created in the user's My Drive root, or a folder chosen once in Settings (by pasting a folder link; stored as folder ID).
+- Doc title: `StudyReader – <scope name>`. Created in a folder named "StudyReader" that the app makes in the user's My Drive on the first export (user decision 2026-10-28, bug hunt H2; ADR-0018 amendment). With the `drive.file` scope the app can only use folders it created, so there is no folder field to paste a link into. The folder's ID is stored per Google account and reused, so the folder may be moved anywhere in Drive; if it is deleted or in the trash, the next export creates a new "StudyReader" folder. An export folder pasted in an older version is ignored, and Settings > Google says so once.
 - The first export creates the Doc and saves an export target (scope, options, Google file ID). Re-exporting replaces the Doc's full content (Drive `files.update` with media upload), keeping the same file ID, so the Gemini Notebook Drive source stays linked and auto-syncs.
 - Per target "Keep in sync" toggle (default off): when on, re-export runs automatically 60 s after the last relevant change while the app is open.
 - Export targets list in Settings > Google: last exported time, status, "Open in Google Docs", "Export now", "Remove" (removes the target only, never deletes the Doc).
-- Errors: offline (queue and retry when online), expired session (refresh silently, else ask to sign in), Doc deleted or access revoked (offer to create a new Doc), rate limit (retry with backoff, max 3).
+- Errors (amended 2026-10-28, bug hunt M1/M2):
+  - Offline: a saved target is marked "Waiting for network" and exported again when the network comes back, at launch, and, when the network already looks available, 60 s later (at most 3 times). "Export Selection" saves no target, so offline it says "Couldn't reach Google Drive. Check your connection and try again." and never promises a later run.
+  - Expired session: refresh silently, else ask to sign in.
+  - Doc missing (Drive answers 404, or the Doc is in the trash): offer to create a new Doc.
+  - Rate limit (429, or 403 `rateLimitExceeded`/`userRateLimitExceeded`): retry with backoff, max 3, then "Google Drive is busy. Try again later."
+  - Drive storage full (403 `storageQuotaExceeded`), Google's daily limit (403 `dailyLimitExceeded`), no access to the Doc (403 `appNotAuthorizedToFile`/`insufficientFilePermissions`) and any other 403: the export fails with a short reason and keeps the Doc link (same file ID). These never count as "Doc missing".
 
 **AC**
 1. Export renderer produces the exact Markdown format for each scope and option. → tests `ExportRendererTests/*` (golden files)
 2. First export creates a Doc and stores its ID; re-export updates the same ID. → test `GoogleExportServiceTests/createThenUpdate` (mocked network)
-3. Error cases behave as specified. → tests `GoogleExportServiceTests/errors*`
+3. Error cases behave as specified. → tests `GoogleExportServiceTests/errors*`, `ExportSyncSchedulerTests/manualQueued*`, `GoogleExportServiceTests/selectionOfflineDoesNotPromiseALaterRun`
 4. Real export appears in Google Docs and can be added to Gemini Notebook. → visual check (manual, needs Google setup)
+5. Docs are created in the app's "StudyReader" folder: the first export creates it (or reuses the one the app made before), its ID is stored per account and reused after a move, a deleted or trashed folder is recreated, and two first exports at once create one folder. → tests `GoogleExportServiceTests/appFolder*` + visual check (Mac: first export, then move the folder and export again)
 
 ### F-22 Settings
 
@@ -394,7 +400,7 @@ Settings window (⌘,), tabs:
 - **General**: default category for imports, auto-highlight on/off, highlight color labels.
 - **Reading**: appearance defaults (F-05), invert PDF in dark mode.
 - **Review**: daily limit, new per day, four rating buttons, reminder time, category frequencies (F-19), per-category auto-create cards (F-17).
-- **Google**: account, export folder, export targets (F-21).
+- **Google**: account; export folder: a line saying exports go to the "StudyReader" folder in Google Drive, with "Open in Drive" once the folder exists (no field to paste a folder link, F-21); export targets (F-21).
 - **Data**: library location (read-only path + Reveal), "Rebuild search index", "Recompute embeddings".
 
 ---
