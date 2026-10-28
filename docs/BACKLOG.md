@@ -4,6 +4,8 @@ Rule (user, 2026-10-27): no polish tasks mid-phase. Anything that is not a spec 
 
 The end-of-phase pass was planned on 2026-10-28: see "Disposition" at the end of this file and rows 47–55 (T76–T84) in `docs/tasks/phase-1/README.md`. The user answered the open decisions the same day; the resulting tasks are T85–T89 (rows 56–60).
 
+The closing UI run (`docs/checkpoints/closing-cloud-2026-10-28.md`) added B36, B38 and B39; its proposed B37 went straight into T90 (row 61), the fix task for that run's spec FAIL.
+
 | ID | Source | Item | Notes |
 |---|---|---|---|
 | O1 | T52 cloud checkpoint | After Move Tab to New Window and Merge All Windows the reader tab comes first and the Library tab second. | Open until the user checks the real tab drag on a Mac. |
@@ -47,6 +49,9 @@ The end-of-phase pass was planned on 2026-10-28: see "Disposition" at the end of
 | B33 | T73 review | (1) `HighlightsBrowserModel.exportSelection` and `ExportTargetsModel.exportNow` have no in-flight guard (double click can make two Docs / two concurrent exports of one target): add `isExporting` and disable the buttons (T74 serialises per target too). (2) Tighten ExportSheetModelTests: `scopeRequiresId` has a vacuous assertion and misses `.tag(id)`; `notConfiguredMakesNoRequest` should assert the literal "Google export not configured."; `exportShowsOutcome` compares against `message(for:)`. (3) When the scope changes to one with no target, `prefillOptions` keeps the previous scope's options instead of resetting to `ExportOptions()`. (4) GoogleSettingsView may briefly show folder/targets before `refresh()` sets `.notConfigured`. (5) `fetchThemedReviews` has no direct unit test. (6) The context-menu UI test picks the first hittable menu item (flaky if it fails at T74). | Fix pass / T74. |
 | B34 | T74 review | (1) `failureRetries[targetId]` is not reset after a success (reset on `.exported`). (2) An export ending `.queued` while the path is still reported satisfied (or the path flapped in flight) waits for the next change/reconnect: schedule a debounced retry on `.queued` while the path is satisfied. (3) `retryQueued` awaits targets one after another (run in parallel). (4) Untested: stop while an export is in flight; two keep-in-sync targets exported in parallel. (5) Comment that a cancelled waiting export still runs. (B31(2) per-target serialisation is DONE in T74; B33(1) UI isExporting guards still open.) | Fix pass. |
 | B35 | T74 checkpoint | (1) The browser's "Newest first" order is unstable when seeded dates are equal (two screenshots list rows in different orders): the browse query needs a deterministic tie-break key (check the id tie-break in HighlightBrowseSQL for createdNewest and the observation). (2) Opening Settings focuses the first colour label field with its text selected. (3) `TagManagerTests.swift:14` still has isolation warnings. (4) Coverage proposals for the unconfigured build not built: Settings Google tab (unconfigured text, sections hidden), the "Export Selection…" not-configured alert, Export sheet pickers/width, File > Export Highlights… enabled/disabled; S1–S5, F1–F5, H1–H9 from the T69 report (B17 decision still open). | Fix pass. |
+| B36 | Closing UI run 2026-10-28 | (UX) Highlights browser bulk bar and count text wrap and truncate at 1024 pt ("2 select-ed", "Ad...", "Exp...", "De...", "10 high-lights"); closing run 2026-10-28, screenshots FD7E5357, 58502634. | Mac check first. |
+| B38 | Closing UI run 2026-10-28 | (test) H9 testOpenInDocument... failed once with page "2" (flake on re-run); add a failure attachment and watch for a position-restore versus highlight-reveal race in a freshly opened reader. | Flake, not a fix task. |
+| B39 | Closing UI run 2026-10-28 | (test) ExternalOpenTests.testDuplicateOpenWithStillShowsTheSummaryAlert: attach the hierarchy when the first import card is missing (as the While Running test does). | With T90. |
 
 ## Disposition (end-of-phase pass, planned 2026-10-28)
 
@@ -95,6 +100,10 @@ Verified against the code on `master` after T74a. Keys: **T7x/T8x** = fixed by t
 | B33 | (1)(2)(3)(4) T83. (5) T78. (6) drop: didn't flake at T74; revisit if it does. |
 | B34 | T80. |
 | B35 | (1) the query already breaks ties by id; the screenshots differed because each launch seeds new random ids with equal times: T84 seeds distinct times. (2) T83 (UI test in T84). (3) T84. (4) Settings > Google unconfigured and the Export Selection alert: T89; S/F/H subset: T88, T89; Export sheet pickers/width and File-menu enabled state: not built (outside the user's subset). |
+| B36 | Mac (VISUAL_CHECKS T89/T69 bulk-bar row) first; a layout change is undecided (no polish task after the backlog pass unless the user asks). |
+| B37 | Not a backlog line: the closing run's proposed B37 (`NotesTabTests.swift:22` `value(of:)` needs `@MainActor`) is folded into T90. |
+| B38 | Mac (VISUAL_CHECKS T89 H9 row); undecided whether a test or product change follows. Not part of T90. |
+| B39 | T90 (keeps the hierarchy attachment from its diagnosis). |
 
 ## Follow-ups from the backlog pass
 - T76 (reviewer, minor): add a phrase case such as `"a\u{301}"` to `SearchQueryParserTests` to make phrase-plus-combining-mark safety explicit.

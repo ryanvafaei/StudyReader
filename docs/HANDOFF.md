@@ -4,7 +4,10 @@ Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. R
 
 ## Where the project is
 - **Phase 1 is complete** and green on `master`: T29–T75, the checkpoint fixes T52a–T52k, T63a, T69a, T74a. All three visual checkpoints ran in cloud mode (`docs/checkpoints/T52-cloud-2026-10-27.md`, `T63-cloud-2026-10-27.md`, `T69-cloud-2026-10-28.md`, `T74-cloud-2026-10-28.md`; T74 found the Open With regression fixed by T74a).
-- **Now: the end-of-phase backlog pass** (CLAUDE.md "Per phase" step 4). Planned 2026-10-28 as nine tasks, rows 47–55 in `docs/tasks/phase-1/README.md`, plus five tasks from the user's decisions the same day (T85–T89, rows 56–60). Every backlog item has a disposition at the end of `docs/BACKLOG.md` (task, done, drop with reason, Mac, or undecided).
+- **The end-of-phase backlog pass is done:** T76–T89 are approved, committed and pushed (last: `a63c6c3` T89).
+- **Closing UI run done** (2026-10-28, ui-tester, cloud mode): `docs/checkpoints/closing-cloud-2026-10-28.md`. 93 tests: 91 passed, **1 SPEC FAIL** (`ExternalOpenTests/testDuplicateOpenWithStillShowsTheSummaryAlert`, Open With right after launch with only the library open imports nothing, 2/2, regression between T74a `ea3e7e1` and `a63c6c3`), **1 flake** (H9, passed on the re-run; BACKLOG B38). UX items and the H9 note are BACKLOG B36, B38; B37 (NotesTabTests warning) and B39 (failure attachment) are folded into T90; NEEDS HUMAN rows are in VISUAL_CHECKS.md "Needs a Mac".
+- **Now: T90** (row 61 in `docs/tasks/phase-1/README.md`, ui-builder): diagnose-first fix of the Open With FAIL, at most 3 targeted UI runs, no commit bisect (`ci.sh` only runs `HEAD` plus the working tree). Then the fresh-clone check and bug-hunter.
+- Backlog pass history: planned 2026-10-28 as nine tasks, rows 47–55 in `docs/tasks/phase-1/README.md`, plus five tasks from the user's decisions the same day (T85–T89, rows 56–60). Every backlog item has a disposition at the end of `docs/BACKLOG.md` (task, done, drop with reason, Mac, or undecided).
 
 | Task | Agent | Covers |
 |---|---|---|
@@ -29,6 +32,7 @@ After T84 come five tasks from the user's decisions of 2026-10-28 (rows 56–60)
 | T87 Note Markdown rules in the export | integrations | B29 (export side), ADR-0007 amendment, SPEC F-09 AC4 |
 | T88 UI tests, part 1: search, PDF find bar, reader panel, Notes tab | ui-builder | B17 subset S1, S3, S4, F1–F3, C3, C6, C17, C18 (+ B24 2) |
 | T89 UI tests, part 2: Highlights browser, unconfigured Google export | ui-builder | B17 subset H1, H2, H4–H6, H9, Export Selection alert, Settings > Google |
+| T90 Open With right after launch (closing-run fix, row 61) | ui-builder | closing-run SPEC FAIL (F-02), B37, B39 |
 
 T88 and T89 may run their own targeted UI classes (max 2 attempts each). T85–T87 use build + unit-test filters only.
 
@@ -40,12 +44,13 @@ T88 and T89 may run their own targeted UI classes (max 2 attempts each). T85–T
 - **Closing UI run:** one full UI suite run by ui-tester (cloud mode) after T89, not right after T84. It checks T76–T89 for regressions and runs the new tests, before the fresh-clone check and bug-hunter. It is not one of the T63/T69/T74 checkpoints. Only spec FAILs become fix tasks; everything else goes to BACKLOG.md.
 
 ## Remaining steps
-1. Backlog pass T76 → T84, in README order, through the normal loop.
-2. T85 (selection hoist) → T86 (note rules, app) → T87 (note rules, export) → T88 → T89 (UI tests), same loop.
-3. ONE closing full UI run by ui-tester (cloud mode, `./scripts/ci.sh status` first). Report in `docs/checkpoints/closing-cloud-<date>.md`.
-4. test-runner: `./scripts/check-fresh-clone.sh`.
-5. bug-hunter (report in `docs/bugs/`); its critical and high findings become fix tasks through the same loop.
-6. The user's "Needs a Mac" list in VISUAL_CHECKS.md (done at the end on the Mac; nobody waits for it). It also holds O1, B2, B8 Open Link, B14 2, B15 1, B21 3, B24 1, B32, OB2, and the T86 note-look row.
+1. ~~Backlog pass T76 → T84~~ done.
+2. ~~T85 → T89~~ done.
+3. ~~Closing full UI run~~ done (`docs/checkpoints/closing-cloud-2026-10-28.md`, 93 tests, 1 SPEC FAIL, 1 flake).
+4. **T90** (Open With right after launch), normal loop; ui-builder (escalation: high, then ask the user). It may run at most 3 targeted UI runs itself (its spec says what each is for); if it reports BLOCKED after run 2, ask the user. Its Mac row is in VISUAL_CHECKS.md.
+5. test-runner: `./scripts/check-fresh-clone.sh`.
+6. bug-hunter (report in `docs/bugs/`); its critical and high findings become fix tasks through the same loop.
+7. The user's "Needs a Mac" list in VISUAL_CHECKS.md (done at the end on the Mac; nobody waits for it). It also holds O1, B2, B8 Open Link, B14 2, B15 1, B21 3, B24 1, B32, OB2, the T86 note-look row, and the closing-run rows (T90 Open With right after launch, B36 bulk bar, `#tag` styling, Settings > Google unconfigured, B38 H9).
 
 ## Settled user decisions (still in force)
 - Highlights panel shortcut ⌥⌘I (⌥⌘H is Hide Others). Tab restore after relaunch: deferred, not in SPEC. O1 (Library tab second after Merge All Windows) waits for the real tab drag on a Mac.

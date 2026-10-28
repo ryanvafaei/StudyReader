@@ -94,6 +94,7 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 58 | [T87 Note Markdown rules in the export: demoted headings, escaped line-start `#tag`, neutralised `<` `\|` `~`](T87-note-markdown-rules-export.md) (backlog B29; ADR-0007 amendment) | integrations | T86, T80 | no (golden files) |
 | 59 | [T88 UI tests, part 1: global search, PDF find bar, reader panel, Notes tab](T88-ui-tests-search-find-panel-notes.md) (backlog B17 reliable subset: S1, S3, S4, F1–F3, C3, C6, C17, C18) | ui-builder | T84, T85, T86 | no (runs its own targeted UI tests) |
 | 60 | [T89 UI tests, part 2: Highlights browser and the unconfigured Google export](T89-ui-tests-browser-and-unconfigured-google.md) (backlog B17 reliable subset: H1, H2, H4–H6, H9, Export Selection alert, Settings > Google) | ui-builder | T88 (order only), T83, T84 | no (runs its own targeted UI tests) |
+| 61 | [T90 Open With right after launch imports the file (diagnose first, then fix the root cause)](T90-open-with-right-after-launch.md) (spec FAIL from the closing UI run, `docs/checkpoints/closing-cloud-2026-10-28.md`; + NotesTabTests `@MainActor` warning, BACKLOG B37, B39) | ui-builder | T89 | yes (Mac row; runs at most 3 targeted UI runs) |
 
 Task numbers continue after Phase 0's last commit (T28). Rows 24a–24k (T52a–T52k) are fixes from the T52 checkpoint (`docs/checkpoints/T52-manual-2026-10-25.md`, `docs/checkpoints/T52-cloud-2026-10-27.md`); they run after T52 and before T53. T52a–T52h ran in letter order (T52h after T52b). T52i–T52k come from the user's triage on 2026-10-27 and run in row order: T52k, then T52i, then T52j (T52j adds to `MetadataSheetTests.swift` after T52i). U7 from the triage is part of T53; O1 (Library tab order after Move Tab to New Window + Merge All Windows) stays open until the user's real tab-drag check on a Mac (docs/HANDOFF.md). Tasks with "none" or early dependencies (T42, T57, T64) may run earlier if a chain is blocked, but keep one implementer at a time.
 
@@ -111,6 +112,9 @@ The user answered the open backlog decisions; the tasks run after T84, in row or
 - **Closing UI run:** after T89, ui-tester runs the full UI suite once (cloud mode; not one of the T63/T69/T74 checkpoints). It checks T76–T89 for regressions and runs the new tests. Spec FAILs become fix tasks; everything else goes to BACKLOG.md.
 - **UI tests in tasks:** T84, T88 and T89 may run their own targeted classes (`./scripts/ci.sh uitest …`, max 2 attempts, never in parallel with another CI job). T85–T87 use build and unit-test filters only.
 - After the closing run: test-runner runs `./scripts/check-fresh-clone.sh`, then bug-hunter (CLAUDE.md step 5).
+
+### Closing UI run fix (row 61, planned 2026-10-28)
+The closing run (`docs/checkpoints/closing-cloud-2026-10-28.md`: 93 tests, 1 spec FAIL, 1 flake) found one spec FAIL: Open With right after launch, with only the library open, imports nothing (`ExternalOpenTests/testDuplicateOpenWithStillShowsTheSummaryAlert`, 2/2). T90 diagnoses it first (no commit bisect: `ci.sh` can only run `HEAD` plus the working tree) and fixes the root cause, with at most 3 targeted UI runs. The H9 flake and the UX items went to BACKLOG (B36, B38); B37 and B39 are folded into T90. After T90: `./scripts/check-fresh-clone.sh`, then bug-hunter.
 
 ## Points of care for the orchestrator
 - **T30** is done and committed.
@@ -173,6 +177,7 @@ The user answered the open backlog decisions; the tasks run after T84, in row or
 | `NoteMarkdown.blocks(_:)`, `NoteMarkdown.headingFont(level:style:)`, `NoteMarkdownStyle`, `NoteMarkdownView`, `NotePreviewBlock.headingLevel` (moved from T82), `TagRepository.addTag(_:toDocuments:)` | T86 |
 | `ExportMarkdownSafety.note(_:headings:)`, `ExportMarkdownSafety.NoteHeadings` | T87 |
 | Accessibility ids `search-hit-document` / `search-hit-highlight` / `search-hit-note`; UI helpers in `StudyReaderUI+SearchAndReader.swift` | T88 |
+| Open With delivery from `AppDelegate` to `ImportCoordinator` regardless of launch stage (exact change named in the T90 report) | T90 |
 
 ## Module map after Phase 1
 ```
@@ -218,8 +223,8 @@ StudyReaderTests/                      + LibraryTests, ExtractionTests, Markdown
 - **Q7 (T65, T70):** tag filter semantics as specified. Confirmed.
 
 ## Phase done when
-- All 75 tasks (rows 1–46; T75 in row 2a; the T52 checkpoint fixes T52a–T52k in rows 24a–24k; the checkpoint fixes T63a, T69a, T74a in rows 24n, 41a, 46a; the backlog pass T76–T84 in rows 47–55; and the user-decision tasks T85–T89 in rows 56–60) are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
-- The closing full UI run by ui-tester (after T89) has no open spec FAIL.
+- All 76 tasks (rows 1–46; T75 in row 2a; the T52 checkpoint fixes T52a–T52k in rows 24a–24k; the checkpoint fixes T63a, T69a, T74a in rows 24n, 41a, 46a; the backlog pass T76–T84 in rows 47–55; the user-decision tasks T85–T89 in rows 56–60; and the closing-run fix T90 in row 61) are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
+- The closing full UI run by ui-tester (after T89) has no open spec FAIL (its one FAIL is T90; T90's own run 3 shows `ExternalOpenTests` green).
 - The full suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes.
 - The SPEC §6 "done when" flow works on the user's Mac with a real lecture PDF and Gemini Notebook.
 - bug-hunter has run; critical/high findings (and mediums that get more expensive later) are fixed; the rest are in `docs/bugs/backlog.md`.
