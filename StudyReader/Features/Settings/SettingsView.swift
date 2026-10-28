@@ -15,7 +15,7 @@ struct SettingsRootView: View {
     }
 }
 
-/// Settings window (⌘,). Phase 1 tabs: General, Reading, Data. Review and Google come later (F-22).
+/// Settings window (⌘,). Phase 1 tabs: General, Reading, Data, Google. Review comes later (F-22).
 struct SettingsView: View {
     static let width: CGFloat = 520
 
@@ -29,6 +29,8 @@ struct SettingsView: View {
                 .tabItem { Label("Reading", systemImage: "book") }
             DataSettingsView(rootURL: session.environment.fileStore.rootURL)
                 .tabItem { Label("Data", systemImage: "externaldrive") }
+            GoogleSettingsView(environment: session.environment)
+                .tabItem { Label("Google", systemImage: "person.crop.circle") }
         }
         .frame(width: Self.width)
         .scenePadding()

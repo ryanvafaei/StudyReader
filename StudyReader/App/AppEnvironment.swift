@@ -21,6 +21,9 @@ struct AppEnvironment: Sendable {
     let sleeper: any Sleeper
     let httpClient: any HTTPClient
     let googleAuth: any GoogleAuthProviding
+    /// The GoogleSignIn wrapper (also `googleAuth`) in the user's library; nil in tests and the in-memory library,
+    /// which never touch GoogleSignIn or the keychain (ADR-0018).
+    let googleSignIn: GoogleSignInAuth?
     let googleExportService: GoogleExportService
 
     /// Builds the repositories and services from `database`.
@@ -31,7 +34,8 @@ struct AppEnvironment: Sendable {
         settingsStore: SettingsStore = .ephemeral(),
         sleeper: any Sleeper = SystemSleeper(),
         httpClient: any HTTPClient = URLSessionHTTPClient(),
-        googleAuth: any GoogleAuthProviding = UnconfiguredGoogleAuth()
+        googleAuth: any GoogleAuthProviding = UnconfiguredGoogleAuth(),
+        googleSignIn: GoogleSignInAuth? = nil
     ) {
         self.fileStore = fileStore
         self.database = database
@@ -40,6 +44,7 @@ struct AppEnvironment: Sendable {
         self.sleeper = sleeper
         self.httpClient = httpClient
         self.googleAuth = googleAuth
+        self.googleSignIn = googleSignIn
         self.categoryRepository = CategoryRepository(database: database)
         self.documentRepository = DocumentRepository(database: database)
         self.highlightRepository = HighlightRepository(database: database)
@@ -85,18 +90,26 @@ struct AppEnvironment: Sendable {
             await extractionService.enqueue(documentId: id)
         }
         Log.files.info("Re-queued \(ids.count, privacy: .public) extractions at launch")
+        await googleSignIn?.restorePreviousSignIn()
     }
 
-    /// The user's library: FileStore.applicationSupport(), then make(fileStore:now:settingsStore:) with `.standard()`.
+    /// The user's library: FileStore.applicationSupport(), then make(fileStore:now:settingsStore:googleSignIn:) with
+    /// `.standard()` and the GoogleSignIn wrapper (inert when the build has no Google client ID).
     static func live() throws -> AppEnvironment {
-        try make(fileStore: FileStore.applicationSupport(), settingsStore: .standard())
+        try make(
+            fileStore: FileStore.applicationSupport(),
+            settingsStore: .standard(),
+            googleSignIn: GoogleSignInAuth(clientID: GoogleSignInAuth.bundleClientID)
+        )
     }
 
     /// On-disk database in the given FileStore (AppDatabase.makeShared), SystemNow by default.
+    /// `googleSignIn`, when given, is also the environment's `googleAuth`.
     static func make(
         fileStore: FileStore,
         now: any Now = SystemNow(),
-        settingsStore: SettingsStore = .ephemeral()
+        settingsStore: SettingsStore = .ephemeral(),
+        googleSignIn: GoogleSignInAuth? = nil
     ) throws -> AppEnvironment {
         let database = try AppDatabase.makeShared(fileStore: fileStore)
         // Private: the path contains the user's home folder. Redacted in the persisted log.
@@ -104,6 +117,16 @@ struct AppEnvironment: Sendable {
         // Folders left by interrupted imports are removed before the library appears (ADR-0016).
         let removed = try? LibraryMaintenance(database: database, fileStore: fileStore).removeOrphanFolders()
         Log.files.info("Removed \(removed?.count ?? 0, privacy: .public) orphan document folders at launch")
+        if let googleSignIn {
+            return AppEnvironment(
+                fileStore: fileStore,
+                database: database,
+                now: now,
+                settingsStore: settingsStore,
+                googleAuth: googleSignIn,
+                googleSignIn: googleSignIn
+            )
+        }
         return AppEnvironment(fileStore: fileStore, database: database, now: now, settingsStore: settingsStore)
     }
 
