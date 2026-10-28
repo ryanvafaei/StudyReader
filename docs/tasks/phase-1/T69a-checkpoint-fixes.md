@@ -1,0 +1,24 @@
+# T69a: T69 checkpoint fixes: Highlights browser layout, vacuous tests, search-test mutation check
+
+- **Phase:** 1 (T69 checkpoint, `docs/checkpoints/T69-cloud-2026-10-28.md`; only spec FAILs and test defects become fix tasks, the rest is in `docs/BACKLOG.md`)
+- **Agent:** ui-builder
+- **Depends on:** T69
+- **Visual check needed:** no (UI tests cover it)
+
+## Goal
+1. **Spec FAIL (layout).** In the 1024 × 768 CI window the Highlights browser shows a blank band of about 215 pt above the filter bar and a list/detail pane squeezed to about 130 pt (3 rows). Suspected cause: `HighlightsBrowserView.swift` root `VStack` (filter bar, Divider, `HSplitView`) has no `.frame(maxWidth: .infinity, maxHeight: .infinity)`, so it takes the `HSplitView`'s small ideal height and is centred. Fix so the filter bar sits at the top and the list and detail fill the rest. Add the report's H0 test `testListAndDetailFillTheWindow`: compare the list frame with the window frame (list height ≥ 50% of the window height, filter bar within ~120 pt of the toolbar). Look at the screenshots `CA7D291A…` and `725EDB99…` in build/ci/40610848003/ui-screenshots/ for the symptom.
+2. **Vacuous tests (report "Weak tests that pass").** `HighlightsBrowserTests/testSelectingARowShowsTheDetailPane` line ~63 asserts a "Note" label that already exists in the filter bar before any row is selected: assert something only the detail pane has (e.g. the "Open in Document" button or a detail-only identifier; give the detail pane's note field its own accessibility identifier). `testReturnAndEscapeDoNothingToTheLibrary` probably clicks the filter bar's "Note" label rather than the detail pane's note field, and it cannot test the guard it names since LibraryView is not mounted there: click the detail pane's note field by its own identifier and also cover the Add Tag field; rename the test to say what it checks if needed.
+3. **B23 mutation check** for `LibraryOpenTests/testReturnInTheSearchFieldDoesNotOpenTheSelectedDocument` (it passed, but the report shows it could be vacuous: ⌘F sets `isSearchFocused` directly in AppCommands, an NSSearchField with `.onSubmit(of: .search)` may consume Return/Escape before the hidden buttons, and focus is never asserted). Do the mutation once on CI: in a temporary working-tree edit remove `|| session.isSearchFocused` from LibraryView's hidden buttons, run ONLY that test via `./scripts/ci.sh uitest StudyReaderUITests/LibraryOpenTests/testReturnInTheSearchFieldDoesNotOpenTheSelectedDocument`, then RESTORE the file (`git checkout -- StudyReader/Features/Library/LibraryView.swift` is NOT allowed if LibraryView has other uncommitted edits from this task: use a copy/revert of exactly that line, and verify with `git diff` that the guard is back). If the mutated test still PASSES, the test is vacuous: replace it with one that proves real focus (e.g. type a character into the field first in a variant, or assert the field's keyboard focus through the accessibility value / a focused-state attribute), keeping the Return/Escape assertions, and show that the new test fails on the mutation (second mutation run) and passes on the real code. If the mutated test FAILS, the test is sound: say so in the report.
+4. Small: give the bulk bar count `.accessibilityValue` instead of the "Selected count" label (BACKLOG B26-1), fix the two Swift 6 isolation compile warnings at `HighlightsBrowserTests.swift:12` (add `@MainActor` or whatever is correct).
+
+## Files to touch
+`StudyReader/Features/HighlightsBrowser/HighlightsBrowserView.swift` (+ `HighlightDetailView.swift` for identifiers), `StudyReaderUITests/HighlightsBrowserTests.swift`, maybe `StudyReaderUITests/LibraryOpenTests.swift`, and `LibraryView.swift` only temporarily for the mutation.
+
+## Acceptance criteria
+1. The browser's list and detail fill the window (H0 passes, screenshot reviewed by the ui-tester at the next checkpoint).
+2. The two weak tests are non-vacuous (state which assertion would fail when the behaviour is broken).
+3. B23 mutation result reported honestly, with the final state of the guard line verified restored.
+4. This task may run its own targeted UI tests: `./scripts/ci.sh uitest StudyReaderUITests/HighlightsBrowserTests` once, plus the mutation run(s); max 2 UI attempts for the browser tests; never two CI jobs at once.
+
+## Review log
+<!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->

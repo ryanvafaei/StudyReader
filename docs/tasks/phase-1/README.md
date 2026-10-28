@@ -73,6 +73,7 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 39 | [T67 In-document find and search-hit navigation](T67-in-document-find-and-search-hits.md) | pdf-engine | T59, T60, T66 | yes |
 | 40 | [T68 Highlight browse query](T68-highlight-browse-query.md) | data-layer | T35, T36 | no |
 | 41 | [T69 Highlights browser](T69-highlights-browser.md) | ui-builder | T49, T63, T68 | yes |
+| 41a | [T69a T69 checkpoint fixes: browser layout, vacuous tests, search-test mutation check](T69a-checkpoint-fixes.md) (spec FAIL and test defects from the T69 checkpoint; runs before T70) | ui-builder | T69 | no |
 | 42 | [T70 ExportRepository, ExportRenderer, Drive folder links](T70-export-repository-and-renderer.md) | integrations | T36, T37, T58 | no |
 | 43 | [T71 GoogleExportService](T71-google-export-service.md) | integrations | T70 | no |
 | 44 | [T72 Google sign-in and session restore](T72-google-sign-in-and-session-restore.md) | integrations | T45, T71 | yes |
