@@ -32,6 +32,7 @@ struct PDFFindBar: View {
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 70, alignment: .leading)
                 .accessibilityLabel("Match count")
+                .accessibilityValue(status)
             Button {
                 find.previous()
             } label: {

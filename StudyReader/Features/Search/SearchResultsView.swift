@@ -85,6 +85,7 @@ struct SearchResultsView: View {
                         ForEach(search.results.documents) { hit in
                             Button { open(hit) } label: { DocumentHitRow(hit: hit) }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("search-hit-document")
                         }
                     }
                 }
@@ -93,6 +94,7 @@ struct SearchResultsView: View {
                         ForEach(search.results.highlights) { hit in
                             Button { open(hit) } label: { HighlightHitRow(hit: hit) }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("search-hit-highlight")
                         }
                     }
                 }
@@ -101,6 +103,7 @@ struct SearchResultsView: View {
                         ForEach(search.results.notes) { hit in
                             Button { open(hit) } label: { NoteHitRow(hit: hit) }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("search-hit-note")
                         }
                     }
                 }

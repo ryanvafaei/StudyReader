@@ -119,3 +119,4 @@ S2 and S5, F4 and F5 (Markdown find bar), C0–C2, C4–C5, C7–C16 and C19 (pi
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium (no reworks; 2 UI attempts plus 1 extra user-approved targeted run), reviewer code-reviewer Sonnet medium: APPROVED; CI evidence: UI run 40711023791 (F1, F2, F3, C3, C6, C17, S3, S4 + 11 LibraryOpenTests; it ran after the PDFFindBar accessibilityValue build 40710460066) and 40714957031 (C18 pass after the label-or-value selector fix; S1 still failed). S1 (grouped search results) removed by user decision and moved to VISUAL_CHECKS Needs a Mac; PDFFindBar .accessibilityValue(status) accepted as a one-line a11y fix beyond the "three identifiers only" scope
