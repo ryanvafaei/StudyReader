@@ -1,13 +1,12 @@
 import SwiftUI
 
 /// Library section (SPEC F-01): grid or list of documents, sort, filter, layout, context menu and delete.
-/// Holds only view state (selection, pending delete). Everything else lives in `LibraryModel`.
+/// Holds only view state (pending delete, sheets). The selection lives in `AppSession`. Everything else lives in `LibraryModel`.
 struct LibraryView: View {
     let session: AppSession
     /// Opens the import picker (File > Import, or the toolbar button).
     let onImport: () -> Void
     @State private var model: LibraryModel
-    @State private var selection: String?
     @State private var pendingDelete: LibraryItem?
     @State private var editing: MetadataRequest?
     @State private var exporting: ExportRequest?
@@ -105,14 +104,14 @@ struct LibraryView: View {
                             onRetry: { retry(item.id) }
                         )
                         .onTapGesture(count: 2) { openDocument(item.id) }
-                        .onTapGesture { selection = item.id }
+                        .onTapGesture { session.librarySelection = item.id }
                         .contextMenu { menu(for: item) }
                     }
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .top)
                 .contentShape(Rectangle())
-                .onTapGesture { selection = nil }
+                .onTapGesture { session.librarySelection = nil }
             }
         }
     }
@@ -174,7 +173,7 @@ struct LibraryView: View {
         ZStack {
             Button("Open Selected Document") { openSelection() }
                 .keyboardShortcut(.defaultAction)
-            Button("Clear Selection") { selection = nil }
+            Button("Clear Selection") { session.librarySelection = nil }
                 .keyboardShortcut(.cancelAction)
         }
         // Return and Escape typed in the search field must not reach these window-wide key equivalents.
@@ -314,6 +313,9 @@ struct LibraryView: View {
 
     private func delete(_ item: LibraryItem) {
         pendingDelete = nil
+        if session.librarySelection == item.id {
+            session.librarySelection = nil
+        }
         Task { await model.delete(documentId: item.id) }
     }
 
@@ -323,13 +325,13 @@ struct LibraryView: View {
 
     /// The selection, dropped when its document is no longer listed. Computed, so nothing is written back.
     private var currentSelection: String? {
-        model.existingSelection(selection)
+        model.existingSelection(session.librarySelection)
     }
 
     private var tableSelection: Binding<String?> {
         Binding(
             get: { currentSelection },
-            set: { selection = $0 }
+            set: { session.librarySelection = $0 }
         )
     }
 

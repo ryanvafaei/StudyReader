@@ -47,3 +47,4 @@ Persisting the selection across launches, hoisting the library filter (it still 
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40701069042, 686 tests); no spec deviations; stale selection ids are filtered by existingSelection; UI check in T88
