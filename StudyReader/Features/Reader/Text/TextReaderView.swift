@@ -7,8 +7,9 @@ import AppKit
 final class TextReaderView: NSTextView {
     /// Called after a mouse-up that leaves a non-empty selection (T60).
     var onSelectionFinished: (@MainActor (NSRange) -> Void)?
-    /// Called for a click that doesn't select and isn't on a link: the character index under the pointer. Return true
-    /// if handled (T60).
+    /// Called for a click that doesn't select and isn't on a link (a link click never gets here, see `didClickLink`):
+    /// the character index under the pointer. The Bool result is informational only; nothing runs after it in
+    /// `mouseDown` (T60).
     var onClick: (@MainActor (Int, NSEvent) -> Bool)?
     /// Key handling hook for 1-5 / H (T60); return true if handled.
     var onKeyDown: (@MainActor (NSEvent) -> Bool)?
@@ -130,13 +131,35 @@ final class TextReaderView: NSTextView {
         didSet { needsDisplay = true }
     }
 
+    /// The paints that can show in `viewport` (UTF-16), each clipped to it, in the same order. All paints unchanged
+    /// when `viewport` is nil.
+    static func paintsToDraw(_ paints: [HighlightPaint], viewport: NSRange?) -> [HighlightPaint] {
+        guard let viewport else { return paints }
+        return paints.compactMap { paint in
+            let clipped = NSIntersectionRange(paint.range, viewport)
+            guard clipped.length > 0 else { return nil }
+            return HighlightPaint(range: clipped, color: paint.color)
+        }
+    }
+
+    /// The laid-out viewport as a UTF-16 range, or nil when TextKit has none yet (or it is empty).
+    private func viewportRange() -> NSRange? {
+        guard let layoutManager = textLayoutManager,
+              let contentManager = layoutManager.textContentManager,
+              let viewport = layoutManager.textViewportLayoutController.viewportRange else { return nil }
+        let documentStart = contentManager.documentRange.location
+        let location = contentManager.offset(from: documentStart, to: viewport.location)
+        let length = contentManager.offset(from: viewport.location, to: viewport.endLocation)
+        return length > 0 ? NSRange(location: location, length: length) : nil
+    }
+
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
         guard !highlightPaints.isEmpty, let layoutManager = textLayoutManager,
               let contentManager = layoutManager.textContentManager else { return }
         let origin = textContainerOrigin
         let length = textStorage?.length ?? 0
-        for paint in highlightPaints {
+        for paint in Self.paintsToDraw(highlightPaints, viewport: viewportRange()) {
             guard paint.range.location >= 0, paint.range.length > 0, NSMaxRange(paint.range) <= length,
                   let start = contentManager.location(contentManager.documentRange.location, offsetBy: paint.range.location),
                   let end = contentManager.location(start, offsetBy: paint.range.length),

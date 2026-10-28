@@ -119,6 +119,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 
 /// Supplies `DecoratedLayoutFragment` for paragraphs with block attributes. Owned by the controller; the layout
 /// manager only holds its delegate weakly.
+// @preconcurrency: TextKit calls the delegate on the main thread but isn't annotated for Swift concurrency.
 @MainActor
 final class TextBlockDecorationDelegate: NSObject, @preconcurrency NSTextLayoutManagerDelegate {
     func textLayoutManager(

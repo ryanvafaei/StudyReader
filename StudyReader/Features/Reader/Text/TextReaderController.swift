@@ -143,11 +143,12 @@ final class TextReaderController: NSObject {
 
     // MARK: - Scroll position
 
-    /// UTF-16 offset of the first character of the line at the top of the visible area.
-    func firstVisibleOffset() -> Int {
-        guard textLength > 0,
-              let layoutManager = textView.textLayoutManager,
-              let contentManager = layoutManager.textContentManager else { return 0 }
+    /// UTF-16 offset of the first character of the line at the top of the visible area: 0 for an empty text, nil when
+    /// there is text but no layout fragment can be found yet (the caller must not treat that as position 0).
+    func firstVisibleOffset() -> Int? {
+        guard textLength > 0 else { return 0 }
+        guard let layoutManager = textView.textLayoutManager,
+              let contentManager = layoutManager.textContentManager else { return nil }
         let top = scrollView.contentView.bounds.minY - textView.textContainerOrigin.y
         for step in [0, 4, 8, 16, 32, 64] as [CGFloat] {
             let y = max(top, 0) + 1 + step
@@ -157,7 +158,7 @@ final class TextReaderController: NSObject {
             guard let line = lines.first(where: { $0.typographicBounds.maxY > localY }) ?? lines.last else { continue }
             return Self.offset(of: fragment, in: contentManager) + line.characterRange.location
         }
-        return 0
+        return nil
     }
 
     /// Scrolls so the line containing `offset` is at the top of the visible area (as far as the document allows).
@@ -271,8 +272,7 @@ final class TextReaderController: NSObject {
 
     private func reportPositionIfNeeded() {
         guard isTrackingPosition else { return }
-        let offset = firstVisibleOffset()
-        guard offset != lastReportedOffset else { return }
+        guard let offset = firstVisibleOffset(), offset != lastReportedOffset else { return }
         lastReportedOffset = offset
         model.textPositionChanged(offset: offset, textLength: textLength)
     }

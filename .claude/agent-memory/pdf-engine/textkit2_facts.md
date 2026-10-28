@@ -16,3 +16,7 @@ metadata:
 - `textView.undoManager` is non-nil for the (allowsUndo == false) reader view in a borderless test window; `undo()` works outside a run-loop group.
 - Swift Testing `-only-testing` filters use the struct name (`TextHighlightControllerTests`), not the `@Suite` display name; a wrong name runs 0 tests and still prints TEST SUCCEEDED. Check for "Test run with N tests" in the log.
 - Re-anchoring writes reach `model.highlights` only through the DB observation: wait until `model.highlights == fetchForDocument` before drawing/revealing (see MarkdownReaderCoordinator.waitForReanchoredRows).
+
+## T79
+- No reliable "no layout fragment" setup in tests: TK2 lays out on demand (zero-width container, clip view scrolled 1e7 below the text all still return a fragment). Removing the layout manager / container from the content storage makes `textView.textStorage` nil (textLength 0).
+- `TextAnchoring.Resolver` (struct, lazy NormalizedText, `hasBuiltNormalizedText`/`normalizedBuildCount` test hooks); `TextReaderView.paintsToDraw(_:viewport:)` pure clip helper.

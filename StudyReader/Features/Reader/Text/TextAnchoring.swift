@@ -50,45 +50,77 @@ enum TextAnchoring {
     }
 
     static func resolve(_ anchor: TextAnchor, in text: String, currentVersion: Int) -> Resolution {
-        guard !anchor.text.isEmpty else { return .orphaned }
-        let ns = text as NSString
+        var resolver = Resolver(text: text)
+        return resolver.resolve(anchor, currentVersion: currentVersion)
+    }
 
-        let stored = NSRange(location: anchor.start, length: anchor.length)
-        if anchor.start >= 0, anchor.length >= 0, NSMaxRange(stored) <= ns.length,
-           ns.substring(with: stored) == anchor.text {
-            if anchor.sourceVersion == currentVersion { return .unchanged }
-            return .moved(moved(anchor, to: stored, version: currentVersion))
+    /// Re-finds anchors in one text. Builds the normalised text lazily, at most once, and only when an anchor's
+    /// stored range no longer holds its text.
+    struct Resolver {
+        private let text: NSString
+        private let string: String
+        private var normalized: NormalizedText?
+        /// How often the normalised text was built (0 or 1). Test hook.
+        private(set) var normalizedBuildCount = 0
+
+        /// True once an anchor needed the normalised text. Test hook.
+        var hasBuiltNormalizedText: Bool { normalized != nil }
+
+        init(text: String) {
+            self.string = text
+            self.text = text as NSString
         }
 
-        let haystack = NormalizedText(text)
-        let needle = NormalizedText(anchor.text).units
-        let prefix = NormalizedText(anchor.prefix).units
-        let suffix = NormalizedText(anchor.suffix).units
-        guard !needle.isEmpty, needle.count <= haystack.units.count else { return .orphaned }
+        mutating func resolve(_ anchor: TextAnchor, currentVersion: Int) -> Resolution {
+            guard !anchor.text.isEmpty else { return .orphaned }
 
-        let oldStart = haystack.normalizedOffset(forOriginal: anchor.start)
-        let lowerBound = oldStart - nearbyWindow
-        let upperBound = oldStart + nearbyWindow
-        let all = occurrences(of: needle, in: haystack.units)
-        var candidates = all.filter { $0 >= lowerBound && $0 <= upperBound }
-        if candidates.isEmpty { candidates = all }
-
-        var best: (start: Int, score: Int, distance: Int)?
-        for start in candidates {
-            let score = commonSuffixLength(prefix, haystack.units, before: start)
-                + commonPrefixLength(suffix, haystack.units, from: start + needle.count)
-            let distance = abs(start - oldStart)
-            if let current = best {
-                if score < current.score || (score == current.score && distance >= current.distance) { continue }
+            let stored = NSRange(location: anchor.start, length: anchor.length)
+            if anchor.start >= 0, anchor.length >= 0, NSMaxRange(stored) <= text.length,
+               text.substring(with: stored) == anchor.text {
+                if anchor.sourceVersion == currentVersion { return .unchanged }
+                return .moved(TextAnchoring.moved(anchor, to: stored, version: currentVersion))
             }
-            best = (start, score, distance)
-        }
-        guard let winner = best else { return .orphaned }
 
-        let originalStart = haystack.originalStarts[winner.start]
-        let originalEnd = haystack.originalEnds[winner.start + needle.count - 1]
-        let range = NSRange(location: originalStart, length: originalEnd - originalStart)
-        return .moved(moved(anchor, to: range, version: currentVersion))
+            let haystack = normalizedText()
+            let needle = NormalizedText(anchor.text).units
+            let prefix = NormalizedText(anchor.prefix).units
+            let suffix = NormalizedText(anchor.suffix).units
+            guard !needle.isEmpty, needle.count <= haystack.units.count else { return .orphaned }
+
+            let oldStart = haystack.normalizedOffset(forOriginal: anchor.start)
+            let lastStart = haystack.units.count - needle.count
+            let windowLower = max(0, oldStart - nearbyWindow)
+            let windowUpper = min(lastStart, oldStart + nearbyWindow)
+            var candidates = windowLower <= windowUpper
+                ? occurrences(of: needle, in: haystack.units, starts: windowLower...windowUpper)
+                : []
+            if candidates.isEmpty { candidates = occurrences(of: needle, in: haystack.units, starts: 0...lastStart) }
+
+            var best: (start: Int, score: Int, distance: Int)?
+            for start in candidates {
+                let score = commonSuffixLength(prefix, haystack.units, before: start)
+                    + commonPrefixLength(suffix, haystack.units, from: start + needle.count)
+                let distance = abs(start - oldStart)
+                if let current = best {
+                    if score < current.score || (score == current.score && distance >= current.distance) { continue }
+                }
+                best = (start, score, distance)
+            }
+            guard let winner = best else { return .orphaned }
+
+            let originalStart = haystack.originalStarts[winner.start]
+            let originalEnd = haystack.originalEnds[winner.start + needle.count - 1]
+            let range = NSRange(location: originalStart, length: originalEnd - originalStart)
+            return .moved(TextAnchoring.moved(anchor, to: range, version: currentVersion))
+        }
+
+        private mutating func normalizedText() -> NormalizedText {
+            if let normalized { return normalized }
+            let built = NormalizedText(string)
+            normalized = built
+            normalizedBuildCount += 1
+            return built
+        }
     }
 
     /// positionKey for text/Markdown highlights (ARCHITECTURE §5.5).
@@ -106,12 +138,12 @@ enum TextAnchoring {
         return result
     }
 
-    /// Start offsets of every (possibly overlapping) occurrence of `needle`, ascending.
-    private static func occurrences(of needle: [UInt16], in haystack: [UInt16]) -> [Int] {
+    /// Start offsets of every (possibly overlapping) occurrence of `needle` that begins inside `starts`, ascending.
+    private static func occurrences(of needle: [UInt16], in haystack: [UInt16], starts: ClosedRange<Int>) -> [Int] {
         guard let first = needle.first, needle.count <= haystack.count else { return [] }
         var result: [Int] = []
-        var index = 0
-        let last = haystack.count - needle.count
+        var index = max(starts.lowerBound, 0)
+        let last = min(starts.upperBound, haystack.count - needle.count)
         while index <= last {
             if haystack[index] == first {
                 var offset = 1

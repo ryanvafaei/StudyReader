@@ -189,10 +189,11 @@ final class TextHighlightController {
         let repository = environment.highlightRepository
         let date = environment.now()
         var changed = 0
+        var resolver = TextAnchoring.Resolver(text: string)
         for highlight in highlights where highlight.kind == .text {
             guard case .text(let anchor) = highlight.anchor else { continue }
             let update: (anchor: HighlightAnchor, positionKey: Double, status: AnchorStatus)
-            switch TextAnchoring.resolve(anchor, in: string, currentVersion: MarkdownRenderer.version) {
+            switch resolver.resolve(anchor, currentVersion: MarkdownRenderer.version) {
             case .unchanged:
                 guard highlight.anchorStatus == .orphaned else { continue }
                 update = (highlight.anchor, highlight.positionKey, .ok)

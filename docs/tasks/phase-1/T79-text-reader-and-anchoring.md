@@ -52,3 +52,4 @@ The "Open Link" context-menu check (B8, Mac), recomputing prefix/suffix on `.mov
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40682448045, 650 tests); deviation accepted: the nil-case test for reportPositionIfNeeded could not be built (TextKit 2 always finds a fragment; three setups failed), so the one-line guard let is untested; replaced by empty-text/laid-out firstVisibleOffset test

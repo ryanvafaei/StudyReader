@@ -98,8 +98,38 @@ struct TextReaderControllerTests {
         harness.controller.scroll(toOffset: target)
         try await Self.settle(0.2)
 
-        #expect(abs(harness.controller.firstVisibleOffset() - target) <= Self.targetLine.utf16.count)
+        let first = try #require(harness.controller.firstVisibleOffset())
+        #expect(abs(first - target) <= Self.targetLine.utf16.count)
         #expect(harness.controller.scrollView.contentView.bounds.minY > 0)
+    }
+
+    /// The nil case (text but no layout fragment) has no reliable setup: TextKit 2 lays out on demand, also for a
+    /// zero-width container and for a visible area far below the last line, so a fragment is always found.
+    @Test(.timeLimit(.minutes(1)))
+    func firstVisibleOffsetIsZeroForEmptyTextAndFoundWithLayout() async throws {
+        let harness = try await Self.makeHarness()
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+
+        harness.controller.load(NSAttributedString())
+        #expect(harness.controller.firstVisibleOffset() == 0)
+
+        harness.controller.load(harness.rendered.attributedString)
+        try await Self.settle()
+        #expect(harness.controller.textLength > 0)
+        #expect(harness.controller.firstVisibleOffset() != nil)
+    }
+
+    @Test func paintsToDrawClipsToViewport() {
+        let color = NSColor.yellow
+        let paints = [
+            TextReaderView.HighlightPaint(range: NSRange(location: 0, length: 10), color: color),
+            TextReaderView.HighlightPaint(range: NSRange(location: 50, length: 10), color: color),
+            TextReaderView.HighlightPaint(range: NSRange(location: 95, length: 25), color: color)
+        ]
+        let clipped = TextReaderView.paintsToDraw(paints, viewport: NSRange(location: 40, length: 60))
+        #expect(clipped.map(\.range) == [NSRange(location: 50, length: 10), NSRange(location: 95, length: 5)])
+        #expect(clipped.allSatisfy { $0.color == color })
+        #expect(TextReaderView.paintsToDraw(paints, viewport: nil) == paints)
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -119,7 +149,7 @@ struct TextReaderControllerTests {
         try await Self.settle(0.8)
 
         let rendered = try Self.offset(of: Self.targetLine, in: harness.tripled.string)
-        let first = harness.controller.firstVisibleOffset()
+        let first = try #require(harness.controller.firstVisibleOffset())
         #expect(abs(first - rendered) <= Self.targetLine.utf16.count, "first visible \(first), target \(rendered)")
     }
 

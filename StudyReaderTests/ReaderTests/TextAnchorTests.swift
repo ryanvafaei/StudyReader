@@ -161,4 +161,91 @@ struct TextAnchorTests {
         let anchor = TextAnchor(start: 42, length: 3, text: "abc", prefix: "", suffix: "", sourceVersion: 1)
         #expect(TextAnchoring.positionKey(for: anchor) == 42)
     }
+
+    // MARK: - Resolver
+
+    @Test func resolverMatchesResolveForAllCases() {
+        let old = "Intro.\n\nGradient descent minimizes the loss.  It is iterative.\n\nGradient descent minimizes the loss again."
+        let target = "Gradient descent minimizes the loss"
+        let gradient = TextAnchoring.anchor(for: range(of: target, in: old), in: old, sourceVersion: 1)
+        let reflowed = "New preface paragraph\u{2026} \nIntro. Gradient descent minimizes the loss. It is iterative. Gradient descent minimizes the loss again."
+
+        let filler = String(repeating: "-", count: 100)
+        let twice = "abc" + filler + "abc" + filler
+        let nearby = TextAnchor(start: 90, length: 3, text: "abc", prefix: "", suffix: "", sourceVersion: 1)
+        let early = TextAnchor(start: 20, length: 3, text: "abc", prefix: "", suffix: "", sourceVersion: 1)
+
+        let notes = "Start of notes. The needle sentence lives here. End of notes."
+        let needle = TextAnchoring.anchor(for: range(of: "needle sentence", in: notes), in: notes, sourceVersion: 1)
+        let farText = String(repeating: "x", count: 5_000) + notes
+
+        let alpha = "Alpha beta gamma delta"
+        let gamma = TextAnchoring.anchor(for: range(of: "gamma", in: alpha), in: alpha, sourceVersion: 1)
+        let empty = TextAnchor(start: 0, length: 0, text: "", prefix: "", suffix: "", sourceVersion: 1)
+
+        let multiline = "Alpha beta\n\ngamma delta epsilon"
+        let lines = TextAnchoring.anchor(for: range(of: "beta\n\ngamma", in: multiline), in: multiline, sourceVersion: 1)
+
+        let cases: [(anchor: TextAnchor, text: String, version: Int)] = [
+            (gradient, old, 1), (gradient, old, 2), (gradient, reflowed, 2),
+            (nearby, twice, 1), (early, twice, 1),
+            (needle, farText, 2),
+            (gamma, alpha, 1), (gamma, alpha, 2), (gamma, "Alpha beta delta", 2), (gamma, "", 2), (empty, alpha, 1),
+            (lines, "Intro Alpha beta gamma delta epsilon", 2), (lines, "Intro Alpha beta \t\n gamma delta epsilon", 2)
+        ]
+        for (index, item) in cases.enumerated() {
+            var resolver = TextAnchoring.Resolver(text: item.text)
+            #expect(
+                resolver.resolve(item.anchor, currentVersion: item.version)
+                    == TextAnchoring.resolve(item.anchor, in: item.text, currentVersion: item.version),
+                "case \(index)"
+            )
+        }
+    }
+
+    @Test func fastPathDoesNotNormalise() {
+        let text = "Alpha beta gamma delta. Alpha beta gamma delta, again."
+        let unchanged = TextAnchoring.anchor(for: range(of: "gamma", in: text), in: text, sourceVersion: 2)
+        let stale = TextAnchor(start: 500, length: 5, text: "gamma", prefix: "beta ", suffix: " delta", sourceVersion: 2)
+        let stale2 = TextAnchor(start: 700, length: 5, text: "Alpha", prefix: "", suffix: " beta", sourceVersion: 2)
+
+        var resolver = TextAnchoring.Resolver(text: text)
+        #expect(resolver.resolve(unchanged, currentVersion: 2) == .unchanged)
+        #expect(resolver.hasBuiltNormalizedText == false)
+
+        guard case .moved = resolver.resolve(stale, currentVersion: 2) else {
+            Issue.record("expected .moved")
+            return
+        }
+        #expect(resolver.hasBuiltNormalizedText)
+        #expect(resolver.normalizedBuildCount == 1)
+
+        guard case .moved = resolver.resolve(stale2, currentVersion: 2) else {
+            Issue.record("expected .moved")
+            return
+        }
+        #expect(resolver.normalizedBuildCount == 1)
+    }
+
+    @Test func windowScanFindsNearbyWithoutFullScan() {
+        let needle = "needle sentence"
+        let filler = String(repeating: "lorem ipsum dolor sit amet ", count: 40_000)   // about 1 MB
+        let nearOffset = 600_000
+        let units = Array(filler.utf16)
+        let head = String(decoding: units[0..<nearOffset], as: UTF16.self)
+        let tail = String(decoding: units[nearOffset...], as: UTF16.self)
+        let text = needle + " " + head + needle + " " + tail
+        #expect(text.utf16.count > 1_000_000)
+
+        let nearStart = needle.utf16.count + 1 + nearOffset
+        let stale = TextAnchor(start: nearStart + 700, length: needle.utf16.count, text: needle, prefix: "", suffix: "", sourceVersion: 1)
+        var resolver = TextAnchoring.Resolver(text: text)
+        let resolution = resolver.resolve(stale, currentVersion: 1)
+        #expect(resolution == .moved(TextAnchor(
+            start: nearStart, length: needle.utf16.count, text: needle, prefix: "", suffix: "", sourceVersion: 1
+        )))
+
+        let wholeText = TextAnchoring.resolve(stale, in: text, currentVersion: 1)
+        #expect(wholeText == resolution)
+    }
 }
