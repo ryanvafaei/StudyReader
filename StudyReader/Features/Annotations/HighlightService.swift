@@ -124,13 +124,15 @@ actor HighlightService {
     }
 
     /// Deletes the remembered auto-highlight and returns its id, but only when it is `id`: the service is shared by
-    /// every tab, and each tab may only undo the auto-highlight it created. Returns nil and does nothing when `id` is
-    /// not the remembered one (another tab created a later one, or anything else forgot it).
+    /// every tab, and each tab may only undo the auto-highlight it created. It deletes only while the highlight has
+    /// no note, tags or edited text (one transaction in the repository). Returns nil when `id` is not the remembered
+    /// one (another tab created a later one, or anything else forgot it) and when the row is annotated or missing.
+    /// Whenever `id` is the remembered one, the service forgets it before the delete.
     func undoAutoHighlight(id: String) async throws -> String? {
         guard lastAutoHighlightId == id else { return nil }
         lastAutoHighlightId = nil
-        try await highlights.delete(id: id, fileStore: fileStore)
-        return id
+        let deleted = try await highlights.deleteIfUnannotated(id: id, fileStore: fileStore)
+        return deleted ? id : nil
     }
 
     func setColor(id: String, color: HighlightColor) async throws {

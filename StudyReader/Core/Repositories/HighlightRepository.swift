@@ -113,6 +113,32 @@ struct HighlightRepository: Sendable {
         return true
     }
 
+    /// Deletes the row only when it is still bare: `note` is empty after trimming whitespace and newlines,
+    /// `editedText` is nil, and no `highlightTag` row references it. The check and the delete run in ONE write
+    /// transaction, so a note or tag written just before can't slip between them. On delete, removes the snapshot
+    /// file like `delete(id:fileStore:)`. Returns true when the row was deleted; false when it is missing or
+    /// annotated (nothing changed).
+    @discardableResult
+    func deleteIfUnannotated(id: String, fileStore: FileStore) async throws -> Bool {
+        let removed = try await writer.write { db -> Highlight? in
+            guard let highlight = try Highlight.fetchOne(db, key: id) else { return nil }
+            guard highlight.editedText == nil,
+                  highlight.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { return nil }
+            let tagLinks = try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM highlightTag WHERE highlightId = ?",
+                arguments: [id]
+            ) ?? 0
+            guard tagLinks == 0 else { return nil }
+            _ = try highlight.delete(db)
+            return highlight
+        }
+        guard let removed else { return false }
+        try Self.removeSnapshotFile(relativePath: removed.imagePath, fileStore: fileStore)
+        return true
+    }
+
     /// Deletes the rows in one transaction, then removes each snapshot file. Unknown ids are skipped.
     /// Returns the number deleted.
     @discardableResult

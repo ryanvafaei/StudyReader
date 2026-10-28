@@ -205,6 +205,53 @@ struct HighlightRepositoryTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func deleteIfUnannotatedKeepsAnnotatedRows() async throws {
+        let db = try AppDatabase.makeInMemory()
+        try await Self.seedDocuments(db)
+        let fileStore = TestFileStore.make()
+        defer { TestFileStore.remove(fileStore) }
+        let repo = HighlightRepository(database: db)
+        var noted = TestData.highlight(documentId: Self.documentA, id: "20000000-0000-0000-0000-000000000021")
+        noted.note = "x"
+        var edited = TestData.highlight(documentId: Self.documentA, id: "20000000-0000-0000-0000-000000000022")
+        edited.editedText = "e"
+        let tagged = TestData.highlight(documentId: Self.documentA, id: "20000000-0000-0000-0000-000000000023")
+        var blankNote = TestData.highlight(documentId: Self.documentA, id: "20000000-0000-0000-0000-000000000024")
+        blankNote.note = " \n\t"
+        let bare = TestData.highlight(documentId: Self.documentA, id: "20000000-0000-0000-0000-000000000025")
+        let tag = TestData.tag(name: "Exam", id: "30000000-0000-0000-0000-0000000000D9")
+        try await db.writer.write { db in try tag.insert(db) }
+        for highlight in [noted, edited, blankNote, bare] {
+            try await repo.insert(highlight)
+        }
+        try await repo.insert(tagged, tagIds: [tag.id])
+
+        let keptNote = try await repo.deleteIfUnannotated(id: noted.id, fileStore: fileStore)
+        let keptEdited = try await repo.deleteIfUnannotated(id: edited.id, fileStore: fileStore)
+        let keptTagged = try await repo.deleteIfUnannotated(id: tagged.id, fileStore: fileStore)
+        let removedBlank = try await repo.deleteIfUnannotated(id: blankNote.id, fileStore: fileStore)
+        let removedBare = try await repo.deleteIfUnannotated(id: bare.id, fileStore: fileStore)
+        let unknown = try await repo.deleteIfUnannotated(
+            id: "20000000-0000-0000-0000-0000000000FC",
+            fileStore: fileStore
+        )
+
+        #expect(keptNote == false)
+        #expect(keptEdited == false)
+        #expect(keptTagged == false)
+        #expect(removedBlank)
+        #expect(removedBare)
+        #expect(unknown == false)
+        let remaining = try await repo.fetchForDocument(Self.documentA)
+        #expect(Set(remaining.map(\.id)) == [noted.id, edited.id, tagged.id])
+        let links = try await db.writer.read { db in
+            try HighlightTag.filter(Column("highlightId") == tagged.id).fetchAll(db)
+        }
+        #expect(links.map(\.tagId) == [tag.id])
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func bulkColorAndDelete() async throws {
         let db = try AppDatabase.makeInMemory()
         try await Self.seedDocuments(db)

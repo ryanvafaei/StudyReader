@@ -320,6 +320,61 @@ struct ReaderModelTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func undoIsClearedWhenANoteIsSaved() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        let (model, observer, highlight) = try await Self.modelWithAutoHighlight(session)
+        defer { observer.cancel() }
+        let editor = NoteEditorModel(target: .highlight(highlight.id), environment: session.environment)
+        await editor.load()
+
+        editor.text = "exam: derive this"
+        await editor.flush()
+
+        let cleared = await ReaderTestSupport.waitUntil { !model.canUndoHighlight }
+        #expect(cleared)
+        await model.undoLastAutoHighlight()
+        #expect(await ReaderTestSupport.highlightCount(session, documentId: Self.documentId) == 1)
+        let stored = try await session.environment.highlightRepository.fetch(id: highlight.id)
+        #expect(stored?.note == "exam: derive this")
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func undoAfterATagOnlyLeavesTheHighlight() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        let (model, observer, highlight) = try await Self.modelWithAutoHighlight(session)
+        defer { observer.cancel() }
+        let tags = session.environment.tagRepository
+        let tag = try await tags.findOrCreate(name: "exam", at: TestData.referenceDate)
+        try await tags.addTag(tag.id, toHighlights: [highlight.id])
+
+        await model.undoLastAutoHighlight()
+
+        #expect(await ReaderTestSupport.highlightCount(session, documentId: Self.documentId) == 1)
+        let links = try await session.environment.database.writer.read { db in
+            try HighlightTag.filter(Column("highlightId") == highlight.id).fetchAll(db)
+        }
+        #expect(links.map(\.tagId) == [tag.id])
+        #expect(!model.canUndoHighlight)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func openingThePopoverEndsTheUndoWindow() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        let (model, observer, highlight) = try await Self.modelWithAutoHighlight(session)
+        defer { observer.cancel() }
+
+        model.showPopover(highlightId: "30000000-0000-0000-0000-0000000000EE", anchorRect: .zero)
+        #expect(model.canUndoHighlight)
+
+        model.showPopover(highlightId: highlight.id, anchorRect: .zero)
+        #expect(!model.canUndoHighlight)
+        #expect(model.popoverRequest?.highlightId == highlight.id)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func undoIsClearedWhenAnotherHighlightFailsToSave() async throws {
         let session = try ReaderTestSupport.makeSession()
         defer { ReaderTestSupport.cleanUp(session) }

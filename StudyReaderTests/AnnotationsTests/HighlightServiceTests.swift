@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import Testing
 @testable import StudyReader
 
@@ -51,6 +52,40 @@ struct HighlightServiceTests {
 
         let second = try await service.undoAutoHighlight(id: created.id)
         #expect(second == nil)
+        try await env.database.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func undoKeepsAnAnnotatedAutoHighlight() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        try await env.documentRepository.insert(TestData.document(id: Self.documentId))
+        let service = env.highlightService
+
+        let noted = try await service.createText(Self.textSelection(text: "Noted"), isAuto: true)
+        try await env.highlightRepository.updateNote(
+            id: noted.id,
+            note: "exam: derive this",
+            at: TestData.referenceDate
+        )
+        let undoNoted = try await service.undoAutoHighlight(id: noted.id)
+        #expect(undoNoted == nil)
+        let storedNoted = try await env.highlightRepository.fetch(id: noted.id)
+        #expect(storedNoted?.note == "exam: derive this")
+        let undoNotedAgain = try await service.undoAutoHighlight(id: noted.id)
+        #expect(undoNotedAgain == nil)
+
+        let tagged = try await service.createText(Self.textSelection(text: "Tagged"), isAuto: true)
+        let tag = try await env.tagRepository.findOrCreate(name: "exam", at: TestData.referenceDate)
+        try await env.tagRepository.addTag(tag.id, toHighlights: [tagged.id])
+        let undoTagged = try await service.undoAutoHighlight(id: tagged.id)
+        #expect(undoTagged == nil)
+        let storedTagged = try await env.highlightRepository.fetch(id: tagged.id)
+        #expect(storedTagged != nil)
+        let links = try await env.database.writer.read { db in
+            try HighlightTag.filter(Column("highlightId") == tagged.id).fetchAll(db)
+        }
+        #expect(links.map(\.tagId) == [tag.id])
         try await env.database.writer.write { db in try FTSIntegrity.check(db) }
     }
 

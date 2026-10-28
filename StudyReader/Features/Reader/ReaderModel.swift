@@ -34,8 +34,9 @@ final class ReaderModel {
     var engineActions = ReaderEngineActions()
     private(set) var transientMessage: String?
     /// The auto-highlight the service remembers for ⌘Z, as created. Cleared when it is undone, when any other
-    /// highlight is created or fails to be, and when the live highlights show it deleted or recoloured (the service
-    /// forgets it on both, whichever code path made the change).
+    /// highlight is created or fails to be, when the live highlights show it deleted or recoloured (the service
+    /// forgets it on both, whichever code path made the change), when the live row has a note or edited text, and
+    /// when the popover opens on it. Undo only removes a bare highlight (the service checks again at the delete).
     private var autoHighlightMark: AutoHighlightMark?
 
     private struct AutoHighlightMark {
@@ -153,12 +154,15 @@ final class ReaderModel {
         }
     }
 
-    /// Drops the undo mark once the live row is gone or has another color. Recolouring and deleting go through the
-    /// service from the popover and the panel, which the model doesn't see, so it reads the result here.
+    /// Drops the undo mark once the live row is gone, has another color, or has a note or edited text. Recolouring
+    /// and deleting go through the service from the popover and the panel, and notes through `NoteEditorModel`,
+    /// which the model doesn't see, so it reads the result here.
     private func reconcileAutoHighlightMark() {
         guard var mark = autoHighlightMark else { return }
         if let row = highlights.first(where: { $0.id == mark.id }) {
-            if row.color == mark.color {
+            let annotated = row.editedText != nil
+                || !row.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if row.color == mark.color && !annotated {
                 mark.seen = true
                 autoHighlightMark = mark
             } else {
@@ -317,7 +321,11 @@ final class ReaderModel {
         transientMessage = nil
     }
 
+    /// Opening the popover on the auto-highlight ends its undo window: notes and tags are typed there.
     func showPopover(highlightId: String, anchorRect: CGRect, focus: PopoverFocus = .none) {
+        if highlightId == autoHighlightMark?.id {
+            autoHighlightMark = nil
+        }
         popoverRequest = HighlightPopoverRequest(highlightId: highlightId, anchorRect: anchorRect, focus: focus)
     }
 

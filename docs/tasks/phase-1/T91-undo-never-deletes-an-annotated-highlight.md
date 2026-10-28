@@ -65,3 +65,4 @@ extension HighlightRepository {
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40747845323, 702 tests); no spec deviations; undo on an annotated auto-highlight is a silent no-op that keeps the highlight; tag added through the browser bulk bar while the mark is live is the accepted edge case (VISUAL_CHECKS T91)
