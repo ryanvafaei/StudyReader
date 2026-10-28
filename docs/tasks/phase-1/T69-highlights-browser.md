@@ -66,3 +66,5 @@ final class HighlightsBrowserModel {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-28, implementer ui-builder Sonnet medium (rework 1: high), reviewer code-reviewer Sonnet medium: CHANGES REQUESTED (1st): (1) blocker: colour filter button label 'Filter by yellow' (HighlightPalette.name lowercase) vs UI test buttons['Filter by Yellow']: use HighlightPalette.title; (2) major: no String Catalog plural variations for '%lld highlights' / 'Delete %lld highlights?' (precedent T52g). Minor: thumbnail race after cancelled observe (merge or check Task.isCancelled); testReturnAndEscapeDoNothingToTheLibrary is weak (select a row / focus the note field); count label should be a value.
+- 2026-10-28, implementer ui-builder Sonnet medium (rework 1: high), reviewer code-reviewer Sonnet high: APPROVED (2nd, conditional on the full unit run). Label, plural variations (T52g shape), thumbnail race, stronger Return/Escape test fixed; HighlightsBrowserModelTests incl. new count/delete-title tests pass on CI; the UI tests are unrun (T69 checkpoint compiles and runs them). Minor items to BACKLOG B26.

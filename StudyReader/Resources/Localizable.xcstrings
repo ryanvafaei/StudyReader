@@ -27,7 +27,26 @@
 
     },
     "%lld highlights" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld highlight"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld highlights"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld percent read" : {
 
@@ -139,6 +158,28 @@
     },
     "Delete \"%@\"?" : {
 
+    },
+    "Delete %lld highlights?" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld highlight?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld highlights?"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Delete category \"%@\"?" : {
 

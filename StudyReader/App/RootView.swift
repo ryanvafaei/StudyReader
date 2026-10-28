@@ -32,6 +32,9 @@ struct RootView: View {
                 TagManagerView(session: session)
             } else if model.selection == .categories {
                 CategoryManagerView(session: session)
+            } else if model.selection == .highlights {
+                // LibraryView (with its hidden Return/Escape buttons) is not in the hierarchy here (T69).
+                HighlightsBrowserView(session: session)
             } else if let item = model.selection {
                 ContentUnavailableView(
                     item.title,
