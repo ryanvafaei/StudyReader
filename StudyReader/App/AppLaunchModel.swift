@@ -85,6 +85,7 @@ final class AppLaunchModel {
         switch result {
         case .success(let environment):
             session = AppSession(environment: environment)
+            AppDelegate.terminationWrites = environment.pendingWrites
             state = .ready(environment)
             Task { await environment.startBackgroundWork() }
         case .failure(let error):

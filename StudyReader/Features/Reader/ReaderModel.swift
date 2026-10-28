@@ -6,7 +6,7 @@ import Observation
 /// position (SPEC F-04, debounced per ADR-0015), records last opened, exposes live highlights (F-06), creates
 /// highlights through `HighlightService`, and receives navigation from `ReaderRouter`.
 @MainActor @Observable
-final class ReaderModel {
+final class ReaderModel: PendingWriteFlushing {
     enum LoadState: Equatable {
         case loading, ready, failed(String)
     }
@@ -60,6 +60,11 @@ final class ReaderModel {
         self.documentId = documentId
         self.session = session
         self.positionDebouncer = Debouncer(delay: Self.positionSaveDelay, sleeper: session.environment.sleeper)
+        session.environment.pendingWrites.register(self)
+    }
+
+    func flushPendingWrites() async {
+        await flushPosition()
     }
 
     // MARK: - Loading

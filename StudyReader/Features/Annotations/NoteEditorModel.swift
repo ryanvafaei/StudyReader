@@ -4,7 +4,7 @@ import Observation
 /// Edits one note: a highlight's note or a document's note (SPEC F-09, F-10). The popover, side panel and
 /// browser share it. Every edit schedules a save `autosaveDelay` later; `flush()` saves now.
 @MainActor @Observable
-final class NoteEditorModel {
+final class NoteEditorModel: PendingWriteFlushing {
     enum Target: Equatable, Sendable {
         case highlight(String)
         case document(String)
@@ -43,6 +43,11 @@ final class NoteEditorModel {
         self.tags = environment.tagRepository
         self.now = environment.now
         self.debouncer = Debouncer(delay: Self.autosaveDelay, sleeper: environment.sleeper)
+        environment.pendingWrites.register(self)
+    }
+
+    func flushPendingWrites() async {
+        await flush()
     }
 
     /// Loads the stored text without scheduling a save. On failure `isLoaded` stays false, so no save can

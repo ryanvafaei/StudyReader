@@ -12,4 +12,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         ExternalURLRouter.shared.receive(routes.files)
     }
+
+    /// Waits for every pending note and reading-position save before the app quits (`PendingWrites`).
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let writes = Self.terminationWrites, writes.liveCount > 0 else {
+            return .terminateNow
+        }
+        Task { @MainActor in
+            await writes.flushAll()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
 }

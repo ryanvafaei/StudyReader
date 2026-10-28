@@ -29,6 +29,8 @@ struct AppEnvironment: Sendable {
     /// Whether `startBackgroundWork()` starts `exportSyncScheduler`. Only `live()` turns it on, so tests, previews and
     /// the in-memory library never export on their own.
     let runsExportSync: Bool
+    /// Live note editors and reader tabs; quit flushes them (T93).
+    let pendingWrites: PendingWrites
 
     /// Builds the repositories and services from `database`.
     init(
@@ -44,6 +46,7 @@ struct AppEnvironment: Sendable {
         runsExportSync: Bool = false
     ) {
         self.runsExportSync = runsExportSync
+        self.pendingWrites = PendingWrites()
         self.fileStore = fileStore
         self.database = database
         self.now = now
