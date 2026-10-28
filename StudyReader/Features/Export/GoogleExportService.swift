@@ -10,6 +10,8 @@ enum ExportOutcome: Equatable, Sendable {
     /// 403/404 on update.
     case docMissing
     case notConfigured
+    /// The request or a backoff wait was cancelled. Nothing is written to the target.
+    case cancelled
     case failed(String)
 }
 
@@ -348,7 +350,7 @@ actor GoogleExportService {
                 do {
                     try await sleeper.sleep(for: Self.backoff[retries])
                 } catch {
-                    return .failure(.failed("The export was cancelled."))
+                    return .failure(.cancelled)
                 }
                 retries += 1
             default:
@@ -359,8 +361,8 @@ actor GoogleExportService {
 
     // MARK: Recording
 
-    /// Stores the outcome on the target and returns it. `notConfigured` changes nothing. A success remembers
-    /// `contentHash`; any other outcome forgets the remembered hash, so the next sync uploads again.
+    /// Stores the outcome on the target and returns it. `notConfigured` and `cancelled` change nothing. A success
+    /// remembers `contentHash`; any other outcome forgets the remembered hash, so the next sync uploads again.
     private func finish(
         targetId: String,
         outcome: ExportOutcome,
@@ -370,7 +372,7 @@ actor GoogleExportService {
     ) async -> ExportOutcome {
         if case .exported = outcome {
             exportedHashes[targetId] = contentHash
-        } else if outcome != .notConfigured {
+        } else if outcome != .notConfigured, outcome != .cancelled {
             exportedHashes[targetId] = nil
         }
         let status: ExportStatus
@@ -388,7 +390,7 @@ actor GoogleExportService {
         case .docMissing:
             status = .docMissing
             message = "The Google Doc is missing or you no longer have access to it."
-        case .notConfigured:
+        case .notConfigured, .cancelled:
             return outcome
         case .failed(let text):
             status = .failed
@@ -418,6 +420,8 @@ actor GoogleExportService {
         return trimmed?.isEmpty == false ? trimmed : nil
     }
 
+    /// A caller cancelled while waiting for the gate still runs its export once the gate is handed to it: the
+    /// continuation isn't cancellable, and the export's own requests then end as `.cancelled`.
     private func acquireGate(for targetId: String) async {
         guard busyTargets.contains(targetId) else {
             busyTargets.insert(targetId)
@@ -480,8 +484,13 @@ actor GoogleExportService {
         }
     }
 
+    private static func isCancellation(_ error: any Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
+    }
+
     private static func outcome(forTransportError error: any Error) -> ExportOutcome {
-        isOffline(error) ? .queued : .failed("Couldn't reach Google Drive.")
+        if isCancellation(error) { return .cancelled }
+        return isOffline(error) ? .queued : .failed("Couldn't reach Google Drive.")
     }
 
     private static func outcome(forAuthError error: any Error) -> ExportOutcome {

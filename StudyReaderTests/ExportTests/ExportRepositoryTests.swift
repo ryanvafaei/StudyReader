@@ -297,6 +297,40 @@ struct ExportRepositoryTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func recordResultKeepsFolderWhenNil() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = ExportRepository(database: db)
+        var target = TestData.exportTarget(id: "t1")
+        target.googleFolderId = "F"
+        try await repo.insertTarget(target)
+
+        try await repo.recordResult(
+            id: "t1", status: .ok, error: nil, fileId: "file-1", folderId: nil, format: .markdown,
+            exportedAt: TestData.referenceDate
+        )
+        let stored = try #require(try await repo.fetchTarget(id: "t1"))
+        #expect(stored.googleFolderId == "F")
+        #expect(stored.googleFileId == "file-1")
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func changeTokenFollowsSameLengthNoteEdit() async throws {
+        let db = try await Self.makeDatabase()
+        let repo = ExportRepository(database: db)
+        let highlights = HighlightRepository(database: db)
+        try await highlights.updateNote(id: Self.hA2, note: "ab", at: TestData.referenceDate.addingTimeInterval(60))
+
+        var iterator = repo.observeChangeToken().makeAsyncIterator()
+        let first = try await iterator.next()
+        #expect(first != nil)
+
+        try await highlights.updateNote(id: Self.hA2, note: "ac", at: TestData.referenceDate.addingTimeInterval(120))
+        let second = try await iterator.next()
+        #expect(second != nil)
+        #expect(second != first)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func observeTargetsEmitsCurrentValue() async throws {
         let db = try await Self.makeDatabase()
         let repo = ExportRepository(database: db)

@@ -226,6 +226,8 @@ enum ExportMarkdownSafety {
     ///   leading spaces and tabs of a line are dropped (four spaces would start an indented code block);
     /// - anywhere: `<` (HTML, autolinks), `|` (tables), `~` (strikethrough, fences), `&` before a letter or `#`
     ///   (entities), and `!` before an unescaped `[` (images).
+    /// A code span with line breaks is copied with each line break as a space: CommonMark renders both the same, and
+    /// no line inside the span can then start a list or a heading.
     static func neutralise(_ markdown: String) -> String {
         let characters = Array(
             markdown
@@ -277,7 +279,8 @@ enum ExportMarkdownSafety {
                 }
             case "`":
                 let end = codeSpanEnd(in: characters, from: index)
-                output += String(characters[index..<end])
+                let span = String(characters[index..<end])
+                output += span.replacingOccurrences(of: "\n", with: " ")
                 index = end
             case "<", "|", "~":
                 output.append("\\")

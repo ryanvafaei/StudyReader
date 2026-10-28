@@ -18,8 +18,9 @@ extension GoogleExportService: ExportPerforming {}
 ///   export of this app run uploaded.
 /// - When the network path becomes satisfied, every target whose status is `queued` is exported again.
 /// - Exports of one target never overlap: a request that arrives while one runs is remembered and runs once, after it.
-/// - A failed export is retried up to `maxFailureRetries` times, `syncDelay` apart; a new change starts the count over.
-///   Offline results wait for the network instead; sign-in and missing-Doc results wait for the user.
+/// - A failed export is retried up to `maxFailureRetries` times, `syncDelay` apart; a new change or a success starts
+///   the count over. An offline result waits for the network, or is retried like a failure while the path is satisfied;
+///   sign-in and missing-Doc results wait for the user; a cancelled export is not retried.
 ///
 /// Logs target ids and outcome names only.
 actor ExportSyncScheduler {
@@ -40,6 +41,8 @@ actor ExportSyncScheduler {
     private var inFlight: Set<String> = []
     private var followUp: Set<String> = []
     private var failureRetries: [String: Int] = [:]
+    /// The latest network path state seen by `watchNetwork`. false before the first update and after `stop()`.
+    private var isPathSatisfied = false
 
     /// true once the current state of the database has been read, so later changes count. Reset by `stop()`.
     private(set) var isWatchingChanges = false
@@ -76,6 +79,7 @@ actor ExportSyncScheduler {
         changeTask = nil
         networkTask = nil
         isWatchingChanges = false
+        isPathSatisfied = false
         followUp.removeAll()
         failureRetries.removeAll()
         let scheduled = Array(debouncers.values)
@@ -118,8 +122,21 @@ actor ExportSyncScheduler {
         return await exporter.export(targetId: targetId)
     }
 
+    /// A success starts the retry count over. A failure, or an offline result while the network path is satisfied (the
+    /// path update that would retry it has already come), is retried after `syncDelay`, up to `maxFailureRetries`.
     private func scheduleRetryIfFailed(_ outcome: ExportOutcome, targetId: String) async {
-        guard case .failed = outcome, isRunning else { return }
+        switch outcome {
+        case .exported:
+            failureRetries[targetId] = nil
+            return
+        case .failed:
+            break
+        case .queued:
+            guard isPathSatisfied else { return }
+        case .signInRequired, .docMissing, .notConfigured, .cancelled:
+            return
+        }
+        guard isRunning else { return }
         let attempts = failureRetries[targetId, default: 0]
         guard attempts < Self.maxFailureRetries else { return }
         failureRetries[targetId] = attempts + 1
@@ -176,6 +193,7 @@ actor ExportSyncScheduler {
             if Task.isCancelled { return }
             let becameSatisfied = satisfied && !wasSatisfied
             wasSatisfied = satisfied
+            isPathSatisfied = satisfied
             if becameSatisfied {
                 await retryQueued()
             }
@@ -184,9 +202,15 @@ actor ExportSyncScheduler {
 
     private func retryQueued() async {
         let targets = (try? await repository.fetchTargets()) ?? []
-        for target in targets where target.lastStatus == ExportStatus.queued.rawValue {
-            guard isRunning else { return }
-            await syncNow(targetId: target.id)
+        let queued = targets.filter { $0.lastStatus == ExportStatus.queued.rawValue }.map(\.id)
+        guard isRunning else { return }
+        await withTaskGroup(of: Void.self) { group in
+            for id in queued {
+                group.addTask { [self] in
+                    guard await isRunning else { return }
+                    await syncNow(targetId: id)
+                }
+            }
         }
     }
 
@@ -197,6 +221,7 @@ actor ExportSyncScheduler {
         case .signInRequired: "signInRequired"
         case .docMissing: "docMissing"
         case .notConfigured: "notConfigured"
+        case .cancelled: "cancelled"
         case .failed: "failed"
         }
     }

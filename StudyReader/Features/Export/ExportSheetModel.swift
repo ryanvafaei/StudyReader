@@ -117,6 +117,7 @@ final class ExportSheetModel {
         case .signInRequired: String(localized: "Sign in to Google in Settings > Google.")
         case .docMissing: String(localized: "The Google Doc was deleted or you lost access.")
         case .notConfigured: String(localized: "Google export not configured.")
+        case .cancelled: String(localized: "The export was cancelled.")
         case .failed(let text): text
         }
     }

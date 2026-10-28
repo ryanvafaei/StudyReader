@@ -2,6 +2,13 @@ import Foundation
 import Testing
 @testable import StudyReader
 
+/// Throws as a cancelled sleep does.
+private struct CancellingSleeper: Sleeper {
+    func sleep(for duration: Duration) async throws {
+        throw CancellationError()
+    }
+}
+
 /// Returns at once and records the requested durations.
 private actor RecordingSleeper: Sleeper {
     private(set) var durations: [Duration] = []
@@ -27,7 +34,11 @@ struct GoogleExportServiceTests {
         let now = FixedNow(TestData.referenceDate)
         let service: GoogleExportService
 
-        init(replies: [StubHTTPClient.Reply], auth: StubGoogleAuth = StubGoogleAuth()) async throws {
+        init(
+            replies: [StubHTTPClient.Reply],
+            auth: StubGoogleAuth = StubGoogleAuth(),
+            serviceSleeper: (any Sleeper)? = nil
+        ) async throws {
             let database = try AppDatabase.makeInMemory()
             let documents = DocumentRepository(database: database)
             try await documents.insert(TestData.document(id: GoogleExportServiceTests.docId, title: "Alpha"))
@@ -51,7 +62,7 @@ struct GoogleExportServiceTests {
                 repository: repository,
                 settings: settings,
                 now: now,
-                sleeper: sleeper,
+                sleeper: serviceSleeper ?? sleeper,
                 timeZone: TimeZone(identifier: "UTC") ?? .gmt,
                 colorLabels: { ["Yellow", "Green", "Blue", "Pink", "Purple"] }
             )
@@ -264,6 +275,55 @@ struct GoogleExportServiceTests {
         let result = await h.service.exportScope(.all, options: ExportOptions())
         #expect(result.outcome == .queued)
         #expect(try await h.target(result.targetId).lastStatus == "queued")
+    }
+
+    @Test func cancelledRequestRecordsNothing() async throws {
+        let h = try await Harness(replies: [Self.about, .failure(URLError(.cancelled))])
+        defer { TestSettings.remove(h.settings) }
+        var seeded = TestData.exportTarget()
+        seeded.googleFolderId = "FOLDER"
+        try await h.repository.insertTarget(seeded)
+        let before = try await h.target(seeded.id)
+
+        #expect(await h.service.export(targetId: seeded.id) == .cancelled)
+        let after = try await h.target(seeded.id)
+        #expect(after.lastStatus == before.lastStatus)
+        #expect(after.lastError == before.lastError)
+        #expect(after.googleFileId == before.googleFileId)
+        #expect(after == before)
+        #expect(await h.service.lastExportedHash(targetId: seeded.id) == nil)
+    }
+
+    @Test func cancelledBackoffRecordsNothing() async throws {
+        let h = try await Harness(
+            replies: [Self.about, .response(status: 503, body: "")],
+            serviceSleeper: CancellingSleeper()
+        )
+        defer { TestSettings.remove(h.settings) }
+        let seeded = TestData.exportTarget()
+        try await h.repository.insertTarget(seeded)
+        let before = try await h.target(seeded.id)
+
+        #expect(await h.service.export(targetId: seeded.id) == .cancelled)
+        #expect(try await h.target(seeded.id) == before)
+    }
+
+    @Test func updateRefreshesTokenOnce401() async throws {
+        let h = try await Harness(replies: [
+            Self.about,
+            .response(status: 401, body: ""),
+            Self.ok("FILE1"),
+        ])
+        defer { TestSettings.remove(h.settings) }
+        var seeded = TestData.exportTarget()
+        seeded.googleFileId = "FILE1"
+        try await h.repository.insertTarget(seeded)
+
+        #expect(await h.service.export(targetId: seeded.id) == .exported(fileId: "FILE1"))
+        #expect(await h.auth.forcedRefreshCount == 1)
+        let requests = await h.http.requests
+        #expect(requests.map(\.httpMethod) == ["GET", "PATCH", "PATCH"])
+        #expect(requests[2].value(forHTTPHeaderField: "Authorization") == "Bearer token-refreshed")
     }
 
     @Test func errorsOtherStatusDoesNotLeakBody() async throws {

@@ -196,6 +196,20 @@ struct ExportRendererTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func multiLineCodeSpanStartsNoBlock() {
+        let content = ExportContent(scopeName: "S", documents: [
+            ExportDocument(
+                id: "d1", title: "Doc", author: "", categoryName: "Paper", documentNote: nil,
+                highlights: [Self.highlight("h1", color: .yellow, page: 0, body: "`` `a\n- b` ``", position: 1)]
+            ),
+        ])
+        let lines = Self.render(content).components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        #expect(!lines.contains { $0.hasPrefix("- b") })
+        #expect(lines.contains("`` `a - b` ``"))
+        #expect(ExportMarkdownSafety.neutralise("`x\ny`") == "`x y`")
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func safetyRules() {
         func neutralise(_ text: String) -> String { ExportMarkdownSafety.neutralise(text) }
         #expect(neutralise("    indented\n\tTabbed") == "indented\nTabbed")

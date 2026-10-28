@@ -11,6 +11,8 @@ private actor RecordingExporter: ExportPerforming {
     private var holds = false
     private var held: [CheckedContinuation<Void, Never>] = []
     private var outcome: ExportOutcome = .exported(fileId: "FILE1")
+    /// Answers used first, one per export, before `outcome`.
+    private var scripted: [ExportOutcome] = []
     private var rendered: String?
     private var last: String?
 
@@ -18,8 +20,15 @@ private actor RecordingExporter: ExportPerforming {
         held.count
     }
 
-    func configure(outcome: ExportOutcome? = nil, rendered: String?? = nil, last: String?? = nil, holds: Bool? = nil) {
+    func configure(
+        outcome: ExportOutcome? = nil,
+        scripted: [ExportOutcome]? = nil,
+        rendered: String?? = nil,
+        last: String?? = nil,
+        holds: Bool? = nil
+    ) {
         if let outcome { self.outcome = outcome }
+        if let scripted { self.scripted = scripted }
         if let rendered { self.rendered = rendered }
         if let last { self.last = last }
         if let holds { self.holds = holds }
@@ -33,7 +42,7 @@ private actor RecordingExporter: ExportPerforming {
             await withCheckedContinuation { held.append($0) }
         }
         running -= 1
-        return outcome
+        return scripted.isEmpty ? outcome : scripted.removeFirst()
     }
 
     func renderedHash(targetId: String) async -> String? {
@@ -306,5 +315,135 @@ struct ExportSyncSchedulerTests {
         #expect(await h.exporter.exported.count == 1 + ExportSyncScheduler.maxFailureRetries)
         #expect(await h.sleeper.pendingCount == 0)
         await h.scheduler.stop()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func successResetsFailureRetries() async throws {
+        let h = try await Harness(targets: [Self.target(id: "T1", keepInSync: true)])
+        let failed = ExportOutcome.failed("Couldn't reach Google Drive.")
+        await h.exporter.configure(
+            outcome: failed,
+            scripted: [failed, failed, .exported(fileId: "FILE1")]
+        )
+        await h.start()
+
+        try await h.edit(1)
+        for round in 1...3 {
+            await h.sleeper.waitForSleepers(1)
+            await h.sleeper.resumeAll()
+            await h.exporter.waitForExports(round)
+        }
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        #expect(await h.sleeper.pendingCount == 0)
+
+        await h.scheduler.syncNow(targetId: "T1")
+        let retries = ExportSyncScheduler.maxFailureRetries
+        for round in 5...(4 + retries) {
+            await h.sleeper.waitForSleepers(1)
+            await h.sleeper.resumeAll()
+            await h.exporter.waitForExports(round)
+        }
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        #expect(await h.exporter.exported.count == 4 + retries)
+        #expect(await h.sleeper.pendingCount == 0)
+        await h.scheduler.stop()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func queuedWhileOnlineRetriesAfterDelay() async throws {
+        let h = try await Harness(targets: [Self.target(id: "T1", status: .queued)])
+        await h.exporter.configure(scripted: [.queued, .exported(fileId: "FILE1")])
+        await h.start()
+
+        h.network.emit(true)
+        await h.exporter.waitForExports(1)
+        await h.sleeper.waitForSleepers(1)
+        #expect(await h.sleeper.requested == [ExportSyncScheduler.syncDelay])
+        #expect(await h.exporter.exported == ["T1"])
+
+        await h.sleeper.resumeAll()
+        await h.exporter.waitForExports(2)
+        #expect(await h.exporter.exported == ["T1", "T1"])
+        await h.scheduler.stop()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func queuedWhileOfflineWaitsForTheNetwork() async throws {
+        let h = try await Harness(targets: [Self.target(id: "T1", keepInSync: true)])
+        await h.exporter.configure(outcome: .queued)
+        await h.start()
+
+        try await h.edit(1)
+        await h.sleeper.waitForSleepers(1)
+        await h.sleeper.resumeAll()
+        await h.exporter.waitForExports(1)
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        #expect(await h.sleeper.pendingCount == 0)
+        #expect(await h.exporter.exported == ["T1"])
+        await h.scheduler.stop()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func cancelledExportIsNotRetried() async throws {
+        let h = try await Harness(targets: [Self.target(id: "T1", keepInSync: true)])
+        await h.exporter.configure(outcome: .cancelled)
+        await h.start()
+
+        try await h.edit(1)
+        await h.sleeper.waitForSleepers(1)
+        await h.sleeper.resumeAll()
+        await h.exporter.waitForExports(1)
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        #expect(await h.sleeper.pendingCount == 0)
+        #expect(await h.exporter.exported == ["T1"])
+        await h.scheduler.stop()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func queuedTargetsRetryInParallel() async throws {
+        let h = try await Harness(targets: [
+            Self.target(id: "A", status: .queued),
+            Self.target(id: "B", status: .queued),
+        ])
+        await h.exporter.configure(holds: true)
+        await h.start()
+
+        h.network.emit(true)
+        await h.exporter.waitForHeld(2)
+        #expect(await h.exporter.heldCount == 2)
+        #expect(await h.exporter.maxConcurrent == 2)
+
+        await h.exporter.configure(holds: false)
+        await h.exporter.releaseHeld()
+        await h.scheduler.stop()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func stopWhileInFlightRunsNothingAfter() async throws {
+        let h = try await Harness(targets: [Self.target(id: "T1", keepInSync: true)])
+        await h.exporter.configure(outcome: .failed("Couldn't reach Google Drive."), holds: true)
+        await h.start()
+
+        let first = Task { await h.scheduler.syncNow(targetId: "T1") }
+        await h.exporter.waitForHeld(1)
+        await h.scheduler.syncNow(targetId: "T1")
+        await h.scheduler.stop()
+
+        await h.exporter.configure(holds: false)
+        await h.exporter.releaseHeld()
+        await first.value
+        for _ in 0..<200 {
+            await Task.yield()
+        }
+        #expect(await h.exporter.exported == ["T1"])
+        #expect(await h.sleeper.pendingCount == 0)
     }
 }
