@@ -45,6 +45,12 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
             .disabled(readerActions == nil && (libraryActions?.selectedDocumentId == nil || libraryActions?.editMetadata == nil))
+
+            Button("Export Highlights…") {
+                libraryActions?.exportHighlights?(nil)
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
+            .disabled(libraryActions?.exportHighlights == nil)
         }
 
         // Replaces the system Undo/Redo: a read-only reader (TextKit 2 view, PDFView) reports them disabled and never

@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var selection: String?
     @State private var pendingDelete: LibraryItem?
     @State private var editing: MetadataRequest?
+    @State private var exporting: ExportRequest?
     @Environment(\.openWindow) private var openWindow
 
     init(session: AppSession, onImport: @escaping () -> Void) {
@@ -28,10 +29,13 @@ struct LibraryView: View {
             .task { await model.observeTags() }
             .focusedSceneValue(
                 \.libraryActions,
-                LibraryActions(selectedDocumentId: currentSelection, editMetadata: beginEditing, exportHighlights: nil)
+                LibraryActions(selectedDocumentId: currentSelection, editMetadata: beginEditing, exportHighlights: beginExport)
             )
             .sheet(item: $editing) { request in
                 MetadataSheet(session: session, request: request)
+            }
+            .sheet(item: $exporting) { request in
+                ExportSheet(session: session, request: request)
             }
             .confirmationDialog(
                 "Delete \"\(pendingDelete?.document.title ?? "")\"?",
@@ -274,6 +278,7 @@ struct LibraryView: View {
         LibraryItemMenu(
             item: item,
             editMetadata: beginEditing,
+            exportHighlights: beginExport,
             onOpen: { openDocument(item.id) },
             onReveal: { model.revealOriginal(of: item.document) },
             onDelete: { pendingDelete = item }
@@ -284,6 +289,11 @@ struct LibraryView: View {
     /// so "Use Current Page" stays hidden here.
     private func beginEditing(_ id: String) {
         editing = MetadataRequest(documentId: id, currentPageIndex: nil)
+    }
+
+    /// Opens the Export sheet: for one document (context menu) or with no scope, which starts on All (⇧⌘E).
+    private func beginExport(_ id: String?) {
+        exporting = ExportRequest(scope: id.map(ExportScope.document))
     }
 
     /// Opens the document in its reader tab; an already open document's tab is selected instead (ADR-0017).

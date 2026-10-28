@@ -71,12 +71,16 @@ final class GoogleAccountModel {
     }
 }
 
-/// The Google tab of the Settings window. Folder and export targets arrive with T73.
+/// The Google tab of the Settings window: account, export folder and export targets (T73).
 struct GoogleSettingsView: View {
     @State private var model: GoogleAccountModel
+    @State private var targets: ExportTargetsModel
+    @State private var pendingRemove: ExportTarget?
 
-    init(environment: AppEnvironment) {
+    init(session: AppSession) {
+        let environment = session.environment
         _model = State(initialValue: GoogleAccountModel(auth: environment.googleAuth, signIn: environment.googleSignIn))
+        _targets = State(initialValue: ExportTargetsModel(session: session))
     }
 
     var body: some View {
@@ -111,9 +115,30 @@ struct GoogleSettingsView: View {
                         .accessibilityLabel(message)
                 }
             }
+            if model.state != .notConfigured {
+                folderSection
+                targetsSection
+            }
         }
         .formStyle(.grouped)
         .task { await model.refresh() }
+        .task { await targets.observe() }
+        .confirmationDialog(
+            "Remove this export target? The Google Doc isn't deleted.",
+            isPresented: Binding(
+                get: { pendingRemove != nil },
+                set: { if !$0 { pendingRemove = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                if let target = pendingRemove {
+                    Task { await targets.remove(target.id) }
+                }
+                pendingRemove = nil
+            }
+            Button("Cancel", role: .cancel) { pendingRemove = nil }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await model.refresh() }
         }
@@ -125,5 +150,84 @@ struct GoogleSettingsView: View {
             Task { await model.signIn(presenting: window) }
         }
         .accessibilityLabel("Sign in with Google")
+    }
+
+    // MARK: - Export folder and targets
+
+    private var folderSection: some View {
+        Section("Export folder") {
+            HStack {
+                TextField("Drive folder link or ID", text: $targets.folderLink)
+                    .labelsHidden()
+                    .onSubmit { targets.saveFolder() }
+                    .accessibilityLabel("Export folder link")
+                Button("Save") { targets.saveFolder() }
+                    .accessibilityLabel("Save export folder")
+            }
+            if let message = targets.folderError {
+                Text(message)
+                    .foregroundStyle(.red)
+                    .accessibilityLabel(message)
+            }
+            Text("Leave empty to export to the top level of your Drive.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var targetsSection: some View {
+        Section("Export targets") {
+            if targets.targets.isEmpty {
+                Text("No export targets yet. Use File > Export Highlights… to create one.")
+                    .foregroundStyle(.secondary)
+            } else {
+                Table(targets.targets) {
+                    TableColumn("Title") { target in
+                        Text(target.title).lineLimit(1)
+                    }
+                    TableColumn("Status") { target in
+                        Text(ExportTargetsModel.statusText(target))
+                            .lineLimit(1)
+                            .foregroundStyle(.secondary)
+                    }
+                    TableColumn("Actions") { target in
+                        targetActions(target)
+                    }
+                    .width(min: 150, ideal: 170)
+                }
+                .frame(minHeight: 150)
+                .accessibilityLabel("Export targets")
+            }
+        }
+    }
+
+    private func targetActions(_ target: ExportTarget) -> some View {
+        HStack(spacing: 6) {
+            Toggle("Keep in sync", isOn: Binding(
+                get: { target.keepInSync },
+                set: { on in Task { await targets.setKeepInSync(target.id, on) } }
+            ))
+            .labelsHidden()
+            .help("Keep in sync")
+            .accessibilityLabel(String(localized: "Keep \(target.title) in sync"))
+
+            Menu {
+                if let fileId = target.googleFileId {
+                    Button("Open in Google Docs") {
+                        NSWorkspace.shared.open(ExportTargetsModel.docURL(fileId: fileId))
+                    }
+                }
+                Button("Export Now") { Task { await targets.exportNow(target.id) } }
+                if target.lastStatus == ExportStatus.docMissing.rawValue {
+                    Button("Create New Doc") { Task { await targets.createNewDoc(target.id) } }
+                }
+                Divider()
+                Button("Remove…", role: .destructive) { pendingRemove = target }
+            } label: {
+                Text("Actions")
+            }
+            .fixedSize()
+            .accessibilityLabel(String(localized: "Actions for \(target.title)"))
+        }
     }
 }

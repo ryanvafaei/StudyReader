@@ -66,6 +66,13 @@ struct ExportRepository: Sendable {
             .values(in: writer)
     }
 
+    /// Themed reviews to pick as an export scope, by name.
+    func fetchThemedReviews() async throws -> [ThemedReview] {
+        try await writer.read { db in
+            try ThemedReview.order(Column("name").collating(.localizedCaseInsensitiveCompare), Column("id")).fetchAll(db)
+        }
+    }
+
     // MARK: Targets
 
     /// Ordered by `createdAt`, then id.

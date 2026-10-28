@@ -237,6 +237,7 @@ struct LibraryItemMenu: View {
     let item: LibraryItem
     /// Set by T50. Nil keeps "Edit Metadata…" disabled.
     let editMetadata: (@MainActor (String) -> Void)?
+    let exportHighlights: (@MainActor (String?) -> Void)?
     let onOpen: () -> Void
     let onReveal: () -> Void
     let onDelete: () -> Void
@@ -248,6 +249,11 @@ struct LibraryItemMenu: View {
             editMetadata?(item.id)
         }
         .disabled(editMetadata == nil)
+
+        Button("Export Highlights…") {
+            exportHighlights?(item.id)
+        }
+        .disabled(exportHighlights == nil)
 
         Button("Reveal Original in Finder", action: onReveal)
             .disabled(item.document.originalBookmark == nil)

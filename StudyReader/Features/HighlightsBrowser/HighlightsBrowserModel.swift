@@ -27,6 +27,8 @@ final class HighlightsBrowserModel {
     /// Snapshot images by relative image path, loaded once so views never read files while drawing (B15).
     private(set) var thumbnails: [String: NSImage] = [:]
     private(set) var errorMessage: String?
+    /// Outcome of "Export Selection…", shown in an alert.
+    private(set) var exportMessage: String?
 
     @ObservationIgnored private let environment: AppEnvironment
     @ObservationIgnored private let calendar: Calendar
@@ -65,6 +67,21 @@ final class HighlightsBrowserModel {
     /// Title of the delete confirmation: "Delete 1 highlight?" / "Delete N highlights?", from one plural catalog entry.
     nonisolated static func deleteTitle(count: Int) -> String {
         String(localized: "Delete \(count) highlights?")
+    }
+
+    // MARK: - Export
+
+    /// One-off export of the selected highlights to a new Google Doc. No export target is created.
+    func exportSelection() async {
+        let outcome = await environment.googleExportService.exportSelection(
+            highlightIds: Array(selection),
+            options: ExportOptions()
+        )
+        exportMessage = ExportSheetModel.message(for: outcome)
+    }
+
+    func dismissExportMessage() {
+        exportMessage = nil
     }
 
     // MARK: - Observation

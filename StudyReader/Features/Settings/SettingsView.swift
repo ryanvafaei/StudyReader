@@ -29,7 +29,7 @@ struct SettingsView: View {
                 .tabItem { Label("Reading", systemImage: "book") }
             DataSettingsView(rootURL: session.environment.fileStore.rootURL)
                 .tabItem { Label("Data", systemImage: "externaldrive") }
-            GoogleSettingsView(environment: session.environment)
+            GoogleSettingsView(session: session)
                 .tabItem { Label("Google", systemImage: "person.crop.circle") }
         }
         .frame(width: Self.width)

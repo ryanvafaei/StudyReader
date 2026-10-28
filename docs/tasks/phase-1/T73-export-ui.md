@@ -90,3 +90,4 @@ Views:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-28, implementer ui-builder Sonnet medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Export sheet, targets and folder settings, Export Selection met; not-configured paths make no request; sheet cannot double-submit; 7 unit tests ran on CI; 3 UI tests unrun (T74 checkpoint compiles/runs them). Minor items to BACKLOG B33.

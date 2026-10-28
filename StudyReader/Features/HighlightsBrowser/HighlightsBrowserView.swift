@@ -50,6 +50,17 @@ struct HighlightsBrowserView: View {
             }
             Button("Cancel", role: .cancel) { pendingDelete = [] }
         }
+        .alert(
+            "Export",
+            isPresented: Binding(
+                get: { model.exportMessage != nil },
+                set: { if !$0 { model.dismissExportMessage() } }
+            )
+        ) {
+            Button("OK") { model.dismissExportMessage() }
+        } message: {
+            Text(model.exportMessage ?? "")
+        }
         .overlay(alignment: .bottom) {
             if let message = model.errorMessage {
                 Text(message)
@@ -336,6 +347,9 @@ struct HighlightsBrowserView: View {
             }
             .fixedSize()
             .accessibilityLabel("Change color of selection")
+
+            Button("Export Selection…") { Task { await model.exportSelection() } }
+                .accessibilityLabel("Export selection")
 
             Spacer()
 
