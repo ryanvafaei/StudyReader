@@ -289,14 +289,15 @@ final class PDFReaderController: NSObject {
     /// the page and selects the first match of the query's first positive term on it (the view stays on the page when
     /// the term isn't found there). `.documentNote` is the window's.
     /// Before the saved position is restored the call does nothing; `beginTrackingPosition` applies it afterwards.
-    /// A `.highlight` location whose highlight isn't loaded yet stays pending; `highlightsChanged()` retries it.
+    /// A `.highlight` location whose highlight isn't loaded yet stays pending; `highlightsChanged()` retries it. Once
+    /// the highlights have loaded and it isn't among them (it was deleted), the location is consumed.
     func applyPendingLocation() {
         guard isTrackingPosition else { return }
         switch model.pendingLocation {
         case .page(let index):
             go(toPage: index)
         case .highlight(let id):
-            guard highlightController?.reveal(highlightId: id) == true else { return }
+            guard highlightController?.reveal(highlightId: id) == true || model.hasLoadedHighlights else { return }
         case .searchHit(let unitIndex, let query):
             go(toPage: unitIndex)
             if let term = SearchQueryParser.firstPositiveTerm(in: query) {

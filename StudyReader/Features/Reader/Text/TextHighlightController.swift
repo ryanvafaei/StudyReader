@@ -116,11 +116,9 @@ final class TextHighlightController {
         let settings = model.session.settings
         guard let new = newHighlight(for: range, color: settings.currentColor) else { return }
         let anchorRect = textController.anchorRect(for: range)
-        let isAuto = settings.autoHighlight
         Task { @MainActor [weak self] in
             guard let self else { return }
-            await model.selectionFinished(new, anchorRect: anchorRect)
-            if isAuto, model.transientMessage == nil {
+            if await model.selectionFinished(new, anchorRect: anchorRect) != nil {
                 collapseSelection(ifStill: range)
                 registerAutoHighlightUndo()
             }
@@ -162,7 +160,7 @@ final class TextHighlightController {
         let textView = textController.textView
         let selection = textView.selectedRange()
         guard event.modifierFlags.isDisjoint(with: blocked), selection.length > 0,
-              let color = PDFHighlightController.color(
+              let color = HighlightKeys.color(
                   forKey: event.charactersIgnoringModifiers,
                   current: model.session.settings.currentColor
               ),

@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import Testing
 @testable import StudyReader
 
@@ -333,6 +334,88 @@ struct ReaderModelTests {
         #expect(failed == nil)
         #expect(!model.canUndoHighlight)
         #expect(await ReaderTestSupport.highlightCount(session, documentId: Self.documentId) == 1)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func selectionFinishedReturnsTheHighlight() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await ReaderTestSupport.insertDocument(session, id: Self.documentId, withFile: false)
+        let model = ReaderModel(documentId: Self.documentId, session: session)
+        let new = ReaderTestSupport.selection(documentId: Self.documentId)
+
+        session.settings.autoHighlight = true
+        session.settings.currentColor = .green
+        let created = await model.selectionFinished(new, anchorRect: Self.anchorRect)
+        #expect(created?.color == .green)
+        #expect(created?.documentId == Self.documentId)
+        #expect(model.canUndoHighlight)
+
+        session.settings.autoHighlight = false
+        let none = await model.selectionFinished(new, anchorRect: Self.anchorRect)
+        #expect(none == nil)
+        #expect(model.selectionToolbar != nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func selectionFinishedReturnsNilOnFailure() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await ReaderTestSupport.insertDocument(session, id: Self.documentId, withFile: false)
+        session.settings.autoHighlight = true
+        let model = ReaderModel(documentId: Self.documentId, session: session)
+
+        let result = await model.selectionFinished(
+            ReaderTestSupport.selection(documentId: Self.documentId, text: "   "),
+            anchorRect: Self.anchorRect
+        )
+
+        #expect(result == nil)
+        #expect(model.transientMessage != nil)
+        #expect(!model.canUndoHighlight)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func hasLoadedHighlightsAfterFirstEmission() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await ReaderTestSupport.insertDocument(session, id: Self.documentId, withFile: false)
+        let model = ReaderModel(documentId: Self.documentId, session: session)
+        #expect(!model.hasLoadedHighlights)
+
+        let observer = Task { await model.observeHighlights() }
+        defer { observer.cancel() }
+
+        let loaded = await ReaderTestSupport.waitUntil { model.hasLoadedHighlights }
+        #expect(loaded)
+        #expect(model.highlights.isEmpty)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func failedUndoKeepsTheMark() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        let (model, observer, _) = try await Self.modelWithAutoHighlight(session)
+        defer { observer.cancel() }
+        try await session.environment.database.writer.write { db in
+            try db.execute(sql: """
+                CREATE TRIGGER blockHighlightDelete BEFORE DELETE ON highlight
+                BEGIN SELECT RAISE(ABORT, 'blocked'); END
+                """)
+        }
+
+        await model.undoLastAutoHighlight()
+
+        #expect(model.canUndoHighlight)
+        #expect(model.transientMessage != nil)
+        #expect(await ReaderTestSupport.highlightCount(session, documentId: Self.documentId) == 1)
+
+        try await session.environment.database.writer.write { db in
+            try db.execute(sql: "DROP TRIGGER blockHighlightDelete")
+        }
+        await model.undoLastAutoHighlight()
+        #expect(!model.canUndoHighlight)
+        #expect(model.transientMessage == nil)
     }
 
     @Test

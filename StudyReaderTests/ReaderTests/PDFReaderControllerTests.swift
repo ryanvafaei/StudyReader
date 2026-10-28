@@ -313,6 +313,26 @@ struct PDFReaderControllerTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func deletedHighlightLocationIsConsumed() async throws {
+        let harness = try await Self.makeHarness()
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        harness.controller.load(url: harness.url)
+        try await Self.settle(0.3)
+
+        harness.model.navigate(to: .highlight("missing-id"))
+        harness.controller.applyPendingLocation()
+        #expect(harness.model.pendingLocation == .highlight("missing-id"))
+
+        let observer = Task { await harness.model.observeHighlights() }
+        defer { observer.cancel() }
+        let loaded = await ReaderTestSupport.waitUntil { harness.model.hasLoadedHighlights }
+        #expect(loaded)
+
+        harness.controller.applyPendingLocation()
+        #expect(harness.model.pendingLocation == nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func outlineIsEmptyForFixture() async throws {
         let harness = try await Self.makeHarness()
         defer { ReaderTestSupport.cleanUp(harness.session) }

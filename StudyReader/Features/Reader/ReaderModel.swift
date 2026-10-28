@@ -23,6 +23,8 @@ final class ReaderModel {
     private(set) var fileURL: URL?
     /// Live, ordered like HighlightRepository.fetchForDocument.
     private(set) var highlights: [Highlight] = []
+    /// True after the first emission of `observeHighlights()`; until then an empty `highlights` means "not loaded".
+    private(set) var hasLoadedHighlights = false
     var isRightPanelVisible = false
     var rightPanelTab: ReaderPanelTab = .highlights
     var popoverRequest: HighlightPopoverRequest?
@@ -142,6 +144,7 @@ final class ReaderModel {
         do {
             for try await rows in session.environment.highlightRepository.observeForDocument(documentId) {
                 highlights = rows
+                hasLoadedHighlights = true
                 reconcileAutoHighlightMark()
             }
         } catch {
@@ -292,9 +295,9 @@ final class ReaderModel {
     /// has none, and never touches another tab's highlight.
     func undoLastAutoHighlight() async {
         guard let mark = autoHighlightMark else { return }
-        autoHighlightMark = nil
         do {
             _ = try await session.environment.highlightService.undoAutoHighlight(id: mark.id)
+            autoHighlightMark = nil
             transientMessage = nil
         } catch {
             transientMessage = Self.failureMessage(for: error)
@@ -318,16 +321,18 @@ final class ReaderModel {
         popoverRequest = HighlightPopoverRequest(highlightId: highlightId, anchorRect: anchorRect, focus: focus)
     }
 
-    /// Auto-highlight on creates at once in the current color; off shows the selection toolbar.
-    func selectionFinished(_ new: NewTextHighlight, anchorRect: CGRect) async {
+    /// Auto-highlight on creates at once in the current color; off shows the selection toolbar. Returns the created
+    /// highlight, nil when the toolbar is shown or creation failed.
+    @discardableResult
+    func selectionFinished(_ new: NewTextHighlight, anchorRect: CGRect) async -> Highlight? {
         var colored = new
         colored.color = session.settings.currentColor
         if session.settings.autoHighlight {
             selectionToolbar = nil
-            await createHighlight(colored, isAuto: true)
-        } else {
-            selectionToolbar = SelectionToolbarRequest(id: UUID(), pending: colored, anchorRect: anchorRect)
+            return await createHighlight(colored, isAuto: true)
         }
+        selectionToolbar = SelectionToolbarRequest(id: UUID(), pending: colored, anchorRect: anchorRect)
+        return nil
     }
 
     /// Toolbar color dot: create with that color and close the toolbar.

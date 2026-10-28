@@ -142,7 +142,8 @@ final class MarkdownReaderCoordinator {
 
     /// Applies a `.highlight` or `.searchHit` location the model holds and consumes it. Waits for the saved reading
     /// position to be restored (`onPositionReady` retries) and for the re-anchoring, and stays pending while the
-    /// highlight isn't loaded yet; `highlightsChanged()` retries it. `reveal` draws before it selects. A search hit
+    /// highlight isn't loaded yet (it is consumed once the highlights have loaded without it); `highlightsChanged()`
+    /// retries it. `reveal` draws before it selects. A search hit
     /// selects the first match of the query's first positive term in the section (the start of the document for a
     /// section that doesn't exist) and just scrolls to the section when the query has no such term or it isn't found.
     func applyPendingLocation() {
@@ -153,7 +154,7 @@ final class MarkdownReaderCoordinator {
         }
         switch model.pendingLocation {
         case .highlight(let id):
-            guard highlightController.reveal(highlightId: id) else { return }
+            guard highlightController.reveal(highlightId: id) || model.hasLoadedHighlights else { return }
         case .searchHit(let unitIndex, let query):
             showSearchHit(unitIndex: unitIndex, query: query)
         default:

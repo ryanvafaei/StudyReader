@@ -298,19 +298,6 @@ struct PDFHighlightControllerTests {
         }
     }
 
-    @Test
-    func keysPickColors() {
-        #expect(PDFHighlightController.color(forKey: "1", current: .pink) == .yellow)
-        #expect(PDFHighlightController.color(forKey: "3", current: .pink) == .blue)
-        #expect(PDFHighlightController.color(forKey: "5", current: .pink) == .purple)
-        #expect(PDFHighlightController.color(forKey: "h", current: .pink) == .pink)
-        #expect(PDFHighlightController.color(forKey: "H", current: .green) == .green)
-        #expect(PDFHighlightController.color(forKey: "6", current: .pink) == nil)
-        #expect(PDFHighlightController.color(forKey: "0", current: .pink) == nil)
-        #expect(PDFHighlightController.color(forKey: "x", current: .pink) == nil)
-        #expect(PDFHighlightController.color(forKey: nil, current: .pink) == nil)
-    }
-
     private final class FlippedView: NSView {
         override var isFlipped: Bool { true }
     }

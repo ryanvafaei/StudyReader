@@ -312,6 +312,32 @@ struct TextHighlightControllerTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func deletedHighlightLocationIsConsumed() async throws {
+        let harness = try await Self.makeHarness(loadText: false)
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        let coordinator = MarkdownReaderCoordinator(model: harness.model)
+        harness.window.contentView = coordinator.controller.scrollView
+        coordinator.controller.scrollView.frame = CGRect(origin: .zero, size: Self.viewSize)
+        coordinator.loadIfNeeded()
+        let tracking = await ReaderTestSupport.waitUntil(timeout: .seconds(10)) {
+            coordinator.controller.isTrackingPosition
+        }
+        try #require(tracking)
+
+        harness.model.navigate(to: .highlight("missing-id"))
+        coordinator.applyPendingLocation()
+        #expect(harness.model.pendingLocation == .highlight("missing-id"))
+
+        let observer = Task { await harness.model.observeHighlights() }
+        defer { observer.cancel() }
+        let loaded = await ReaderTestSupport.waitUntil { harness.model.hasLoadedHighlights }
+        #expect(loaded)
+
+        coordinator.applyPendingLocation()
+        #expect(harness.model.pendingLocation == nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func coordinatorRevealsPendingHighlightAfterReanchoring() async throws {
         let harness = try await Self.makeHarness(loadText: false)
         defer { ReaderTestSupport.cleanUp(harness.session) }

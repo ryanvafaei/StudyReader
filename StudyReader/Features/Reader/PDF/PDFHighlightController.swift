@@ -216,11 +216,9 @@ final class PDFHighlightController {
         let settings = model.session.settings
         guard let new = newHighlight(for: selection, color: settings.currentColor) else { return }
         let anchorRect = Self.anchorRect(for: selection, in: pdfView)
-        let isAuto = settings.autoHighlight
         Task { @MainActor [weak self] in
             guard let self else { return }
-            await model.selectionFinished(new, anchorRect: anchorRect)
-            if isAuto, model.transientMessage == nil {
+            if await model.selectionFinished(new, anchorRect: anchorRect) != nil {
                 pdfView.clearSelection()
                 registerAutoHighlightUndo()
             }
@@ -240,23 +238,15 @@ final class PDFHighlightController {
 
     // MARK: - Keys
 
-    /// The color a key press picks: "1"–"5" are `HighlightColor` raw values 0–4, "h"/"H" the current color. Nil for
-    /// other keys.
-    static func color(forKey key: String?, current: HighlightColor) -> HighlightColor? {
-        guard let key, key.count == 1 else { return nil }
-        if key.lowercased() == "h" {
-            return current
-        }
-        guard let digit = Int(key), (1...5).contains(digit) else { return nil }
-        return HighlightColor(rawValue: digit - 1)
-    }
-
     private func handleKeyDown(_ event: NSEvent) -> Bool {
         let blocked: NSEvent.ModifierFlags = [.command, .control, .option]
         guard event.modifierFlags.isDisjoint(with: blocked),
               let selection = pdfView.currentSelection,
               selection.string?.isEmpty == false,
-              let color = Self.color(forKey: event.charactersIgnoringModifiers, current: model.session.settings.currentColor),
+              let color = HighlightKeys.color(
+                  forKey: event.charactersIgnoringModifiers,
+                  current: model.session.settings.currentColor
+              ),
               let new = newHighlight(for: selection, color: color) else { return false }
         Task { @MainActor [weak self] in
             guard let self else { return }
