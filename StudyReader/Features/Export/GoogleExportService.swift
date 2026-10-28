@@ -34,6 +34,17 @@ actor GoogleExportService {
     /// Signed-in account (email, "" when unknown) → whether Drive imports Markdown. In memory only.
     private var markdownImport: [String: Bool] = [:]
 
+    /// Target id → `contentHash` of the Markdown uploaded by its last export, only while that export succeeded.
+    /// In memory only: a new process starts empty.
+    private var exportedHashes: [String: String] = [:]
+
+    /// Targets with an export running, and the exports waiting for them (one gate per target, FIFO).
+    private var busyTargets: Set<String> = []
+    private var gateWaiters: [String: [CheckedContinuation<Void, Never>]] = [:]
+
+    /// The date the content hash is rendered with, so the "_Exported <time>_" line never changes the hash.
+    private static let hashDate = Date(timeIntervalSince1970: 0)
+
     init(
         auth: any GoogleAuthProviding,
         http: any HTTPClient,
@@ -58,7 +69,33 @@ actor GoogleExportService {
 
     /// Renders the target's scope with its options and uploads: create when `googleFileId` is nil, else update.
     /// Records the outcome on the target (status and error; on success also file ID, folder, format, export time).
+    /// Exports of one target never overlap: a second call waits for the first, then runs (and updates the Doc the
+    /// first one created). Different targets run concurrently.
     func export(targetId: String) async -> ExportOutcome {
+        await acquireGate(for: targetId)
+        defer { releaseGate(for: targetId) }
+        return await performExport(targetId: targetId)
+    }
+
+    /// SHA-256 (hex) of the Markdown `export(targetId:)` would upload now, with the export time held constant. Reads
+    /// the database only. nil when the target or its content can't be read.
+    func renderedHash(targetId: String) async -> String? {
+        do {
+            guard let target = try await repository.fetchTarget(id: targetId) else { return nil }
+            let content = try await repository.content(for: target.scope)
+            return contentHash(content, options: target.options)
+        } catch {
+            return nil
+        }
+    }
+
+    /// `renderedHash` of the last successful export of this target in this app run. nil before the first one and
+    /// after any export that didn't succeed.
+    func lastExportedHash(targetId: String) -> String? {
+        exportedHashes[targetId]
+    }
+
+    private func performExport(targetId: String) async -> ExportOutcome {
         guard await auth.isConfigured else { return .notConfigured }
         let target: ExportTarget
         do {
@@ -71,9 +108,11 @@ actor GoogleExportService {
         }
 
         let markdown: String
+        let hash: String
         do {
             let content = try await repository.content(for: target.scope)
             markdown = renderMarkdown(content, options: target.options)
+            hash = contentHash(content, options: target.options)
         } catch {
             return await finish(targetId: targetId, outcome: .failed("Couldn't prepare the export."), upload: nil, folderId: nil)
         }
@@ -88,7 +127,13 @@ actor GoogleExportService {
         )
         switch result {
         case .success(let success):
-            return await finish(targetId: targetId, outcome: .exported(fileId: success.fileId), upload: success, folderId: folderId)
+            return await finish(
+                targetId: targetId,
+                outcome: .exported(fileId: success.fileId),
+                upload: success,
+                folderId: folderId,
+                contentHash: hash
+            )
         case .failure(let outcome):
             return await finish(targetId: targetId, outcome: outcome, upload: nil, folderId: nil)
         }
@@ -314,13 +359,20 @@ actor GoogleExportService {
 
     // MARK: Recording
 
-    /// Stores the outcome on the target and returns it. `notConfigured` changes nothing.
+    /// Stores the outcome on the target and returns it. `notConfigured` changes nothing. A success remembers
+    /// `contentHash`; any other outcome forgets the remembered hash, so the next sync uploads again.
     private func finish(
         targetId: String,
         outcome: ExportOutcome,
         upload: UploadSuccess?,
-        folderId: String?
+        folderId: String?,
+        contentHash: String? = nil
     ) async -> ExportOutcome {
+        if case .exported = outcome {
+            exportedHashes[targetId] = contentHash
+        } else if outcome != .notConfigured {
+            exportedHashes[targetId] = nil
+        }
         let status: ExportStatus
         let message: String?
         switch outcome {
@@ -364,6 +416,38 @@ actor GoogleExportService {
     private var settingsFolderId: String? {
         let trimmed = settings.googleExportFolderId?.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed?.isEmpty == false ? trimmed : nil
+    }
+
+    private func acquireGate(for targetId: String) async {
+        guard busyTargets.contains(targetId) else {
+            busyTargets.insert(targetId)
+            return
+        }
+        await withCheckedContinuation { continuation in
+            gateWaiters[targetId, default: []].append(continuation)
+        }
+    }
+
+    /// Hands the gate to the next waiting export, or frees it.
+    private func releaseGate(for targetId: String) {
+        guard var waiting = gateWaiters[targetId], !waiting.isEmpty else {
+            busyTargets.remove(targetId)
+            return
+        }
+        let next = waiting.removeFirst()
+        gateWaiters[targetId] = waiting.isEmpty ? nil : waiting
+        next.resume()
+    }
+
+    private func contentHash(_ content: ExportContent, options: ExportOptions) -> String {
+        let markdown = ExportRenderer.render(
+            content,
+            options: options,
+            colorLabels: colorLabels(),
+            generatedAt: Self.hashDate,
+            timeZone: timeZone
+        )
+        return Hashing.sha256Hex(of: markdown)
     }
 
     private func renderMarkdown(_ content: ExportContent, options: ExportOptions) -> String {

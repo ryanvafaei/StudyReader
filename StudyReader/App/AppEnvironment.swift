@@ -25,6 +25,10 @@ struct AppEnvironment: Sendable {
     /// which never touch GoogleSignIn or the keychain (ADR-0018).
     let googleSignIn: GoogleSignInAuth?
     let googleExportService: GoogleExportService
+    let exportSyncScheduler: ExportSyncScheduler
+    /// Whether `startBackgroundWork()` starts `exportSyncScheduler`. Only `live()` turns it on, so tests, previews and
+    /// the in-memory library never export on their own.
+    let runsExportSync: Bool
 
     /// Builds the repositories and services from `database`.
     init(
@@ -35,8 +39,11 @@ struct AppEnvironment: Sendable {
         sleeper: any Sleeper = SystemSleeper(),
         httpClient: any HTTPClient = URLSessionHTTPClient(),
         googleAuth: any GoogleAuthProviding = UnconfiguredGoogleAuth(),
-        googleSignIn: GoogleSignInAuth? = nil
+        googleSignIn: GoogleSignInAuth? = nil,
+        networkMonitor: any NetworkPathMonitoring = SystemNetworkPathMonitor(),
+        runsExportSync: Bool = false
     ) {
+        self.runsExportSync = runsExportSync
         self.fileStore = fileStore
         self.database = database
         self.now = now
@@ -52,7 +59,7 @@ struct AppEnvironment: Sendable {
         self.notesRepository = NotesRepository(database: database)
         let exportRepository = ExportRepository(database: database)
         self.exportRepository = exportRepository
-        self.googleExportService = GoogleExportService(
+        let googleExportService = GoogleExportService(
             auth: googleAuth,
             http: httpClient,
             repository: exportRepository,
@@ -60,6 +67,13 @@ struct AppEnvironment: Sendable {
             now: now,
             sleeper: sleeper,
             colorLabels: { HighlightColor.allCases.map { settingsStore.colorLabel(for: $0) } }
+        )
+        self.googleExportService = googleExportService
+        self.exportSyncScheduler = ExportSyncScheduler(
+            repository: exportRepository,
+            exporter: googleExportService,
+            network: networkMonitor,
+            sleeper: sleeper
         )
         self.highlightService = HighlightService(
             highlights: self.highlightRepository,
@@ -91,6 +105,9 @@ struct AppEnvironment: Sendable {
         }
         Log.files.info("Re-queued \(ids.count, privacy: .public) extractions at launch")
         await googleSignIn?.restorePreviousSignIn()
+        if runsExportSync {
+            await exportSyncScheduler.start()
+        }
     }
 
     /// The user's library: FileStore.applicationSupport(), then make(fileStore:now:settingsStore:googleSignIn:) with
@@ -99,7 +116,8 @@ struct AppEnvironment: Sendable {
         try make(
             fileStore: FileStore.applicationSupport(),
             settingsStore: .standard(),
-            googleSignIn: GoogleSignInAuth(clientID: GoogleSignInAuth.bundleClientID)
+            googleSignIn: GoogleSignInAuth(clientID: GoogleSignInAuth.bundleClientID),
+            runsExportSync: true
         )
     }
 
@@ -109,7 +127,8 @@ struct AppEnvironment: Sendable {
         fileStore: FileStore,
         now: any Now = SystemNow(),
         settingsStore: SettingsStore = .ephemeral(),
-        googleSignIn: GoogleSignInAuth? = nil
+        googleSignIn: GoogleSignInAuth? = nil,
+        runsExportSync: Bool = false
     ) throws -> AppEnvironment {
         let database = try AppDatabase.makeShared(fileStore: fileStore)
         // Private: the path contains the user's home folder. Redacted in the persisted log.
@@ -124,10 +143,17 @@ struct AppEnvironment: Sendable {
                 now: now,
                 settingsStore: settingsStore,
                 googleAuth: googleSignIn,
-                googleSignIn: googleSignIn
+                googleSignIn: googleSignIn,
+                runsExportSync: runsExportSync
             )
         }
-        return AppEnvironment(fileStore: fileStore, database: database, now: now, settingsStore: settingsStore)
+        return AppEnvironment(
+            fileStore: fileStore,
+            database: database,
+            now: now,
+            settingsStore: settingsStore,
+            runsExportSync: runsExportSync
+        )
     }
 
     /// FileManager.default.temporaryDirectory/StudyReader-InMemory

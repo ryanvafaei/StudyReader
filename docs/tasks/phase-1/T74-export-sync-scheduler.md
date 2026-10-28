@@ -71,3 +71,4 @@ actor ExportSyncScheduler {
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
 
 > **Requirement from the T71 review (2026-10-28):** the scheduler must never run two exports of the same target at once (`GoogleExportService` does not serialize: two concurrent exports of a target with no Doc yet can both create one). See docs/BACKLOG.md B31.
+- 2026-10-28, implementer integrations Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Scheduler serialises per target (also a FIFO gate in GoogleExportService), 60 s debounce via the injected Sleeper, queued retry on reconnect/launch, hash skip, bounded retries, never started by tests; 11 new tests ran on CI (44 in 4 suites). Minor items to BACKLOG B34; B31(2) done.

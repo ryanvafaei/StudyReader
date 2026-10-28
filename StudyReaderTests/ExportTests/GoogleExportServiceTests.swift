@@ -113,6 +113,42 @@ struct GoogleExportServiceTests {
         #expect(try await h.repository.fetchTargets().count == 1)
     }
 
+    // MARK: Serialization and content hash (T74)
+
+    @Test func concurrentExportsOfOneTargetRunOneAfterAnother() async throws {
+        let h = try await Harness(replies: [Self.about, Self.ok("FILE1"), Self.ok("FILE1")])
+        defer { TestSettings.remove(h.settings) }
+        let target = TestData.exportTarget()
+        try await h.repository.insertTarget(target)
+
+        async let first = h.service.export(targetId: target.id)
+        async let second = h.service.export(targetId: target.id)
+        let outcomes = await [first, second]
+        #expect(outcomes == [.exported(fileId: "FILE1"), .exported(fileId: "FILE1")])
+        let requests = await h.http.requests
+        #expect(requests.map(\.httpMethod) == ["GET", "POST", "PATCH"])
+        #expect(try await h.target(target.id).googleFileId == "FILE1")
+    }
+
+    @Test func exportRemembersContentHashUntilAFailure() async throws {
+        let h = try await Harness(replies: [Self.about, Self.ok("FILE1"), .response(status: 404, body: "")])
+        defer { TestSettings.remove(h.settings) }
+        let target = TestData.exportTarget()
+        try await h.repository.insertTarget(target)
+        #expect(await h.service.lastExportedHash(targetId: target.id) == nil)
+
+        #expect(await h.service.export(targetId: target.id) == .exported(fileId: "FILE1"))
+        let hash = try #require(await h.service.renderedHash(targetId: target.id))
+        #expect(hash.count == 64)
+        #expect(await h.service.lastExportedHash(targetId: target.id) == hash)
+
+        h.now.advance(by: 3600)
+        #expect(await h.service.renderedHash(targetId: target.id) == hash)
+
+        #expect(await h.service.export(targetId: target.id) == .docMissing)
+        #expect(await h.service.lastExportedHash(targetId: target.id) == nil)
+    }
+
     // MARK: Errors
 
     @Test func errorsUnauthorizedRefreshesOnce() async throws {
