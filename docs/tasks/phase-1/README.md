@@ -89,21 +89,35 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 53 | [T82 Reader side panel, Notes tab and popover polish](T82-reader-panel-notes-and-popover-polish.md) (backlog B15 2–6, B16 1/3–6, B18 test) | ui-builder | T78, T81 (order only) | no (unit tests; looks stay in the T62/T63 Mac rows) |
 | 54 | [T83 Export UI guards, browser and Settings polish](T83-export-ui-browser-and-settings-polish.md) (backlog B26 2, B27 2, B33 1–4, B35 2) | ui-builder | T80 | yes (Mac row added by the task) |
 | 55 | [T84 UI-test hygiene and a deterministic seed](T84-ui-test-hygiene-and-deterministic-seed.md) (backlog OB1, B4, B23 3, B27 1, B28 2/3, B35 1/3; UI test for B35 2) | ui-builder | T78, T82, T83 | no (runs its own targeted UI tests) |
+| 56 | [T85 The library selection survives a search](T85-library-selection-survives-search.md) (backlog B22 1, user decision 2026-10-28) | ui-builder | T84 (order only) | no (UI test in T88) |
+| 57 | [T86 Note Markdown and tag rules in the app: one note renderer with headings, `#tag` in document notes](T86-note-markdown-and-tag-rules-app.md) (backlog B29, user decision 2026-10-28; SPEC F-09/F-10 updated) | ui-builder | T82, T85 (order only) | yes (Mac row added by the task; Notes preview also by T88) |
+| 58 | [T87 Note Markdown rules in the export: demoted headings, escaped line-start `#tag`, neutralised `<` `\|` `~`](T87-note-markdown-rules-export.md) (backlog B29; ADR-0007 amendment) | integrations | T86, T80 | no (golden files) |
+| 59 | [T88 UI tests, part 1: global search, PDF find bar, reader panel, Notes tab](T88-ui-tests-search-find-panel-notes.md) (backlog B17 reliable subset: S1, S3, S4, F1–F3, C3, C6, C17, C18) | ui-builder | T84, T85, T86 | no (runs its own targeted UI tests) |
+| 60 | [T89 UI tests, part 2: Highlights browser and the unconfigured Google export](T89-ui-tests-browser-and-unconfigured-google.md) (backlog B17 reliable subset: H1, H2, H4–H6, H9, Export Selection alert, Settings > Google) | ui-builder | T88 (order only), T83, T84 | no (runs its own targeted UI tests) |
 
 Task numbers continue after Phase 0's last commit (T28). Rows 24a–24k (T52a–T52k) are fixes from the T52 checkpoint (`docs/checkpoints/T52-manual-2026-10-25.md`, `docs/checkpoints/T52-cloud-2026-10-27.md`); they run after T52 and before T53. T52a–T52h ran in letter order (T52h after T52b). T52i–T52k come from the user's triage on 2026-10-27 and run in row order: T52k, then T52i, then T52j (T52j adds to `MetadataSheetTests.swift` after T52i). U7 from the triage is part of T53; O1 (Library tab order after Move Tab to New Window + Merge All Windows) stays open until the user's real tab-drag check on a Mac (docs/HANDOFF.md). Tasks with "none" or early dependencies (T42, T57, T64) may run earlier if a chain is blocked, but keep one implementer at a time.
 
 ### End-of-phase backlog pass (rows 47–55, planned 2026-10-28)
 CLAUDE.md "Per phase" step 4: one fix pass over `docs/BACKLOG.md` (its "Disposition" section maps every item to a task, a drop reason, the Mac list or a user decision). Run T76 → T84 in row order, one at a time, through the normal loop (implementer → CI build + unit tests with code-reviewer in parallel → commit and push). The order alternates areas so no two consecutive tasks edit the same file: T76 search · T77 PDF/rich text · T78 repositories · T79 text reader · T80 export service · T81 highlight controllers · T82 reader chrome · T83 export UI/browser/Settings · T84 UI tests and seed.
 - **UI tests:** only T84 runs XCUITests (its own targeted classes via `./scripts/ci.sh uitest …`, max 2 attempts, never in parallel with another CI job). T76–T83 verify with `./scripts/build.sh` and unit-test filters only.
-- **Not in any task:** items waiting for a user decision (B17, B18, B22 1, B29) or for the Mac (O1, B2, B8 Open Link, B14 2, B15 1, B21 3, B24 1/2, B32, OB2). If the user decides B17 or B29 now, the architect adds tasks T85+ after T84.
-- After T84: test-runner runs `./scripts/check-fresh-clone.sh`, then bug-hunter (CLAUDE.md step 5).
+- **Not in any task:** B18 (the Undo/Redo replacement stays as accepted, user decision 2026-10-28), escaping titles and authors in the export and hoisting the library filter (both undecided, see BACKLOG B29 and B22), and the Mac items (O1, B2, B8 Open Link, B14 2, B15 1, B21 3, B24 1, B32, OB2).
+
+### User decisions 2026-10-28 (rows 56–60)
+The user answered the open backlog decisions; the tasks run after T84, in row order:
+- **B22 (1)** → T85: the library selection moves into `AppSession`.
+- **B29** → T86 (app) and T87 (export). The rule is `# text` = heading, `#name` = tag, the same in the app and the export. SPEC F-09/F-10/F-21 and ADR-0007 were updated by the architect before the tasks.
+- **B17** → T88 and T89, the reliable subset only. Pixel, drag and dark-mode tests stay on the Mac list. **B24 (2)** (Shift-Return) is covered by T88's F2.
+- **B18** stays as accepted (no task).
+- **Closing UI run:** after T89, ui-tester runs the full UI suite once (cloud mode; not one of the T63/T69/T74 checkpoints). It checks T76–T89 for regressions and runs the new tests. Spec FAILs become fix tasks; everything else goes to BACKLOG.md.
+- **UI tests in tasks:** T84, T88 and T89 may run their own targeted classes (`./scripts/ci.sh uitest …`, max 2 attempts, never in parallel with another CI job). T85–T87 use build and unit-test filters only.
+- After the closing run: test-runner runs `./scripts/check-fresh-clone.sh`, then bug-hunter (CLAUDE.md step 5).
 
 ## Points of care for the orchestrator
 - **T30** is done and committed.
 - **T31** ends with a manual Console check by the user before import work (T41+) starts. If a normal launch logs "Using the in-memory library", stop the phase.
 - **Combined visual checks:** T47's full check happens at T48 (documents can only be imported then) and T49's at T50 (tags can first be created there). Commit T47 and T49 after review plus their small "empty state" check.
 - **T41 and T65** run as data-layer with model `sonnet`, effort `high` from the first call. Treat them as escalated: review with code-reviewer effort `high`; two rejections → ask the user.
-- **Shared files touched by many tasks, in order:** `AppEnvironment.swift` (T31, T33, T35–T38, T44, T65, T70–T72, T74), `AppSession.swift` (T45, T48, T51, T66), `RootView.swift` (T45, T47, T48, T49, T50, T66, T69), `AppCommands.swift` (T48, T50, T52, T52k, T53, T66, T73), `ReaderWindowView.swift` (T52, T52b, T52c, T52h, T53, T55, T62, T63), `LibraryView.swift` (T47, T48, T50, T52, T52a, T52i, T66), `MetadataSheet.swift` (T50, T52h, T52j), `ReaderTabbing.swift` (T52, T52b, T52h), `StudyPDFView.swift`/`PDFReaderController.swift` (T53, T54, T59, T61, T67). One command per shortcut: ⇧⌘M (T50, extended by T52) and ⌘F (T52, extended by T66) each stay a single command.
+- **Shared files touched by many tasks, in order:** `AppEnvironment.swift` (T31, T33, T35–T38, T44, T65, T70–T72, T74), `AppSession.swift` (T45, T48, T51, T66, T85), `RootView.swift` (T45, T47, T48, T49, T50, T66, T69), `AppCommands.swift` (T48, T50, T52, T52k, T53, T66, T73), `ReaderWindowView.swift` (T52, T52b, T52c, T52h, T53, T55, T62, T63), `LibraryView.swift` (T47, T48, T50, T52, T52a, T52i, T66, T85), `MetadataSheet.swift` (T50, T52h, T52j), `ReaderTabbing.swift` (T52, T52b, T52h), `StudyPDFView.swift`/`PDFReaderController.swift` (T53, T54, T59, T61, T67). One command per shortcut: ⇧⌘M (T50, extended by T52) and ⌘F (T52, extended by T66) each stay a single command.
 - **Signing is done by the user** (ADR-0011 amendment): `DEVELOPMENT_TEAM: "597KGSTZWJ"`, no `CODE_SIGN_IDENTITY` override, `keychain-access-groups` in the app's entitlements, and the scripts pass `-allowProvisioningUpdates`. No Phase 1 task changes signing, `project.yml` signing keys or entitlements.
 - **Document tabs (T52):** native window tabbing only. If T52 reports BLOCKED because tabbing can't be controlled, ask the user; don't accept a custom tab bar.
 - **Google credentials are done by the user** (`Secrets/Google.xcconfig`, included by `Config/Base.xcconfig`). Agents never read `Secrets/`. Specs use only the `GOOGLE_CLIENT_ID` / `GOOGLE_REVERSED_CLIENT_ID` build settings and `GIDClientID` from Info.plist; when `GOOGLE_CLIENT_ID` is empty at runtime, the app shows "Google export not configured" (T71–T73). Everything before T72 is tested with stubs.
@@ -155,6 +169,10 @@ CLAUDE.md "Per phase" step 4: one fix pass over `docs/BACKLOG.md` (its "Disposit
 | `NotePreviewBlock`, `HighlightPopoverModel.image` | T82 |
 | `HighlightsBrowserModel.isExporting`, `ExportTargetsModel.exportingIds`, `GoogleAccountModel.hasLoaded` | T83 |
 | `SettingsStore.resetEphemeral()`, `AppLaunchModel.shouldResetEphemeralSettings(_:)`, `StudyReaderUI.hasKeyboardFocus(_:)` | T84 |
+| `AppSession.librarySelection` | T85 |
+| `NoteMarkdown.blocks(_:)`, `NoteMarkdown.headingFont(level:style:)`, `NoteMarkdownStyle`, `NoteMarkdownView`, `NotePreviewBlock.headingLevel` (moved from T82), `TagRepository.addTag(_:toDocuments:)` | T86 |
+| `ExportMarkdownSafety.note(_:headings:)`, `ExportMarkdownSafety.NoteHeadings` | T87 |
+| Accessibility ids `search-hit-document` / `search-hit-highlight` / `search-hit-note`; UI helpers in `StudyReaderUI+SearchAndReader.swift` | T88 |
 
 ## Module map after Phase 1
 ```
@@ -177,7 +195,8 @@ StudyReader/Features/Reader/Markdown/  MarkdownRenderer, MarkdownStyle, Markdown
                                        MarkdownReaderView
 StudyReader/Features/Reader/Chrome/    HighlightsPanel*, DocumentNotePanelView
 StudyReader/Features/Annotations/      HighlightService, HighlightPalette, HighlightKeys (T81), RichTextMarkdown, RichTextView,
-                                       TagParsing, NoteEditorModel, HighlightPopover*, SelectionToolbarView, Tags/
+                                       TagParsing, NoteEditorModel, NoteMarkdown (T86: the one note renderer), HighlightPopover*,
+                                       SelectionToolbarView, Tags/
 StudyReader/Features/Search/           SearchQueryParser, SearchService, SearchResults, SearchModel, SearchResultsView
 StudyReader/Features/HighlightsBrowser/ HighlightsBrowserModel/View, HighlightDetailView
 StudyReader/Features/Export/           ExportContent, ExportRenderer, DriveFolderLink, DriveUploadRequest, GoogleAuthProviding,
@@ -199,7 +218,8 @@ StudyReaderTests/                      + LibraryTests, ExtractionTests, Markdown
 - **Q7 (T65, T70):** tag filter semantics as specified. Confirmed.
 
 ## Phase done when
-- All 70 tasks (rows 1–46; T75 in row 2a; the T52 checkpoint fixes T52a–T52k in rows 24a–24k; the checkpoint fixes T63a, T69a, T74a in rows 24n, 41a, 46a; and the backlog pass T76–T84 in rows 47–55) are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
+- All 75 tasks (rows 1–46; T75 in row 2a; the T52 checkpoint fixes T52a–T52k in rows 24a–24k; the checkpoint fixes T63a, T69a, T74a in rows 24n, 41a, 46a; the backlog pass T76–T84 in rows 47–55; and the user-decision tasks T85–T89 in rows 56–60) are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
+- The closing full UI run by ui-tester (after T89) has no open spec FAIL.
 - The full suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes.
 - The SPEC §6 "done when" flow works on the user's Mac with a real lecture PDF and Gemini Notebook.
 - bug-hunter has run; critical/high findings (and mediums that get more expensive later) are fixed; the rest are in `docs/bugs/backlog.md`.

@@ -177,7 +177,7 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 ### F-07 Rich-text highlighting
 
 **Behavior**
-- Highlight rich text is stored as a Markdown subset: `**bold**`, `*italic*`, `` `code` ``, `[text](url)`. No other formatting.
+- Highlight rich text is stored as a Markdown subset: `**bold**`, `*italic*`, `` `code` ``, `[text](url)`. No other formatting. (Notes allow a few block elements on top of this subset: see F-09.)
 - Markdown documents: derived from the swift-markdown AST nodes inside the selected range.
 - PDF view / text view: derived from the attributed string of the selection; font traits map bold/italic, monospaced fonts map to code, link annotations map to links.
 - Shown rendered (not raw Markdown) everywhere highlights are listed and in review.
@@ -201,25 +201,29 @@ Feature IDs (F-xx) are referenced by task specs and tests. Acceptance criteria (
 ### F-09 Notes
 
 **Behavior**
-- Highlight note: plain text with Markdown rendering (same subset as F-07 plus line breaks and lists), edited in the highlight popover and in the highlights browser. Autosaves 500 ms after typing stops.
+- Highlight note: plain text with Markdown rendering: the F-07 subset plus line breaks, lists and ATX headings (`# `, `## `, `### `). Edited in the highlight popover and in the highlights browser. Autosaves 500 ms after typing stops.
 - Document note: one note per document, edited in a "Notes" tab of the right sidebar. Same format and autosave.
+- Heading or tag (user decision 2026-10-28): a heading needs a space after its `#` marks (`# Week 1`). `#name` with no space is always a tag (F-10), never a heading, and is shown as plain text. The app and the export (F-21) apply the same rule.
+- Notes are shown rendered (not raw Markdown) where they are listed: the reader's Highlights tab rows, the highlights browser rows and the Notes tab preview. Headings are bold and larger by level, without their `#` marks. The editors (popover, browser detail pane, Notes tab) show the raw text.
 - Both are full-text searchable and included in exports.
 
 **AC**
 1. Notes autosave and survive restart. → test `NotesRepositoryTests/autosaveAndRestore`
 2. Notes appear in search results and exports. → tests `SearchServiceTests/findsNotes`, `ExportRendererTests/includesNotes`
+3. Note headings render bold and larger by level, lists and line breaks keep their structure, `#todo` stays plain text, in the panel rows, browser rows and Notes preview. → tests `NotePreviewTests/headingLevelsAndStyling`, `NotePreviewTests/hashTagIsNotAHeading`, UI test `NotesTabTests/testPreviewRendersHeadingsListsAndTags` + visual check (Mac)
+4. Exported notes keep their inline Markdown and lists, headings are demoted below the export's own headings, and a line-start `#tag` is escaped. → tests `ExportRendererTests/notesByDocument`, `ExportRendererTests/notesByTag`, `ExportRendererTests/noteRules`
 
 ### F-10 Tags
 
 **Behavior**
 - Tags apply to highlights and to documents. Tag names: 1–40 chars, case-insensitive unique, stored as typed.
-- Add via tag field with autocomplete; typing a new name creates it. In a highlight note, `#tagname` also adds the tag.
+- Add via tag field with autocomplete; typing a new name creates it. In a highlight note, `#tagname` also adds the tag to the highlight; in a document note, it adds the tag to the document. `# name` (with a space) is a heading, not a tag (F-09). Removing `#tagname` from a note doesn't remove the tag.
 - Tag manager (sidebar "Tags"): list with counts; rename, merge (move all uses into another tag), delete (removes from items, keeps items).
 - Filtering by tag in library, highlights browser, search, themed reviews, and export scopes.
 
 **AC**
 1. Tags are case-insensitively unique; renaming and merging update every use. → tests `TagRepositoryTests/uniqueness`, `TagRepositoryTests/renameMerge`
-2. `#tag` in a highlight note adds the tag. → test `TagParsingTests/hashTags`
+2. `#tag` in a highlight note adds the tag to the highlight; in a document note, to the document. → tests `TagParsingTests/hashTags`, `TagParsingTests/documentNoteHeadingsAndTags`, `NotesRepositoryTests/hashTagsAddTagsOnSave`, `NotesRepositoryTests/documentNoteHashTagsAddTagsToTheDocument`
 
 ### F-11 Document metadata
 
@@ -371,6 +375,7 @@ Definition for this app: every highlight becomes a flashcard automatically as a 
 - Export scopes: one document, one tag, one category, a themed review's filter, or All highlights.
 - Export options: include highlight notes (default on), include document notes (default on), include image highlights as a text placeholder "[Image highlight, page N]" with note (default on), group by document (default) or by tag.
 - Output: a Markdown file uploaded to Google Drive with conversion to a Google Doc (Drive API import, Markdown → Docs). Format in ARCHITECTURE §9.
+- Notes (highlight and document notes) are exported as the user wrote them, with inline formatting and lists kept, except: headings are demoted below the export's own headings, a line-start `#tag` is escaped so it never becomes a heading (F-09 rule), and `<`, `|`, `~` are escaped (ADR-0007 amendment 2026-10-28). Highlight text is neutralised as before. Titles and authors are exported as typed (escaping them is undecided, BACKLOG B29).
 - Doc title: `StudyReader – <scope name>`. Created in the user's My Drive root, or a folder chosen once in Settings (by pasting a folder link; stored as folder ID).
 - The first export creates the Doc and saves an export target (scope, options, Google file ID). Re-exporting replaces the Doc's full content (Drive `files.update` with media upload), keeping the same file ID, so the Gemini Notebook Drive source stays linked and auto-syncs.
 - Per target "Keep in sync" toggle (default off): when on, re-export runs automatically 60 s after the last relevant change while the app is open.

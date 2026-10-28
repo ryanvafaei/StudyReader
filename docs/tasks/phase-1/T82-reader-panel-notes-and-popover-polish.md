@@ -39,6 +39,9 @@ Fix the remaining reader-chrome defects from the T62/T63 reviews: the Highlights
 8. Existing `HighlightsPanelModelTests`, `HighlightPopoverModelTests`, `NoteEditorModelTests`, `ReaderModelTests` pass. `./scripts/build.sh` succeeds.
 9. Reviewer check: no `NSImage(contentsOf:` in any `body`; no hidden zero-size button in `SelectionToolbarView`; `HighlightsPanelView` has no unstructured `Task` in `.onChange`.
 
+## Note for later tasks (added 2026-10-28)
+T86 moves `NotePreviewBlock` and the block parsing into `StudyReader/Features/Annotations/NoteMarkdown.swift` and adds `headingLevel`, so all note displays share one renderer. Keep the parsing in one self-contained static function plus private helpers (no view state), so the move is mechanical. Don't anticipate T86 here.
+
 ## Out of scope
 The Localizable.xcstrings refresh (B15 1, needs an Xcode build on the Mac), a delete confirmation in the panel, any change to `ReaderModel` (T81) or the Undo/Redo menu (B18 decision), new XCUITests (B17 decision).
 

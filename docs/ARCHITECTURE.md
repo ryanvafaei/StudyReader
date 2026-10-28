@@ -476,6 +476,7 @@ _{Author} · {Category}_
 - Group-by-tag variant: `## #{tag}` sections, each highlight followed by `_— {Document title}, p. {page}_`. Untagged last under `## Untagged`.
 - Omitted parts when options are off or fields are empty (no empty headings).
 - `editedText` is exported instead of `text`/`richText` when present.
+- Notes go in as written, except that headings are demoted, a line-start `#tag` is escaped, and `<`, `|`, `~` are escaped (ADR-0007 amendment 2026-10-28, `ExportMarkdownSafety.note`).
 
 ### 9.2 Upload (`GoogleExportService`, actor)
 

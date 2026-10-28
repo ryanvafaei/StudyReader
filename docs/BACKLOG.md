@@ -2,7 +2,7 @@
 
 Rule (user, 2026-10-27): no polish tasks mid-phase. Anything that is not a spec FAIL at a checkpoint (UX items, visual nits, open observations) goes here and gets one fix pass at the end of Phase 1, planned by architect. Only spec FAILs become fix tasks right away.
 
-The end-of-phase pass was planned on 2026-10-28: see "Disposition" at the end of this file and rows 47–55 (T76–T84) in `docs/tasks/phase-1/README.md`.
+The end-of-phase pass was planned on 2026-10-28: see "Disposition" at the end of this file and rows 47–55 (T76–T84) in `docs/tasks/phase-1/README.md`. The user answered the open decisions the same day; the resulting tasks are T85–T89 (rows 56–60).
 
 | ID | Source | Item | Notes |
 |---|---|---|---|
@@ -71,27 +71,27 @@ Verified against the code on `master` after T74a. Keys: **T7x/T8x** = fixed by t
 | B14 | (1)(3): T77 (the spec note is added to T61). (2) Mac (outline colour in Dark, VISUAL_CHECKS T61 row). |
 | B15 | (1) Mac: build once in Xcode and commit the rewritten `Localizable.xcstrings` (CI doesn't write the catalog back). (2)–(6): T82. |
 | B16 | (1)(3)(4)(5): T82 (repository part of (3) in T78). (2) done (row label is the excerpt). (6) localisation of "PDF"/"Text": T82 ("p. N" is already a localised `Text`); delete confirmation: drop (spec-conform). |
-| B17 | decision: how much XCUITest coverage to build now. |
+| B17 | T88, T89 (user decision 2026-10-28: the reliable subset only, i.e. S1, S3, S4, F1–F3, C3, C6, C17, C18 in T88; H1, H2, H4–H6, H9, the Export Selection not-configured alert and Settings > Google unconfigured in T89). Pixel, drag, popover and dark-mode proposals (C0–C2, C4, C5, C7–C16, C19, S2, S5, F4, F5, H3, H7, H8, Export sheet pickers, File-menu state) stay on the Mac list / unbuilt. |
 | OB1 | T84 (ephemeral settings reset per in-memory launch). |
 | OB2 | Mac: judge page contrast in light and dark on a real display; a one-line background change only if wanted. |
 | OB3 | drop: one brief layout change while the Markdown reader loads; harmless. Revisit only if the user notices it on the Mac. |
 | OB4 | done: T63a; the T69 run shows the seeded Markdown highlights drawn. |
-| OB6 | same as B17 (decision). |
-| B18 | Undo/Redo replacement: decision after the user tries it on the Mac (VISUAL_CHECKS T60 row). "Redo always sends `redo:`": part of that decision. Unit test for `isReaderUndoContext`: T82. `ensureLayout` in `drawBackground`: T79. |
+| OB6 | same as B17 (T88, T89). |
+| B18 | Undo/Redo replacement: stays as accepted (user decision 2026-10-28, no task); the user can still revisit it after trying it on the Mac (VISUAL_CHECKS T60 row). "Redo always sends `redo:`": part of that decision. Unit test for `isReaderUndoContext`: T82. `ensureLayout` in `drawBackground`: T79. |
 | B19 | (1) T81. (2) drop: rare (another tab or a same-colour bulk recolour) and it clears after one ⌘Z. (3) done in this pass (notes added to the T38 and T51 specs). |
 | B20 | (1)(2)(3): T76. (4) done (`firstPositiveTerm` trims). |
 | B21 | (1)(2)(4): T76; (5) doc-comment note in T76, no move. (3) Mac: measure search time on a big real library; optimise only if it misses 200 ms. |
-| B22 | (1) decision (hoist the library selection). (2) Mac (⇧⌘F focus when the window must be created). (3) error-path test: T76; stale-result test: drop (needs a service seam). (4) done (the filter bar shows a "Searching" spinner). |
+| B22 | (1) T85 (user decision 2026-10-28: the selection moves into `AppSession`; UI check in T88 S1). The library **filter** still resets after a search: not in the user's answer, undecided. (2) Mac (⇧⌘F focus when the window must be created). (3) error-path test: T76; stale-result test: drop (needs a service seam). (4) done (the filter bar shows a "Searching" spinner). |
 | B23 | done in T69a (test proves real focus; the guard is defence in depth, not observable on CI). (3) assertion order: T84. |
-| B24 | (1) Mac: try a very large PDF; move to `beginFindString` only if find blocks. (2) Shift-Return: covered by F2 if B17 is approved, otherwise Mac. (3) drop: re-selecting the first match while typing is standard incremental find. |
+| B24 | (1) Mac: try a very large PDF; move to `beginFindString` only if find blocks. (2) Shift-Return: T88 (F2). (3) drop: re-selecting the first match while typing is standard incremental find. |
 | B25 | T78. |
 | B26 | (1) done in T69a (`accessibilityValue`). (2) T83. (3) done in this pass (T69 spec "As built" note). |
-| B27 | (1) T84. (2) T83. (3)(5) part of B17. (4) T84 (OB1). |
+| B27 | (1) T84. (2) T83. (3)(5) T88, T89 (B17 subset; screenshots of search results, find bar, Notes preview, bulk bar, delete dialog, export alert). (4) T84 (OB1). |
 | B28 | (1) drop: the T74 run shows the fixed 455/360 split works at 1024 pt; the user can ask for a divider. (2)(3) T84. (4) drop: keep the guard (defence in depth, T69a). |
-| B29 | decision: escape titles/authors and/or notes in the export. |
+| B29 | Notes: T86 (app) and T87 (export), user decision 2026-10-28. `# text` is a heading and `#name` is always a tag, in the app and the export. SPEC F-09/F-10/F-21 and ADR-0007 are amended. In the export, notes keep their inline Markdown and lists, headings are demoted, a line-start `#tag` is escaped, and `<`, `|`, `~` are escaped. **Titles and authors: still undecided.** They stay raw in the export; the user's answer didn't cover them. Ask again before changing them. |
 | B30 | (1)(2)(3) and the (5) doc comment: T78. (4) and the (5) same-length edit test: T80. |
 | B31 | (1) drop: accepted risk (pre-generated IDs would be a later change). (2) done in T74. (3)(4) T80. |
 | B32 | Mac (VISUAL_CHECKS T72 row): fix only what the sign-in check shows. |
 | B33 | (1)(2)(3)(4) T83. (5) T78. (6) drop: didn't flake at T74; revisit if it does. |
 | B34 | T80. |
-| B35 | (1) the query already breaks ties by id; the screenshots differed because each launch seeds new random ids with equal times: T84 seeds distinct times. (2) T83 (UI test in T84). (3) T84. (4) part of B17. |
+| B35 | (1) the query already breaks ties by id; the screenshots differed because each launch seeds new random ids with equal times: T84 seeds distinct times. (2) T83 (UI test in T84). (3) T84. (4) Settings > Google unconfigured and the Export Selection alert: T89; S/F/H subset: T88, T89; Export sheet pickers/width and File-menu enabled state: not built (outside the user's subset). |
