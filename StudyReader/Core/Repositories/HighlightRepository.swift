@@ -4,7 +4,7 @@ import GRDB
 /// Highlight rows for the readers, popover and panel (ARCHITECTURE §4–§5). Frequent non-text saves
 /// (color, anchor) use column-limited `update(db, columns:)` so `highlight_fts_au` doesn't re-index (ADR-0013).
 struct HighlightRepository: Sendable {
-    private let writer: any DatabaseWriter
+    let writer: any DatabaseWriter
 
     init(database: AppDatabase) {
         self.writer = database.writer

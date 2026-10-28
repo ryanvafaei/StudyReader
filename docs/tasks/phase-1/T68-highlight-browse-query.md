@@ -74,3 +74,4 @@ Implementation (one `read`, or one tracking closure):
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-28, implementer data-layer Haiku medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run, which also covers HighlightRepositoryTests after the writer access change). Filters, sorts, no-N+1 tag query, bound dates met; 16 tests ran on CI. BACKLOG B25.
