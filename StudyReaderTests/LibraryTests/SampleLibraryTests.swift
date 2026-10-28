@@ -63,6 +63,62 @@ struct SampleLibraryTests {
         #expect(checked >= 4)
     }
 
+    @Test("seeded PDF highlights use real position keys")
+    func seededPDFHighlightsUseRealPositionKeys() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        _ = try await SampleLibrary(environment: env).seed()
+
+        var checked = 0
+        for document in try await env.documentRepository.fetchAll() where document.fileType == .pdf {
+            let highlights = try await env.highlightRepository.fetchForDocument(document.id)
+            var keyByPageAndTop: [Int: [(top: Double, key: Double)]] = [:]
+            for highlight in highlights {
+                guard case .pdf(let anchor) = highlight.anchor, let page = highlight.pageIndex,
+                      let rect = anchor.pages.first?.rects.first else {
+                    Issue.record("A PDF highlight has no PDF anchor or page: \(highlight.text)")
+                    continue
+                }
+                #expect(highlight.positionKey >= Double(page) * 1_000_000)
+                #expect(highlight.positionKey < Double(page + 1) * 1_000_000)
+                keyByPageAndTop[page, default: []].append((top: rect.cgRect.maxY, key: highlight.positionKey))
+                checked += 1
+            }
+            for entries in keyByPageAndTop.values {
+                for first in entries {
+                    for second in entries where first.top > second.top {
+                        #expect(first.key < second.key, "A higher line must have the smaller key.")
+                    }
+                }
+            }
+        }
+        #expect(checked >= 5)
+    }
+
+    @Test("seeded highlights have distinct creation times, newest first in seeding order")
+    func seededHighlightsHaveDistinctCreationTimes() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        _ = try await SampleLibrary(environment: env).seed()
+
+        let items = try await env.highlightRepository.browse(filter: HighlightBrowserFilter(), sort: .createdNewest)
+        let dates = items.map(\.highlight.createdAt)
+        #expect(items.count == 10)
+        #expect(Set(dates).count == dates.count)
+        #expect(items.map(\.highlight.text) == [
+            "Proteins embedded in the membrane move materials.",
+            "Cristae increase the inner membrane surface area.",
+            "The nucleus stores DNA and controls gene expression.",
+            "lowers the loss",
+            "too large a step can diverge",
+            "small batch of examples",
+            "running average",
+            "Probability assigns a number between zero and one to each event.",
+            "Record ten swings for each length and average the times.",
+            "Channels let ions pass through the membrane."
+        ])
+    }
+
     @Test("the 16:9 slide-deck sample has a landscape cover no larger than the 600 px cap")
     func landscapeSampleHasLandscapeCover() async throws {
         let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))

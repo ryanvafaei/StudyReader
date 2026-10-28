@@ -21,11 +21,14 @@ struct SampleLibrary: Sendable {
     /// Creates each sample that doesn't exist yet. Returns the number created (0 when all seven exist).
     func seed() async throws -> Int {
         var created = 0
+        var highlightIndex = 0
         for sample in Self.samples {
+            let firstIndex = highlightIndex
+            highlightIndex += sample.highlights.count
             if try await environment.documentRepository.fetch(id: sample.id) != nil {
                 continue
             }
-            try await create(sample)
+            try await create(sample, firstHighlightIndex: firstIndex)
             created += 1
         }
         Log.files.info("Seeded \(created, privacy: .public) sample documents")
@@ -52,7 +55,9 @@ struct SampleLibrary: Sendable {
 
     // MARK: - Creation
 
-    private func create(_ sample: Sample) async throws {
+    /// `firstHighlightIndex` is the number of highlights of the samples before this one, so every seeded highlight
+    /// gets its own creation time (`now` minus its index in seeding order).
+    private func create(_ sample: Sample, firstHighlightIndex: Int) async throws {
         let now = environment.now()
         let fileStore = environment.fileStore
         let ext = sample.fileType == .pdf ? "pdf" : "md"
@@ -99,8 +104,9 @@ struct SampleLibrary: Sendable {
         let tagIds = try await tagIds(for: sample.tags, now: now)
         try await environment.tagRepository.setTags(tagIds, forDocument: sample.id)
 
-        for spec in sample.highlights {
-            if let highlight = Self.highlight(for: spec, in: sample, now: now) {
+        for (offset, spec) in sample.highlights.enumerated() {
+            let index = firstHighlightIndex + offset
+            if let highlight = Self.highlight(for: spec, in: sample, now: now.addingTimeInterval(-Double(index))) {
                 try await environment.highlightRepository.insert(highlight)
             }
         }
@@ -241,7 +247,11 @@ struct SampleLibrary: Sendable {
                 richText: RichTextMarkdown.escape(text),
                 note: spec.note,
                 pageIndex: page,
-                positionKey: Double(page) + Double(line) / 1000,
+                positionKey: PDFAnchorBuilder.positionKey(
+                    pageIndex: page,
+                    pageHeight: Double(sample.pageSize.height),
+                    topOfFirstRect: Double(lineRect(line, in: sample).maxY)
+                ),
                 anchor: .pdf(anchor),
                 createdAt: now,
                 updatedAt: now

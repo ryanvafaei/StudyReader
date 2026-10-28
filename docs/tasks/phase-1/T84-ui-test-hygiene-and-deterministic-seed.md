@@ -45,3 +45,5 @@ New coverage from the T63/T69/T74 proposals (C-, S-, F-, H-series, unconfigured 
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium, reviewer code-reviewer Sonnet medium: CHANGES REQUESTED (1st); B28(3) "no tag created" assertion (Add tag field count == 1) is vacuous: it holds with or without a created tag; must assert an unchanged count of tag chips/remove buttons/filter-menu tag entries (or drop it and say so). Minor: missing space at HighlightsBrowserTests.swift:109
+2026-10-28, implementer ui-builder Sonnet high (rework after 1st rejection; reworks: high), reviewer code-reviewer Sonnet high: APPROVED; evidence: unit run 40697935931 (685 tests, same production code) + targeted UI run 40698878511 (HighlightsBrowserTests, 6 tests) green, UI log has no Swift compile warnings (rework only touched a UI test file, so no second full unit run); PDFAnchorBuilder.positionKey made nonisolated (needed by the nonisolated seed); minor follow-ups in BACKLOG

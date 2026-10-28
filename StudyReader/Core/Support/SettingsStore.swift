@@ -33,6 +33,11 @@ struct SettingsStore: Sendable {
         SettingsStore(suiteName: ephemeralSuiteName)
     }
 
+    /// Removes everything stored in the ephemeral suite, so the next launch starts with default settings.
+    static func resetEphemeral() {
+        UserDefaults.standard.removePersistentDomain(forName: ephemeralSuiteName)
+    }
+
     private enum Key {
         static let defaultCategoryId = "settings.defaultCategoryId"
         static let autoHighlight = "settings.autoHighlight"

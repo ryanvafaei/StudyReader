@@ -27,11 +27,23 @@ final class AppLaunchModel {
     }
 
     nonisolated static func defaultFactory() throws -> AppEnvironment {
-        try chooseEnvironment(
-            for: AppEnvironment.launchTestHostSignals,
+        let signals = AppEnvironment.launchTestHostSignals
+        return try chooseEnvironment(
+            for: signals,
             live: { try AppEnvironment.live() },
-            inMemory: { try AppEnvironment.inMemory() }
+            inMemory: {
+                if shouldResetEphemeralSettings(signals) {
+                    SettingsStore.resetEphemeral()
+                }
+                return try AppEnvironment.inMemory()
+            }
         )
+    }
+
+    /// True for UI-test and `run-app.sh` launches (in-memory requested outside the unit-test host), so each starts
+    /// with default settings. Never true in the unit-test host (ADR-0015).
+    nonisolated static func shouldResetEphemeralSettings(_ signals: AppEnvironment.TestHostSignals) -> Bool {
+        signals.inMemoryRequested && !signals.xctestEnvironment
     }
 
     /// The only place that chooses the library (ADR-0011). Any test-host signal → `inMemory`.

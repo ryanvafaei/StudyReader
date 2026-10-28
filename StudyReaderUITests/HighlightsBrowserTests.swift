@@ -13,11 +13,6 @@ final class HighlightsBrowserTests: XCTestCase {
         ui.app.descendants(matching: .any).matching(identifier: "highlight-row")
     }
 
-    /// Whether `element` holds keyboard focus (private XCUIElement attribute, available on macOS).
-    private func hasKeyboardFocus(_ element: XCUIElement) -> Bool {
-        (element.value(forKey: "hasKeyboardFocus") as? Bool) ?? false
-    }
-
     /// Opening the section lists the seeded highlights.
     @MainActor
     func testSectionListsHighlights() {
@@ -111,7 +106,7 @@ final class HighlightsBrowserTests: XCTestCase {
         let windows = ui.app.windows.count
 
         note.click()
-        XCTAssertTrue(hasKeyboardFocus(note), "The click didn't focus the note field.")
+        XCTAssertTrue(ui.hasKeyboardFocus(note), "The click didn't focus the note field.")
         ui.app.typeText("zq")
         ui.app.typeKey(.return, modifierFlags: [])
         ui.settle()
@@ -126,12 +121,36 @@ final class HighlightsBrowserTests: XCTestCase {
         let tagField = ui.app.textFields["Add tag"].firstMatch
         XCTAssertTrue(tagField.waitForExistence(timeout: 5), "No Add Tag field in the detail pane.")
         tagField.click()
-        XCTAssertTrue(hasKeyboardFocus(tagField), "The click didn't focus the Add Tag field.")
+        XCTAssertTrue(ui.hasKeyboardFocus(tagField), "The click didn't focus the Add Tag field.")
+        XCTAssertTrue(
+            ui.waitUntil { ui.app.staticTexts["No tags yet"].exists || !self.assignedTagLabels(in: ui).isEmpty },
+            "The detail pane's tags never loaded."
+        )
+        let tagsBefore = assignedTagLabels(in: ui)
         ui.app.typeKey(.return, modifierFlags: [])
         ui.settle()
+        XCTAssertEqual(
+            tagField.value as? String ?? "", "",
+            "Return in the empty Add Tag field changed its value: \(String(describing: tagField.value))"
+        )
+        XCTAssertEqual(
+            assignedTagLabels(in: ui), tagsBefore,
+            "Return in the empty Add Tag field created a tag (the detail pane's tag chips changed)."
+        )
         ui.app.typeKey(.escape, modifierFlags: [])
         ui.settle()
         assertBrowserUnchanged(ui, total: total, windows: windows, open: open)
+    }
+
+    /// The labels of the tag chips' remove buttons ("Remove tag <name>", TagFieldView) in the detail pane, sorted. A new
+    /// tag adds a chip, so this changes when one is created. The bulk-edit "Remove tag from selection" button isn't a chip.
+    @MainActor
+    private func assignedTagLabels(in ui: StudyReaderUI) -> [String] {
+        ui.app.buttons
+            .matching(NSPredicate(format: "label BEGINSWITH 'Remove tag ' AND label != 'Remove tag from selection'"))
+            .allElementsBoundByIndex
+            .map(\.label)
+            .sorted()
     }
 
     @MainActor

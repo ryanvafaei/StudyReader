@@ -61,7 +61,7 @@ enum PDFAnchorBuilder {
     }
 
     /// ARCHITECTURE §5.5: `Double(pageIndex) * 1_000_000 + (pageHeight - topOfFirstRect)`.
-    static func positionKey(pageIndex: Int, pageHeight: Double, topOfFirstRect: Double) -> Double {
+    nonisolated static func positionKey(pageIndex: Int, pageHeight: Double, topOfFirstRect: Double) -> Double {
         Double(pageIndex) * 1_000_000 + (pageHeight - topOfFirstRect)
     }
 

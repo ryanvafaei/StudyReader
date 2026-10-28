@@ -138,6 +138,17 @@ struct AppEnvironmentTests {
         }
     }
 
+    @Test func resetsEphemeralSettingsOnlyForInMemoryLaunchesOutsideUnitTests() {
+        #expect(AppLaunchModel.shouldResetEphemeralSettings(
+            Signals(xctestEnvironment: false, inMemoryRequested: true, xctestLibraryLoaded: false)))
+        #expect(!AppLaunchModel.shouldResetEphemeralSettings(
+            Signals(xctestEnvironment: true, inMemoryRequested: true, xctestLibraryLoaded: false)))
+        #expect(!AppLaunchModel.shouldResetEphemeralSettings(
+            Signals(xctestEnvironment: false, inMemoryRequested: false, xctestLibraryLoaded: false)))
+        #expect(!AppLaunchModel.shouldResetEphemeralSettings(
+            Signals(xctestEnvironment: true, inMemoryRequested: false, xctestLibraryLoaded: false)))
+    }
+
     @Test func defaultFactoryUsesTemporaryLibraryInTests() throws {
         let environment = try AppLaunchModel.defaultFactory()
         defer { TestFileStore.remove(environment.fileStore) }

@@ -43,4 +43,27 @@ final class SettingsTests: XCTestCase {
 
         ui.app.typeKey("w", modifierFlags: .command)
     }
+
+    /// B35(2): Settings opens with no colour-label field holding keyboard focus (so typing can't edit a label by accident).
+    @MainActor
+    func testSettingsOpensWithoutAFocusedLabelField() {
+        let ui = StudyReaderUI.launch(seed: false)
+        ui.settle()
+        ui.app.typeKey(",", modifierFlags: .command)
+
+        let window = ui.app.windows.matching(
+            NSPredicate(format: "identifier == 'com_apple_SwiftUI_Settings_window' OR title == 'General'")
+        ).firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "Settings didn't open with ⌘,.")
+        ui.settle()
+
+        let fields = window.textFields.matching(NSPredicate(format: "label CONTAINS 'Label for'"))
+        XCTAssertGreaterThanOrEqual(fields.count, 5, "The colour label fields are missing.")
+        for index in 0..<fields.count {
+            let field = fields.element(boundBy: index)
+            XCTAssertFalse(ui.hasKeyboardFocus(field), "A label field has keyboard focus on open: \(field.label)")
+        }
+
+        ui.app.typeKey("w", modifierFlags: .command)
+    }
 }

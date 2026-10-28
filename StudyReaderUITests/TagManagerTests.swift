@@ -9,6 +9,7 @@ final class TagManagerTests: XCTestCase {
     }
 
     /// A tag row is one combined static text: "<name>, N highlights, M documents".
+    @MainActor
     private func tagRow(_ name: String, in ui: StudyReaderUI) -> XCUIElement {
         let prefix = name + ","
         return ui.app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", prefix, prefix)).firstMatch

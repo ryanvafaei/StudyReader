@@ -324,6 +324,13 @@ final class StudyReaderUI {
         alertButton("Delete").click()
     }
 
+    /// Whether `element` has keyboard focus. XCUIElement exposes this only through a private key, so it is read only
+    /// when the element responds to it; false otherwise.
+    func hasKeyboardFocus(_ element: XCUIElement) -> Bool {
+        guard element.responds(to: NSSelectorFromString("hasKeyboardFocus")) else { return false }
+        return (element.value(forKey: "hasKeyboardFocus") as? Bool) ?? false
+    }
+
     /// Selects all text in `field` and types `text` instead.
     func replaceText(in field: XCUIElement, with text: String) {
         field.click()
