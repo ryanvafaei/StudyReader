@@ -6,16 +6,10 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
-        var files: [URL] = []
-        for url in urls {
-            if url.isFileURL {
-                files.append(url)
-            } else {
-                _ = GoogleSignInAuth.handle(url)
-            }
+        let routes = ExternalURLRouter.split(urls)
+        for url in routes.redirects {
+            _ = GoogleSignInAuth.handle(url)
         }
-        if !files.isEmpty {
-            ExternalURLRouter.shared.receive(files)
-        }
+        ExternalURLRouter.shared.receive(routes.files)
     }
 }

@@ -8,6 +8,12 @@ final class ExternalURLRouter {
     /// The router shared by AppDelegate (producer) and RootView (consumer).
     static let shared = ExternalURLRouter()
 
+    /// Splits incoming URLs: file URLs go to the import router, every other URL is a sign-in redirect candidate
+    /// (GoogleSignIn ignores schemes that aren't its own). Each URL lands in exactly one list, order kept.
+    nonisolated static func split(_ urls: [URL]) -> (files: [URL], redirects: [URL]) {
+        (urls.filter(\.isFileURL), urls.filter { !$0.isFileURL })
+    }
+
     private(set) var pendingURLs: [URL] = []
     private var handler: (@MainActor ([URL]) -> Void)?
 

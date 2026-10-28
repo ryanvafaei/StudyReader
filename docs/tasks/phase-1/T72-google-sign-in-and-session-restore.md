@@ -78,3 +78,5 @@ final class GoogleAccountModel {
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
 - 2026-10-28, implementer integrations Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). GoogleSignIn wrapped behind protocols, drive.file only, no tokens/emails logged, forbidden files untouched, unconfigured builds never call the SDK; 13 tests ran on CI. Sign-in, restore across relaunch and the not-configured state are Mac checks (VISUAL_CHECKS); confirm the SDK picks up GIDClientID from Info.plist (else set GIDConfiguration explicitly). BACKLOG B32.
+
+> **Note (T74a, 2026-10-28):** the `.onOpenURL` described above was removed again: a scene-level `.onOpenURL` stops SwiftUI from calling `AppDelegate.application(_:open:)`, which broke Finder Open With. `AppDelegate.application(_:open:)` is the single entry point (file URLs → ExternalURLRouter, others → GoogleSignInAuth.handle via `ExternalURLRouter.split`).

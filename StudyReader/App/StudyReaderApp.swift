@@ -12,13 +12,9 @@ struct StudyReaderApp: App {
 
     var body: some Scene {
         Window("StudyReader", id: "main") {
+            // No `.onOpenURL` here: it would stop SwiftUI from calling `AppDelegate.application(_:open:)`,
+            // which routes both files and Google's sign-in redirect.
             LaunchView(model: launchModel)
-                // Google's sign-in redirect (reversed client ID scheme). Files go through AppDelegate.
-                .onOpenURL { url in
-                    if !url.isFileURL {
-                        _ = GoogleSignInAuth.handle(url)
-                    }
-                }
         }
         .defaultSize(width: 1100, height: 720)
         .commands {

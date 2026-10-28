@@ -21,3 +21,4 @@ All three `StudyReaderUITests/ExternalOpenTests` fail since T72 (they passed at 
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-28, implementer ui-builder Sonnet medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Root cause: T72's scene-level .onOpenURL made SwiftUI stop calling AppDelegate.application(_:open:), swallowing file URLs; fix: .onOpenURL removed, the delegate is the single entry point (ExternalURLRouter.split: files → router, others → GoogleSignInAuth.handle); ExternalOpenTests 4/4 on CI (run 40628982827), splitRoutesEachURLOnce ran. Google redirect only unit-tested (Mac check).

@@ -92,6 +92,19 @@ struct ExternalURLRouterTests {
         #expect(newRecorder.batches == [[second]])
     }
 
+    @Test("split sends file URLs to the router and other URLs to the sign-in handler, once each, in order")
+    func splitRoutesEachURLOnce() throws {
+        let redirect = try #require(URL(string: "com.googleusercontent.apps.123:/oauth2callback?code=x"))
+        let other = try #require(URL(string: "https://example.com"))
+
+        let routes = ExternalURLRouter.split([first, redirect, second, other])
+
+        #expect(routes.files == [first, second])
+        #expect(routes.redirects == [redirect, other])
+        #expect(ExternalURLRouter.split([]).files.isEmpty)
+        #expect(ExternalURLRouter.split([]).redirects.isEmpty)
+    }
+
     @Test("An empty batch is ignored and does not reach the handler")
     func emptyBatchIgnored() {
         let router = ExternalURLRouter()
