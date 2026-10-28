@@ -11,6 +11,7 @@ struct AppEnvironment: Sendable {
     let highlightRepository: HighlightRepository
     let tagRepository: TagRepository
     let notesRepository: NotesRepository
+    let exportRepository: ExportRepository
     let highlightService: HighlightService
     let documentTextRepository: DocumentTextRepository
     let extractionService: ExtractionService
@@ -37,6 +38,7 @@ struct AppEnvironment: Sendable {
         self.highlightRepository = HighlightRepository(database: database)
         self.tagRepository = TagRepository(database: database)
         self.notesRepository = NotesRepository(database: database)
+        self.exportRepository = ExportRepository(database: database)
         self.highlightService = HighlightService(
             highlights: self.highlightRepository,
             tags: self.tagRepository,
