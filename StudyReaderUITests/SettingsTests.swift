@@ -44,6 +44,35 @@ final class SettingsTests: XCTestCase {
         ui.app.typeKey("w", modifierFlags: .command)
     }
 
+    /// T72/T73: without a Google configuration (CI) the Google tab says so and hides the folder link and export targets.
+    @MainActor
+    func testGoogleTabShowsNotConfiguredAndHidesFolderAndTargets() {
+        let ui = StudyReaderUI.launch(seed: false)
+        ui.settle()
+        ui.app.typeKey(",", modifierFlags: .command)
+
+        let window = ui.app.windows.matching(
+            NSPredicate(format: "identifier == 'com_apple_SwiftUI_Settings_window' OR title == 'General'")
+        ).firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "Settings didn't open with ⌘,.")
+        let googleTab = window.toolbars.buttons["Google"]
+        XCTAssertTrue(googleTab.waitForExistence(timeout: 3), "Settings has no Google tab.")
+        googleTab.click()
+
+        XCTAssertTrue(
+            window.staticTexts["Google export not configured"].waitForExistence(timeout: 8),
+            "The Google tab doesn't say \"Google export not configured\"."
+        )
+        XCTAssertFalse(window.textFields["Export folder link"].exists, "The unconfigured Google tab shows the export folder field.")
+        XCTAssertFalse(
+            window.descendants(matching: .any)["Export targets"].exists,
+            "The unconfigured Google tab shows the Export targets section."
+        )
+        ui.attachScreenshot("Settings Google unconfigured", to: self)
+
+        ui.app.typeKey("w", modifierFlags: .command)
+    }
+
     /// B35(2): Settings opens with no colour-label field holding keyboard focus (so typing can't edit a label by accident).
     @MainActor
     func testSettingsOpensWithoutAFocusedLabelField() {

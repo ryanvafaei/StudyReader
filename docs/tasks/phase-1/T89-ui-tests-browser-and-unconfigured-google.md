@@ -102,3 +102,4 @@ H0 (exists), H3 (sort), H7 (detail edits), H8 (snapshot thumbnail), the date ran
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium (no reworks; 2 targeted UI runs, one per class), reviewer code-reviewer Sonnet medium: APPROVED; CI evidence: HighlightsBrowserTests 13 tests, 0 failures (run 40717065767), SettingsTests 3 tests, 0 failures (run 40719065646); UI-test code only, no product change; minor follow-ups in BACKLOG
