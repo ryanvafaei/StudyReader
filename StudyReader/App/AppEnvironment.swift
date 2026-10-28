@@ -19,6 +19,9 @@ struct AppEnvironment: Sendable {
     let searchService: SearchService
     let settingsStore: SettingsStore
     let sleeper: any Sleeper
+    let httpClient: any HTTPClient
+    let googleAuth: any GoogleAuthProviding
+    let googleExportService: GoogleExportService
 
     /// Builds the repositories and services from `database`.
     init(
@@ -26,19 +29,33 @@ struct AppEnvironment: Sendable {
         database: AppDatabase,
         now: any Now,
         settingsStore: SettingsStore = .ephemeral(),
-        sleeper: any Sleeper = SystemSleeper()
+        sleeper: any Sleeper = SystemSleeper(),
+        httpClient: any HTTPClient = URLSessionHTTPClient(),
+        googleAuth: any GoogleAuthProviding = UnconfiguredGoogleAuth()
     ) {
         self.fileStore = fileStore
         self.database = database
         self.now = now
         self.settingsStore = settingsStore
         self.sleeper = sleeper
+        self.httpClient = httpClient
+        self.googleAuth = googleAuth
         self.categoryRepository = CategoryRepository(database: database)
         self.documentRepository = DocumentRepository(database: database)
         self.highlightRepository = HighlightRepository(database: database)
         self.tagRepository = TagRepository(database: database)
         self.notesRepository = NotesRepository(database: database)
-        self.exportRepository = ExportRepository(database: database)
+        let exportRepository = ExportRepository(database: database)
+        self.exportRepository = exportRepository
+        self.googleExportService = GoogleExportService(
+            auth: googleAuth,
+            http: httpClient,
+            repository: exportRepository,
+            settings: settingsStore,
+            now: now,
+            sleeper: sleeper,
+            colorLabels: { HighlightColor.allCases.map { settingsStore.colorLabel(for: $0) } }
+        )
         self.highlightService = HighlightService(
             highlights: self.highlightRepository,
             tags: self.tagRepository,

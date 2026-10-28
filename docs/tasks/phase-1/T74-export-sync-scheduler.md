@@ -69,3 +69,5 @@ actor ExportSyncScheduler {
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+
+> **Requirement from the T71 review (2026-10-28):** the scheduler must never run two exports of the same target at once (`GoogleExportService` does not serialize: two concurrent exports of a target with no Doc yet can both create one). See docs/BACKLOG.md B31.

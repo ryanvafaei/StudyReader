@@ -108,3 +108,4 @@ Errors:
 
 ## Review log
 <!-- Main session appends one line per review: date, model and effort used, verdict, short reason -->
+- 2026-10-28, implementer integrations Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED (conditional on the full unit run). Requests byte-exact, ADR 0018 error table implemented, tokens/content never logged or stored, bounded backoff via Sleeper, one 401 refresh; 22 tests ran on CI. Open risks: a create retried after a lost 5xx response can duplicate a Doc (accepted), concurrent exports of one target can both create (T74 must serialize per target). BACKLOG B31.
