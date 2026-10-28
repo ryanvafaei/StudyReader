@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 @testable import StudyReader
@@ -71,6 +72,62 @@ struct HighlightPopoverModelTests {
         let url = try #require(model.imageURL)
         #expect(FileManager.default.fileExists(atPath: url.path(percentEncoded: false)))
         task.cancel()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func goneWhenDeletedElsewhere() async throws {
+        let session = try await Self.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        let repository = session.environment.highlightRepository
+        let highlight = TestData.highlight(documentId: Self.documentId)
+        try await repository.insert(highlight)
+        let model = HighlightPopoverModel(highlightId: highlight.id, session: session)
+        let task = Task { await model.observe() }
+        defer { task.cancel() }
+        #expect(await ReaderTestSupport.waitUntil { model.highlight != nil })
+        #expect(!model.isGone)
+
+        _ = try await repository.delete(id: highlight.id, fileStore: session.environment.fileStore)
+        #expect(await ReaderTestSupport.waitUntil { model.isGone })
+        #expect(!model.isDeleted)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func imageLoadsOnceForSnapshot() async throws {
+        let session = try await Self.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        _ = try session.environment.fileStore.createDocumentFolder(documentId: Self.documentId)
+        let png = try #require(Self.pngData())
+        let created = try await session.environment.highlightService.createImage(NewImageHighlight(
+            documentId: Self.documentId,
+            pageIndex: 0,
+            rect: CGRectCodable(x: 0, y: 0, width: 10, height: 10),
+            positionKey: 0,
+            color: .yellow,
+            pngData: png
+        ))
+        let textHighlight = TestData.highlight(documentId: Self.documentId, id: "text-one")
+        try await session.environment.highlightRepository.insert(textHighlight)
+
+        let imageModel = HighlightPopoverModel(highlightId: created.id, session: session)
+        let imageTask = Task { await imageModel.observe() }
+        defer { imageTask.cancel() }
+        #expect(await ReaderTestSupport.waitUntil { imageModel.image != nil })
+
+        let textModel = HighlightPopoverModel(highlightId: textHighlight.id, session: session)
+        let textTask = Task { await textModel.observe() }
+        defer { textTask.cancel() }
+        #expect(await ReaderTestSupport.waitUntil { textModel.highlight != nil })
+        #expect(textModel.image == nil)
+    }
+
+    /// A real 4 x 4 PNG, since the 8-byte header alone doesn't decode.
+    private static func pngData() -> Data? {
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4, bitsPerSample: 8, samplesPerPixel: 4,
+            hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ) else { return nil }
+        return rep.representation(using: .png, properties: [:])
     }
 
     @Test(.timeLimit(.minutes(1)))

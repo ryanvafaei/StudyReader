@@ -40,10 +40,8 @@ struct HighlightsPanelView: View {
                     .padding(8)
             }
         }
-        .task { await panel.refresh() }
-        .onChange(of: model.highlights) {
-            Task { await panel.refresh() }
-        }
+        .task { await panel.observeTagNames() }
+        .task(id: model.highlights) { await panel.refresh() }
     }
 
     private func rows(_ section: PanelSection) -> some View {

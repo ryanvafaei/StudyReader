@@ -61,6 +61,7 @@ struct HighlightPopoverView: View {
             if gone { onClose() }
         }
         .onDisappear {
+            guard !model.isGone else { return }
             let note = model.noteModel
             Task { await note.flush() }
         }
@@ -68,7 +69,7 @@ struct HighlightPopoverView: View {
 
     @ViewBuilder
     private var preview: some View {
-        if let url = model.imageURL, let image = NSImage(contentsOf: url) {
+        if let image = model.image {
             Image(nsImage: image)
                 .resizable()
                 .scaledToFit()

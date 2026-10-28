@@ -260,6 +260,14 @@ struct ReaderContentSlot: View {
 /// Right column with the Highlights and Notes tabs (SPEC F-06, F-09).
 private struct ReaderSidePanel: View {
     @Bindable var model: ReaderModel
+    @State private var noteModel: NoteEditorModel
+
+    init(model: ReaderModel) {
+        self.model = model
+        _noteModel = State(initialValue: NoteEditorModel(
+            target: .document(model.documentId), environment: model.session.environment
+        ))
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -275,7 +283,7 @@ private struct ReaderSidePanel: View {
             case .highlights:
                 HighlightsPanelView(model: model)
             case .notes:
-                DocumentNotePanelView(documentId: model.documentId, session: model.session)
+                DocumentNotePanelView(noteModel: noteModel)
             }
         }
         .padding()

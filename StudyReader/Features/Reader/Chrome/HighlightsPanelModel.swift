@@ -28,6 +28,7 @@ final class HighlightsPanelModel {
     private(set) var thumbnails: [String: NSImage] = [:]
     private(set) var errorMessage: String?
 
+    @ObservationIgnored private var tagNames: [String: [String]] = [:]
     @ObservationIgnored private let model: ReaderModel
 
     init(model: ReaderModel) {
@@ -36,27 +37,35 @@ final class HighlightsPanelModel {
 
     var isEmpty: Bool { sections.allSatisfy { $0.rows.isEmpty } }
 
-    /// Rebuilds the sections from the reader's live highlights and their tag names.
+    /// Follows the document's tag names per highlight until the calling task is cancelled, so tag changes show at
+    /// once without a query per row.
+    func observeTagNames() async {
+        let tags = model.session.environment.tagRepository
+        do {
+            for try await names in tags.observeTagNamesByHighlight(inDocument: model.documentId) {
+                tagNames = names
+                errorMessage = nil
+                rebuildSections()
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = String(localized: "Some tags couldn't be loaded.")
+        }
+    }
+
+    /// Rebuilds the sections from the reader's live highlights and the stored tag names.
     func refresh() async {
+        await loadThumbnails(for: model.highlights)
+        guard !Task.isCancelled else { return }
+        rebuildSections()
+    }
+
+    private func rebuildSections() {
         guard let fileType = model.document?.fileType else {
             sections = []
             return
         }
-        let environment = model.session.environment
-        let highlights = model.highlights
-        var tagNames: [String: [String]] = [:]
-        var failed = false
-        for highlight in highlights {
-            do {
-                tagNames[highlight.id] = try await environment.tagRepository.tags(forHighlight: highlight.id).map(\.name)
-            } catch {
-                failed = true
-            }
-        }
-        errorMessage = failed ? String(localized: "Some tags couldn't be loaded.") : nil
-        await loadThumbnails(for: highlights)
-        guard !Task.isCancelled else { return }
-        sections = Self.sections(for: highlights, tagNames: tagNames, fileType: fileType)
+        sections = Self.sections(for: model.highlights, tagNames: tagNames, fileType: fileType)
     }
 
     func select(_ highlightId: String) {
@@ -105,7 +114,7 @@ final class HighlightsPanelModel {
                 PanelHighlightRow(
                     highlight: highlight,
                     tagNames: tagNames[highlight.id] ?? [],
-                    viewLabel: fileType == .pdf ? (highlight.view == .pdf ? "PDF" : "Text") : nil
+                    viewLabel: fileType == .pdf ? (highlight.view == .pdf ? String(localized: "PDF") : String(localized: "Text")) : nil
                 )
             }
         }

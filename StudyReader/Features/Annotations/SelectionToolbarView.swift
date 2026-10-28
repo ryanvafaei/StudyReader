@@ -36,12 +36,6 @@ struct SelectionToolbarView: View {
             }
             .help("Copy the selection")
             .accessibilityLabel("Copy selection")
-
-            Button("Dismiss") { model.selectionToolbar = nil }
-                .keyboardShortcut(.cancelAction)
-                .frame(width: 0, height: 0)
-                .opacity(0)
-                .accessibilityHidden(true)
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)
@@ -57,10 +51,16 @@ struct SelectionToolbarView: View {
         .accessibilityLabel("Selection toolbar")
     }
 
-    /// Closes the toolbar on a click outside it. The click still reaches the reader, so a new selection works.
+    /// Closes the toolbar on a click outside it (the click still reaches the reader, so a new selection works) and
+    /// on Escape when no field or sheet wants the key, so Escape in the find bar is left alone.
     private func startMonitor() {
         guard monitor == nil else { return }
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { event in
+            if event.type == .keyDown {
+                guard event.keyCode == 53, AppCommands.isReaderUndoContext(event.window) else { return event }
+                Task { @MainActor in model.selectionToolbar = nil }
+                return nil
+            }
             let height = event.window?.contentView?.frame.height ?? 0
             let point = CGPoint(x: event.locationInWindow.x, y: height - event.locationInWindow.y)
             if !frameInWindow.insetBy(dx: -2, dy: -2).contains(point) {

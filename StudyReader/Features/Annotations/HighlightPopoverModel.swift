@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -15,7 +16,11 @@ final class HighlightPopoverModel {
     private(set) var hasLoaded = false
     private(set) var errorMessage: String?
 
+    /// The snapshot of an image highlight, loaded once by `observe()`.
+    private(set) var image: NSImage?
+
     @ObservationIgnored private let session: AppSession
+    @ObservationIgnored private var loadedImagePath: String?
 
     init(highlightId: String, session: AppSession) {
         self.highlightId = highlightId
@@ -40,11 +45,25 @@ final class HighlightPopoverModel {
             for try await row in session.environment.highlightRepository.observeHighlight(id: highlightId) {
                 highlight = row
                 hasLoaded = true
+                await loadImage(path: row?.imagePath)
             }
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = String(localized: "The highlight couldn't be loaded.")
         }
+    }
+
+    /// Reads the snapshot once, off the main actor, so `body` never touches the file system.
+    private func loadImage(path: String?) async {
+        guard path != loadedImagePath else { return }
+        loadedImagePath = path
+        guard let path, let url = session.environment.fileStore.url(forRelativePath: path) else {
+            image = nil
+            return
+        }
+        let data = await Task.detached { try? Data(contentsOf: url) }.value
+        guard !Task.isCancelled, loadedImagePath == path else { return }
+        image = data.flatMap { NSImage(data: $0) }
     }
 
     /// Choosing the color it already has changes nothing, so it doesn't touch the row or the auto-highlight undo.

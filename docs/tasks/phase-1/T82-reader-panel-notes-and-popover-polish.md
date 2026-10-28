@@ -47,3 +47,4 @@ The Localizable.xcstrings refresh (B15 1, needs an Xcode build on the Mac), a de
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40689095996, 676 tests); deviations accepted (NotePreviewBlock.swift via swift-markdown; ReaderUndoContextTests true-cases only asserted when window.canBecomeMain, so Escape with non-text focus is a Mac check in VISUAL_CHECKS); minor follow-ups in BACKLOG

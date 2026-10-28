@@ -89,6 +89,56 @@ struct HighlightsPanelModelTests {
     }
 
     @Test
+    func viewLabelsAreLocalizedStrings() {
+        let sections = HighlightsPanelModel.sections(
+            for: [Self.make(id: "a", view: .pdf, key: 1), Self.make(id: "b", view: .text, key: 2)],
+            tagNames: [:],
+            fileType: .pdf
+        )
+        #expect(sections[0].rows[0].viewLabel == String(localized: "PDF"))
+        #expect(sections[1].rows[0].viewLabel == String(localized: "Text"))
+    }
+
+    @MainActor
+    @Test(.timeLimit(.minutes(1)))
+    func tagChipsFollowTagChanges() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        try await ReaderTestSupport.insertDocument(session, id: Self.documentId, withFile: true)
+        let environment = session.environment
+        let highlight = TestData.highlight(documentId: Self.documentId, id: "tagged", positionKey: 1)
+        try await environment.highlightRepository.insert(highlight)
+        let model = ReaderModel(documentId: Self.documentId, session: session)
+        await model.load()
+        let highlightsTask = Task { await model.observeHighlights() }
+        defer { highlightsTask.cancel() }
+        let panel = HighlightsPanelModel(model: model)
+        let tagsTask = Task { await panel.observeTagNames() }
+        defer { tagsTask.cancel() }
+
+        let listed = await ReaderTestSupport.waitUntil {
+            await panel.refresh()
+            return panel.sections.flatMap(\.rows).map(\.id) == ["tagged"]
+        }
+        #expect(listed)
+        let highlightsBefore = model.highlights
+
+        let tag = try await environment.tagRepository.findOrCreate(name: "exam", at: TestData.referenceDate)
+        try await environment.tagRepository.addTag(tag.id, toHighlights: ["tagged"])
+        let tagged = await ReaderTestSupport.waitUntil {
+            panel.sections.flatMap(\.rows).first?.tagNames == ["exam"]
+        }
+        #expect(tagged)
+        #expect(model.highlights == highlightsBefore)
+
+        try await environment.tagRepository.rename(id: tag.id, to: "final")
+        let renamed = await ReaderTestSupport.waitUntil {
+            panel.sections.flatMap(\.rows).first?.tagNames == ["final"]
+        }
+        #expect(renamed)
+    }
+
+    @Test
     func noHighlightsGivesNoSections() {
         #expect(HighlightsPanelModel.sections(for: [], tagNames: [:], fileType: .pdf).isEmpty)
     }
