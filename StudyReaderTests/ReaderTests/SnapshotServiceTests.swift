@@ -147,6 +147,25 @@ struct SnapshotServiceTests {
     }
 
     @Test
+    func pixelSizeIsCapped() {
+        let normal = SnapshotService.pixelSize(for: CGSize(width: 100, height: 50))
+        #expect(normal.width == 200 && normal.height == 100)
+
+        let wide = SnapshotService.pixelSize(for: CGSize(width: 10_000, height: 10))
+        #expect(wide.width <= SnapshotService.maximumPixelSide && wide.width > 0 && wide.height > 0, "wide: \(wide)")
+
+        let tall = SnapshotService.pixelSize(for: CGSize(width: 10, height: 10_000))
+        #expect(tall.height <= SnapshotService.maximumPixelSide && tall.width > 0 && tall.height > 0, "tall: \(tall)")
+
+        let huge = SnapshotService.pixelSize(for: CGSize(width: 5000, height: 5000))
+        #expect(huge.width * huge.height <= SnapshotService.maximumPixelCount, "huge: \(huge)")
+        #expect(huge.width > 0 && huge.height > 0)
+
+        let tiny = SnapshotService.pixelSize(for: CGSize(width: 0.2, height: 0.2))
+        #expect(tiny.width == 1 && tiny.height == 1)
+    }
+
+    @Test
     func displayedRectFollowsRotation() {
         let crop = CGRect(x: 10, y: 20, width: 200, height: 100)
         let region = CGRect(x: 30, y: 40, width: 50, height: 20)

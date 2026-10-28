@@ -95,3 +95,8 @@ Verified against the code on `master` after T74a. Keys: **T7x/T8x** = fixed by t
 | B33 | (1)(2)(3)(4) T83. (5) T78. (6) drop: didn't flake at T74; revisit if it does. |
 | B34 | T80. |
 | B35 | (1) the query already breaks ties by id; the screenshots differed because each launch seeds new random ids with equal times: T84 seeds distinct times. (2) T83 (UI test in T84). (3) T84. (4) Settings > Google unconfigured and the Export Selection alert: T89; S/F/H subset: T88, T89; Export sheet pickers/width and File-menu enabled state: not built (outside the user's subset). |
+
+## Follow-ups from the backlog pass
+- T76 (reviewer, minor): add a phrase case such as `"a\u{301}"` to `SearchQueryParserTests` to make phrase-plus-combining-mark safety explicit.
+- T77 (reviewer, minor): add a one-line comment in `PDFReaderController.windowAttached` saying a window attach during `load`'s retry loop is ignored because `pendingTrackingStart` is still false.
+- T77 (reviewer, minor): find out why `PDFReaderControllerTests/trackingWaitsForAWindow` failed with `currentPageIndex == 1` on CI after tracking started (PDFKit `currentPage` vs the page at the visible top after restoring a middle page). The test asserts `currentPosition()` instead.

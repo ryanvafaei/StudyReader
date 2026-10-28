@@ -23,6 +23,9 @@ final class StudyPDFView: PDFView {
     /// Called when snapshot mode ends without a capture (Escape).
     var onSnapshotCancel: (@MainActor () -> Void)?
 
+    /// Called when the view moves into a window (the controller starts position tracking if it was waiting for one).
+    var onWindowAttached: (@MainActor () -> Void)?
+
     static let escapeKeyCode: UInt16 = 53
     private static let clickTolerance: CGFloat = 3
     private var snapshotOverlay: SnapshotOverlayView?
@@ -50,6 +53,13 @@ final class StudyPDFView: PDFView {
         overlay.removeFromSuperview()
         if window?.firstResponder === overlay {
             window?.makeFirstResponder(self)
+        }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil {
+            onWindowAttached?()
         }
     }
 

@@ -22,7 +22,8 @@ struct PDFReaderControllerTests {
 
     private static func makeHarness(
         fileData: Data = PDFFixtureBuilder.plainMultiPage(pageCount: 5),
-        savedPosition: PDFPosition? = nil
+        savedPosition: PDFPosition? = nil,
+        attachWindow: Bool = true
     ) async throws -> Harness {
         let session = try ReaderTestSupport.makeSession()
         let environment = session.environment
@@ -43,9 +44,11 @@ struct PDFReaderControllerTests {
             backing: .buffered,
             defer: false
         )
-        window.contentView = controller.pdfView
-        controller.pdfView.frame = CGRect(origin: .zero, size: viewSize)
-        window.layoutIfNeeded()
+        if attachWindow {
+            window.contentView = controller.pdfView
+            controller.pdfView.frame = CGRect(origin: .zero, size: viewSize)
+            window.layoutIfNeeded()
+        }
         return Harness(session: session, model: model, controller: controller, window: window, url: url)
     }
 
@@ -179,6 +182,37 @@ struct PDFReaderControllerTests {
         let position = try #require(harness.controller.currentPosition())
         #expect(position.pageIndex == 3)
         #expect(abs(position.offsetY - 400) < 2)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func trackingWaitsForAWindow() async throws {
+        let saved = PDFPosition(pageIndex: 1, offsetY: 300)
+        let harness = try await Self.makeHarness(
+            fileData: PDFFixtureBuilder.plainMultiPage(pageCount: 3), savedPosition: saved, attachWindow: false)
+        defer { ReaderTestSupport.cleanUp(harness.session) }
+        let controller = harness.controller
+        #expect(controller.pdfView.window == nil)
+        controller.load(url: harness.url)
+
+        // The retry limit (40 x 50 ms) passes without a window: tracking must not have started.
+        try await Self.settle(3)
+        #expect(!controller.isTrackingPosition)
+        await harness.model.flushPosition()
+        #expect((await ReaderTestSupport.row(harness.session, id: Self.documentId))?.pdfPosition == saved)
+
+        harness.window.contentView = controller.pdfView
+        controller.pdfView.frame = CGRect(origin: .zero, size: Self.viewSize)
+        harness.window.layoutIfNeeded()
+        for _ in 0..<80 where !controller.isTrackingPosition {
+            try await Self.settle(0.05)
+        }
+        #expect(controller.isTrackingPosition)
+        try await Self.settle(0.2)
+        // `currentPosition` is the page of the visible top, the same measure as the saved position;
+        // `currentPageIndex` (PDFKit's `currentPage`) isn't guaranteed to match it.
+        let position = try #require(controller.currentPosition())
+        #expect(position.pageIndex == 1)
+        #expect(abs(position.offsetY - saved.offsetY) < 2)
     }
 
     @Test(.timeLimit(.minutes(1)))

@@ -14,6 +14,29 @@ enum SnapshotError: Error, Equatable {
 enum SnapshotService {
     static let scale: CGFloat = 2
     static let minimumSide: CGFloat = 10
+    /// Longest side of the rendered bitmap in pixels.
+    static let maximumPixelSide = 8192
+    /// Largest `width * height` of the rendered bitmap (64 MB of RGBA).
+    static let maximumPixelCount = 16_777_216
+
+    /// Bitmap size for a region displayed at `displayed` points: `scale` times the size, with the effective scale
+    /// reduced so that neither side exceeds `maximumPixelSide` and `width * height <= maximumPixelCount`. At least 1
+    /// pixel per side.
+    static func pixelSize(for displayed: CGSize) -> (width: Int, height: Int) {
+        let width = max(Double(displayed.width), 0)
+        let height = max(Double(displayed.height), 0)
+        var effective = Double(scale)
+        if width > 0 { effective = min(effective, Double(maximumPixelSide) / width) }
+        if height > 0 { effective = min(effective, Double(maximumPixelSide) / height) }
+        if width > 0, height > 0 { effective = min(effective, (Double(maximumPixelCount) / (width * height)).squareRoot()) }
+        var pixelWidth = max(Int((width * effective).rounded()), 1)
+        var pixelHeight = max(Int((height * effective).rounded()), 1)
+        // Rounding up can overshoot the count by a hair; trim the longer side.
+        while pixelWidth * pixelHeight > maximumPixelCount {
+            if pixelWidth >= pixelHeight { pixelWidth -= 1 } else { pixelHeight -= 1 }
+        }
+        return (pixelWidth, pixelHeight)
+    }
 
     /// `rect` ∩ `pageBounds`; nil if the result is narrower or shorter than `minimumSide` or `rect` isn't finite.
     static func clippedRect(_ rect: CGRect, pageBounds: CGRect) -> CGRect? {
@@ -41,8 +64,7 @@ enum SnapshotService {
         }
         let displayed = displayedRect(of: region, cropBox: cropBox, rotation: page.rotation)
 
-        let width = max(Int((displayed.width * scale).rounded()), 1)
-        let height = max(Int((displayed.height * scale).rounded()), 1)
+        let (width, height) = pixelSize(for: displayed.size)
         guard let context = CGContext(
             data: nil,
             width: width,

@@ -37,7 +37,10 @@ final class PDFReaderController: NSObject {
     @ObservationIgnored private(set) var highlightController: PDFHighlightController?
     @ObservationIgnored private var snapshotTask: Task<Void, Never>?
     @ObservationIgnored private weak var observedClipView: NSClipView?
-    @ObservationIgnored private var isTrackingPosition = false
+    /// True once the saved position was restored and scroll events are reported.
+    @ObservationIgnored private(set) var isTrackingPosition = false
+    /// `load` gave up waiting for a window; `windowAttached` finishes the start.
+    @ObservationIgnored private var pendingTrackingStart = false
     @ObservationIgnored private var lastReportedPosition: PDFPosition?
     /// Mirror of `AppSettings.invertPDFInDarkMode`; kept current by `setInversionEnabled(_:)` (PDFInversion.swift).
     @ObservationIgnored var invertSettingEnabled: Bool
@@ -53,6 +56,7 @@ final class PDFReaderController: NSObject {
         super.init()
         highlightController = PDFHighlightController(model: model, pdfView: pdfView)
         pdfView.onEffectiveAppearanceChange = { [weak self] in self?.refreshInversion() }
+        pdfView.onWindowAttached = { [weak self] in self?.windowAttached() }
         pdfView.onSnapshotDrag = { [weak self] rect, start in self?.snapshotDragFinished(rect: rect, start: start) }
         pdfView.onSnapshotCancel = { [weak self] in self?.pdfView.endSnapshotMode() }
         pdfView.displayMode = .singlePageContinuous
@@ -88,6 +92,7 @@ final class PDFReaderController: NSObject {
         pageCount = loaded.pageCount
         outline = loaded.outlineRoot.map { Self.outlineItems(of: $0, in: loaded) } ?? []
         isTrackingPosition = false
+        pendingTrackingStart = false
         lastReportedPosition = model.initialPDFPosition
         pdfView.autoScales = true
         pdfView.document = loaded
@@ -95,16 +100,36 @@ final class PDFReaderController: NSObject {
         refreshInversion()
         registerActions()
 
-        let saved = model.initialPDFPosition
-        performAfterLayout(attempts: Self.layoutRetryLimit) { [weak self] in
+        performAfterLayout(attempts: Self.layoutRetryLimit) { [weak self] isLaidOut in
             guard let self else { return }
-            if let saved {
-                applyPosition(saved)
+            if isLaidOut {
+                restoreSavedPositionAndBeginTracking()
+            } else {
+                // No window yet: a later layout would report page 0 over the saved position. Wait for `windowAttached`.
+                pendingTrackingStart = true
             }
-            // Layout-induced scroll events before this point must not overwrite the saved position.
-            Task { @MainActor [weak self] in
-                self?.beginTrackingPosition()
-            }
+        }
+    }
+
+    /// The step `load` runs once the view is laid out: apply the saved position, then start tracking.
+    private func restoreSavedPositionAndBeginTracking() {
+        pendingTrackingStart = false
+        if let saved = model.initialPDFPosition {
+            applyPosition(saved)
+        }
+        // Layout-induced scroll events before this point must not overwrite the saved position.
+        Task { @MainActor [weak self] in
+            self?.beginTrackingPosition()
+        }
+    }
+
+    /// The PDF view moved into a window. If `load` gave up waiting for one, runs its restore-and-track step once the
+    /// view has a size.
+    private func windowAttached() {
+        guard pendingTrackingStart else { return }
+        performAfterLayout(attempts: Self.layoutRetryLimit) { [weak self] isLaidOut in
+            guard let self, isLaidOut, pendingTrackingStart else { return }
+            restoreSavedPositionAndBeginTracking()
         }
     }
 
@@ -219,6 +244,8 @@ final class PDFReaderController: NSObject {
         guard pageIndex != NSNotFound else { return }
         let cropBox = page.bounds(for: .cropBox)
         guard let clipped = SnapshotService.clippedRect(pdfView.convert(rect, to: page), pageBounds: cropBox) else { return }
+        // Top of the clipped rect measured from the crop box's bottom (`clipped.maxY - cropBox.minY`), the same
+        // convention as PDFAnchorBuilder's `firstTop` for text highlights (ARCHITECTURE §5.5).
         let positionKey = PDFAnchorBuilder.positionKey(
             pageIndex: pageIndex,
             pageHeight: Double(cropBox.height),
@@ -309,7 +336,7 @@ final class PDFReaderController: NSObject {
     /// Scrolls so `position.offsetY` is at the top of the visible area on `position.pageIndex`. Runs once the view
     /// has been laid out (next run loop turn at the earliest).
     func restore(_ position: PDFPosition) {
-        performAfterLayout(attempts: Self.layoutRetryLimit) { [weak self] in
+        performAfterLayout(attempts: Self.layoutRetryLimit) { [weak self] _ in
             self?.applyPosition(position)
         }
     }
@@ -381,16 +408,20 @@ final class PDFReaderController: NSObject {
         reportPositionIfNeeded()
     }
 
-    /// Runs `work` when the view is in a window with a size, or after `attempts` retries (50 ms apart) regardless.
-    /// The first try is on the next run loop turn.
-    private func performAfterLayout(attempts: Int, delay: DispatchTimeInterval = .milliseconds(0), _ work: @escaping @MainActor () -> Void) {
+    /// Runs `work` when the view is in a window with a size (`isLaidOut` true), or after `attempts` retries (50 ms
+    /// apart) with `isLaidOut` false. The first try is on the next run loop turn.
+    private func performAfterLayout(
+        attempts: Int,
+        delay: DispatchTimeInterval = .milliseconds(0),
+        _ work: @escaping @MainActor (_ isLaidOut: Bool) -> Void
+    ) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let size = self.pdfView.bounds.size
                 let isLaidOut = self.pdfView.window != nil && size.width > 0 && size.height > 0
                 if isLaidOut || attempts <= 0 {
-                    work()
+                    work(isLaidOut)
                 } else {
                     self.performAfterLayout(attempts: attempts - 1, delay: Self.layoutRetryDelay, work)
                 }

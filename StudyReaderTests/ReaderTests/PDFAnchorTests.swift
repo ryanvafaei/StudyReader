@@ -148,6 +148,52 @@ struct PDFAnchorTests {
         #expect(c == 1_000_092)
     }
 
+    /// The anchor of the fixture line that starts with `needle` on `page`.
+    private func lineAnchor(_ document: PDFDocument, _ page: PDFPage, _ needle: String) throws -> PDFSelectionAnchor {
+        let text = try #require(page.string) as NSString
+        let found = text.range(of: needle)
+        try #require(found.location != NSNotFound, "missing \(needle)")
+        let selection = try #require(page.selection(for: found))
+        return try #require(PDFAnchorBuilder.anchor(for: selection, in: document))
+    }
+
+    @Test
+    func anchorsOnARotatedPageStayInsideTheCropBox() throws {
+        let document = try makeDocument()
+        let page = try #require(document.page(at: 0))
+        page.rotation = 90
+        let cropBox = page.bounds(for: .cropBox)
+
+        let upper = try lineAnchor(document, page, "Page 1 line 2:")
+        let lower = try lineAnchor(document, page, "Page 1 line 8:")
+        for result in [upper, lower] {
+            #expect(result.anchor.pages.map(\.pageIndex) == [0])
+            for rect in result.anchor.pages.flatMap(\.rects) {
+                #expect(cropBox.contains(rect.cgRect), "rect \(rect) outside \(cropBox)")
+            }
+        }
+        #expect(upper.positionKey < lower.positionKey, "keys \(upper.positionKey) \(lower.positionKey)")
+    }
+
+    @Test
+    func anchorsWithAnOffsetCropBox() throws {
+        let document = try makeDocument()
+        let page = try #require(document.page(at: 0))
+        page.setBounds(page.bounds(for: .mediaBox).insetBy(dx: 36, dy: 48), for: .cropBox)
+        let cropBox = page.bounds(for: .cropBox)
+        try #require(cropBox.minX > 0 && cropBox.minY > 0)
+
+        let upper = try lineAnchor(document, page, "Page 1 line 2:")
+        let lower = try lineAnchor(document, page, "Page 1 line 8:")
+        for result in [upper, lower] {
+            for rect in result.anchor.pages.flatMap(\.rects) {
+                #expect(cropBox.contains(rect.cgRect), "rect \(rect) outside \(cropBox)")
+            }
+            #expect(result.positionKey >= 0 && result.positionKey < 1_000_000, "key \(result.positionKey)")
+        }
+        #expect(upper.positionKey < lower.positionKey, "keys \(upper.positionKey) \(lower.positionKey)")
+    }
+
     @Test
     func whitespaceSelectionIsNil() throws {
         let document = try makeDocument()

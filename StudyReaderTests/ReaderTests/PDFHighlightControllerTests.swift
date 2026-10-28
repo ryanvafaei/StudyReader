@@ -311,13 +311,22 @@ struct PDFHighlightControllerTests {
         #expect(PDFHighlightController.color(forKey: nil, current: .pink) == nil)
     }
 
-    @Test(.timeLimit(.minutes(1)))
-    func topLeftRectMirrorsY() async throws {
-        let harness = try await Self.makeHarness()
-        defer { ReaderTestSupport.cleanUp(harness.session) }
-        let view = NSView(frame: CGRect(x: 0, y: 0, width: 600, height: 800))
-        let rect = PDFHighlightController.topLeftRect(CGRect(x: 10, y: 100, width: 50, height: 20), in: view)
-        #expect(rect == CGRect(x: 10, y: 680, width: 50, height: 20))
+    private final class FlippedView: NSView {
+        override var isFlipped: Bool { true }
+    }
+
+    @Test
+    func topLeftRectHandlesFlippedViews() {
+        let input = CGRect(x: 10, y: 100, width: 50, height: 20)
+        let frame = CGRect(x: 0, y: 0, width: 600, height: 800)
+
+        let unflipped = NSView(frame: frame)
+        #expect(!unflipped.isFlipped)
+        #expect(PDFHighlightController.topLeftRect(input, in: unflipped) == CGRect(x: 10, y: 680, width: 50, height: 20))
+
+        let flipped = FlippedView(frame: frame)
+        #expect(flipped.isFlipped)
+        #expect(PDFHighlightController.topLeftRect(input, in: flipped) == input)
     }
 
     @Test(.timeLimit(.minutes(1)))

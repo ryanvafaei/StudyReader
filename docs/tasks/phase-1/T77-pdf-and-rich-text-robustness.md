@@ -46,3 +46,4 @@ The outline-annotation inversion check in dark mode (B14 2, Mac), click/key/undo
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer pdf-engine Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40677308347, 639 tests); deviations (trackingWaitsForAWindow asserts currentPosition() not currentPageIndex; B5 zero-size-view limitation; B9/B12 3 needed no code change) accepted; minor follow-ups in BACKLOG

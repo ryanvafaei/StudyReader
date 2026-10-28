@@ -23,26 +23,53 @@ enum RichTextMarkdown {
     /// F-07 subset for `range` of `string`, using sourceMap entries that intersect the range (clipped to it).
     /// Plain parts are escaped. Formatting per run, nesting order: link outermost, then bold, then italic,
     /// then code innermost; code content is not escaped (a longer backtick fence is used if it contains "`").
-    /// Leading/trailing whitespace of a formatted run is moved outside its markers.
+    /// Touching runs with the same link destination form one link.
+    /// Leading/trailing whitespace of a formatted run is moved outside its markers (outside the brackets for a link).
+    /// For bold and/or italic (not code) leading/trailing punctuation and symbols are moved outside the emphasis
+    /// markers too, so `**"x"**` becomes `"**x**"` and the markers stay valid; a run of only punctuation gets none.
     /// Attachment characters (U+FFFC) are dropped. Other attributes are ignored.
     static func markdown(for range: NSRange, in string: String, sourceMap: MarkdownSourceMap) -> String {
         let text = string as NSString
         let bounds = NSIntersectionRange(range, NSRange(location: 0, length: text.length))
         guard bounds.length > 0 else { return "" }
+        let boundsEnd = NSMaxRange(bounds)
 
         var output = ""
         var cursor = bounds.location
+        var link: (destination: String, body: String)?
+
+        func flushLink() {
+            guard let pending = link else { return }
+            link = nil
+            output += linkMarkdown(body: pending.body, destination: pending.destination)
+        }
+
         for entry in sourceMap.entries {
+            // Entries ascend by location (MarkdownSourceMap contract), so no later entry can intersect `bounds`.
+            if entry.range.location >= boundsEnd { break }
             let clipped = NSIntersectionRange(entry.range, bounds)
             guard clipped.length > 0 else { continue }
             if clipped.location > cursor {
+                flushLink()
                 output += escape(visibleText(text.substring(with: NSRange(location: cursor, length: clipped.location - cursor))))
             }
-            output += formattedRun(text.substring(with: clipped), traits: entry.traits, link: entry.linkDestination)
+            let body = emphasizedRun(text.substring(with: clipped), traits: entry.traits)
+            if entry.traits.contains(.link), let destination = entry.linkDestination {
+                if link?.destination == destination {
+                    link?.body += body
+                } else {
+                    flushLink()
+                    link = (destination, body)
+                }
+            } else {
+                flushLink()
+                output += body
+            }
             cursor = NSMaxRange(clipped)
         }
-        if cursor < NSMaxRange(bounds) {
-            output += escape(visibleText(text.substring(with: NSRange(location: cursor, length: NSMaxRange(bounds) - cursor))))
+        flushLink()
+        if cursor < boundsEnd {
+            output += escape(visibleText(text.substring(with: NSRange(location: cursor, length: boundsEnd - cursor))))
         }
         return output
     }
@@ -53,11 +80,12 @@ enum RichTextMarkdown {
         text.filter { $0 != attachmentCharacter }
     }
 
-    private static func formattedRun(_ raw: String, traits: InlineTraits, link: String?) -> String {
+    /// One run with bold, italic and code applied (no link). Whitespace at either end stays outside the markers.
+    private static func emphasizedRun(_ raw: String, traits: InlineTraits) -> String {
         let text = visibleText(raw)
-        let hasLink = traits.contains(.link) && link != nil
-        let isFormatted = hasLink || traits.contains(.bold) || traits.contains(.italic) || traits.contains(.code)
-        guard isFormatted else { return escape(text) }
+        let isCode = traits.contains(.code)
+        let isEmphasized = traits.contains(.bold) || traits.contains(.italic)
+        guard isCode || isEmphasized else { return escape(text) }
 
         let characters = Array(text)
         guard let first = characters.firstIndex(where: { !$0.isWhitespace }),
@@ -65,14 +93,41 @@ enum RichTextMarkdown {
             return escape(text)
         }
         let leading = String(characters[..<first])
-        let core = String(characters[first...last])
         let trailing = String(characters[(last + 1)...])
+        var core = Array(characters[first...last])
+        var leadingPunctuation = ""
+        var trailingPunctuation = ""
 
-        var body = traits.contains(.code) ? codeSpan(core) : escape(core)
+        if !isCode {
+            guard let firstInner = core.firstIndex(where: { !isPunctuationOrSymbol($0) }),
+                  let lastInner = core.lastIndex(where: { !isPunctuationOrSymbol($0) }) else {
+                return escape(text)
+            }
+            leadingPunctuation = escape(String(core[..<firstInner]))
+            trailingPunctuation = escape(String(core[(lastInner + 1)...]))
+            core = Array(core[firstInner...lastInner])
+        }
+
+        var body = isCode ? codeSpan(String(core)) : escape(String(core))
         if traits.contains(.italic) { body = "*" + body + "*" }
         if traits.contains(.bold) { body = "**" + body + "**" }
-        if hasLink, let link { body = "[" + body + "](" + escapeDestination(link) + ")" }
-        return leading + body + trailing
+        return leading + leadingPunctuation + body + trailingPunctuation + trailing
+    }
+
+    private static func isPunctuationOrSymbol(_ character: Character) -> Bool {
+        character.isPunctuation || character.isSymbol
+    }
+
+    /// `[body](destination)` with the whitespace at either end of `body` moved outside the brackets.
+    private static func linkMarkdown(body: String, destination: String) -> String {
+        let characters = Array(body)
+        guard let first = characters.firstIndex(where: { !$0.isWhitespace }),
+              let last = characters.lastIndex(where: { !$0.isWhitespace }) else {
+            return body
+        }
+        return String(characters[..<first])
+            + "[" + String(characters[first...last]) + "](" + escapeDestination(destination) + ")"
+            + String(characters[(last + 1)...])
     }
 
     private static func codeSpan(_ content: String) -> String {
