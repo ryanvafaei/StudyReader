@@ -60,6 +60,20 @@ struct ExportRendererTests {
         ])
     }
 
+    /// The content of the note-rule golden files (T87).
+    static func notesContent() -> ExportContent {
+        ExportContent(scopeName: "Notes", documents: [
+            ExportDocument(
+                id: "d1", title: "Notes Doc", author: "", categoryName: "Paper",
+                documentNote: "# Plan\n#todo review *italic* and **bold**\n\n- first\n- second\n\n## Details\nUse <b> | x ~~y~~ and `a|b`",
+                highlights: [
+                    highlight("h1", color: .yellow, page: 0, body: "Plain body.",
+                              note: "# Why\n#todo check **bold** and *italic*\n- one\n- two", tags: ["exam"], position: 1),
+                ]
+            ),
+        ])
+    }
+
     static func render(_ content: ExportContent, _ options: ExportOptions = ExportOptions()) -> String {
         ExportRenderer.render(content, options: options, colorLabels: labels, generatedAt: generatedAt, timeZone: utc)
     }
@@ -73,6 +87,79 @@ struct ExportRendererTests {
     func byTagAllOptions() throws {
         let output = Self.render(Self.lectureContent(), ExportOptions(groupBy: .tag))
         #expect(output == (try ExportGoldens.string("by-tag-all-options")))
+    }
+
+    /// SPEC F-09 AC4
+    @Test(.timeLimit(.minutes(1)))
+    func notesByDocument() throws {
+        #expect(Self.render(Self.notesContent()) == (try ExportGoldens.string("notes-by-document")))
+    }
+
+    /// SPEC F-09 AC4
+    @Test(.timeLimit(.minutes(1)))
+    func notesByTag() throws {
+        let output = Self.render(Self.notesContent(), ExportOptions(groupBy: .tag))
+        #expect(output == (try ExportGoldens.string("notes-by-tag")))
+    }
+
+    /// SPEC F-09 AC4, ADR-0007 amendment 2026-10-28
+    @Test(.timeLimit(.minutes(1)))
+    func noteRules() {
+        func note(_ text: String, _ headings: ExportMarkdownSafety.NoteHeadings) -> String {
+            ExportMarkdownSafety.note(text, headings: headings)
+        }
+        // Headings, demoted
+        #expect(note("# A", .demoted) == "#### A")
+        #expect(note("## A", .demoted) == "#### A")
+        #expect(note("### A", .demoted) == "#### A")
+        #expect(note("#### A", .demoted) == "#### A")
+        #expect(note("##### A", .demoted) == "##### A")
+        #expect(note("#\tA", .demoted) == "#### A")
+        // Headings, bold; closing sequence; leading spaces
+        #expect(note("# A", .bold) == "**A**")
+        #expect(note("### A ###", .bold) == "**A**")
+        #expect(note("   ## A", .bold) == "**A**")
+        // Empty heading text, and a line-start # that isn't a heading
+        #expect(note("# ##", .demoted) == "\\# ##")
+        #expect(note("#todo", .bold) == "\\#todo")
+        #expect(note("##x", .demoted) == "\\##x")
+        #expect(note("#", .demoted) == "\\#")
+        #expect(note("####### A", .demoted) == "\\####### A")
+        // Untouched
+        #expect(note("a #todo b", .bold) == "a #todo b")
+        #expect(note("    # code", .demoted) == "    # code")
+        // Inline escapes (also inside heading text), code spans, existing escapes
+        #expect(note("# a<b", .demoted) == "#### a\\<b")
+        #expect(note("<b> | ~~s~~", .bold) == "\\<b> \\| \\~\\~s\\~\\~")
+        #expect(note("`a<b|c~d`", .bold) == "`a<b|c~d`")
+        #expect(note("\\# kept \\< kept", .bold) == "\\# kept \\< kept")
+        #expect(note("```\n# not a heading\n```", .demoted) == "```\n# not a heading\n```")
+        // Kept as written
+        #expect(note("- item\n1. one\n> quote\n*it* **b** [l](http://x.y) & !", .bold)
+            == "- item\n1. one\n> quote\n*it* **b** [l](http://x.y) & !")
+        // Line ends, empty input
+        #expect(note("a\r\n# b", .demoted) == "a\n#### b")
+        #expect(note("", .bold) == "")
+    }
+
+    /// SPEC F-09 AC4: an indented or blank-line-led document note is still demoted, not exported as a raw heading.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        "    # Big", "\t# Big", "\n  \n    # Big", "  \t \n\t# Big\n", "\r\n    # Big",
+    ])
+    func indentedDocumentNoteHeadingIsDemoted(note: String) {
+        let content = ExportContent(scopeName: "S", documents: [
+            ExportDocument(
+                id: "d1", title: "Doc", author: "", categoryName: "Paper", documentNote: note,
+                highlights: [Self.highlight("h1", color: .yellow, page: 0, body: "x", position: 1)]
+            ),
+        ])
+        for groupBy in [ExportGroupBy.document, .tag] {
+            let output = Self.render(content, ExportOptions(groupBy: groupBy))
+            let lines = output.components(separatedBy: "\n")
+            #expect(lines.contains("#### Big"))
+            #expect(!lines.contains { $0.hasPrefix("# Big") || $0.trimmingCharacters(in: .whitespaces).hasPrefix("# Big") })
+            #expect(lines.filter { $0.hasPrefix("# ") } == ["# StudyReader – S"])
+        }
     }
 
     @Test(.timeLimit(.minutes(1)))

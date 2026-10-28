@@ -5,6 +5,7 @@ enum ExportRenderer {
     /// Lines are joined with "\n" and the output ends with exactly one "\n". No line has trailing spaces and there are
     /// never two blank lines in a row. Documents are ordered by title, highlights by `positionKey`, whatever the
     /// order of `content`. Image highlights are dropped when `options.includeImages` is false.
+    /// Notes go through `ExportMarkdownSafety.note` (ADR-0007 amendment).
     static func render(
         _ content: ExportContent,
         options: ExportOptions,
@@ -74,7 +75,7 @@ enum ExportRenderer {
             blocks.append(["_\(byline)_"])
             if let note = document.note {
                 blocks.append(["### Document note"])
-                blocks.append(lines(of: note))
+                blocks.append(documentNoteLines(note))
             }
             if !document.highlights.isEmpty {
                 blocks.append(["### Highlights"])
@@ -125,10 +126,16 @@ enum ExportRenderer {
             blocks.append(["## Document notes"])
             for (title, note) in notes {
                 blocks.append(["### \(title)"])
-                blocks.append(lines(of: note))
+                blocks.append(documentNoteLines(note))
             }
         }
         return blocks
+    }
+
+    /// A document note's lines. The note is trimmed first, as for highlight notes: leading indentation or blank lines
+    /// would otherwise make `note` read the first line as a code indent and skip the heading rule.
+    private static func documentNoteLines(_ note: String) -> [String] {
+        lines(of: ExportMarkdownSafety.note(note.trimmingCharacters(in: .whitespacesAndNewlines), headings: .demoted))
     }
 
     private static func taggedBlock(_ item: TaggedItem, options: ExportOptions, colorLabels: [String]) -> [String] {
@@ -159,7 +166,7 @@ enum ExportRenderer {
 
         let note = highlight.note.trimmingCharacters(in: .whitespacesAndNewlines)
         if options.includeNotes, !note.isEmpty {
-            let noteLines = lines(of: note)
+            let noteLines = lines(of: ExportMarkdownSafety.note(note, headings: .bold))
             result.append("  - Note: \(noteLines[0])")
             result += indented(Array(noteLines.dropFirst()), by: "    ")
         }
@@ -217,10 +224,137 @@ enum ExportRenderer {
     }
 }
 
-/// Neutralises Markdown that Google Docs conversion would parse as block structure or HTML (T58 review, BACKLOG B11).
-/// `RichTextMarkdown.escape` already escapes the inline characters; this adds the rest. It runs inside the renderer
-/// only, so `ExportHighlight.body` keeps the contract of ARCHITECTURE §9.1.
+/// Makes user text safe for the exported Markdown (T58 review, BACKLOG B11; ADR-0007 amendment 2026-10-28, T87).
+/// Two entry points: `neutralise` for highlight text (escapes everything that Google Docs conversion would parse as
+/// block structure or HTML; `RichTextMarkdown.escape` already escapes the inline characters, this adds the rest) and
+/// `note` for notes (keeps inline Markdown and lists, rewrites headings, escapes a line-start `#tag`, `<`, `|`, `~`).
+/// Both run inside the renderer only, so `ExportHighlight.body` and `.note` keep the contract of ARCHITECTURE §9.1.
 enum ExportMarkdownSafety {
+    /// How note headings are rewritten.
+    enum NoteHeadings: Sendable {
+        /// Document notes (rendered under a `###` heading): levels 1–3 become `####`; levels 4–6 stay.
+        case demoted
+        /// Highlight notes (inside the `- Note:` list item): any heading line becomes `**text**`.
+        case bold
+    }
+
+    /// Note Markdown made safe for the export (ADR-0007 amendment 2026-10-28). Keeps inline Markdown, lists, quotes,
+    /// links and code; rewrites headings; escapes a line-start `#` that isn't a heading; escapes `<`, `|`, `~`.
+    /// Lines that start inside a code span, or whose indentation holds a tab or 4+ spaces, get no heading or `#`
+    /// rule (CommonMark reads them as code or list continuation); the inline escapes still apply outside code spans.
+    static func note(_ markdown: String, headings: NoteHeadings) -> String {
+        let characters = Array(
+            markdown
+                .replacingOccurrences(of: "\r\n", with: "\n")
+                .replacingOccurrences(of: "\r", with: "\n")
+        )
+        var output = ""
+        output.reserveCapacity(characters.count)
+        var index = 0
+
+        while index < characters.count {
+            index = noteLine(in: characters, at: index, headings: headings, into: &output)
+            if index < characters.count {
+                output.append("\n")
+                index += 1
+            }
+        }
+        return output
+    }
+
+    /// Writes the line that starts at `start` (everything up to a line break outside a code span) and returns the
+    /// index where it ended: the line break, or the end of `characters`.
+    private static func noteLine(
+        in characters: [Character],
+        at start: Int,
+        headings: NoteHeadings,
+        into output: inout String
+    ) -> Int {
+        var indentEnd = start
+        while indentEnd < characters.count, characters[indentEnd] == " " || characters[indentEnd] == "\t" {
+            indentEnd += 1
+        }
+        let indent = String(characters[start..<indentEnd])
+        let isCodeIndent = indent.contains("\t") || indent.count >= 4
+
+        guard !isCodeIndent, indentEnd < characters.count, characters[indentEnd] == "#" else {
+            output += indent
+            return escapeInline(in: characters, from: indentEnd, into: &output)
+        }
+
+        var lineEnd = indentEnd
+        while lineEnd < characters.count, characters[lineEnd] != "\n" { lineEnd += 1 }
+        let level = runLength(of: "#", in: characters, at: indentEnd)
+        let textStart = indentEnd + level + 1
+
+        if level <= 6, textStart <= lineEnd,
+           characters[textStart - 1] == " " || characters[textStart - 1] == "\t",
+           let text = headingText(in: characters, from: textStart, to: lineEnd) {
+            var escaped = ""
+            _ = escapeInline(in: text, from: 0, into: &escaped)
+            switch headings {
+            case .demoted:
+                output += (level <= 3 ? "####" : String(repeating: "#", count: level)) + " " + escaped
+            case .bold:
+                output += "**" + escaped + "**"
+            }
+            return lineEnd
+        }
+
+        output += indent + "\\"
+        return escapeInline(in: characters, from: indentEnd, into: &output)
+    }
+
+    /// The text of an ATX heading between `start` and `end`: surrounding spaces and tabs, and a closing `#` sequence,
+    /// removed. Nil when nothing is left.
+    private static func headingText(in characters: [Character], from start: Int, to end: Int) -> [Character]? {
+        func isBlank(_ character: Character) -> Bool { character == " " || character == "\t" }
+        var first = start
+        var last = end
+        while first < last, isBlank(characters[first]) { first += 1 }
+        while first < last, isBlank(characters[last - 1]) { last -= 1 }
+        var hashStart = last
+        while hashStart > first, characters[hashStart - 1] == "#" { hashStart -= 1 }
+        if hashStart < last, hashStart == first || isBlank(characters[hashStart - 1]) {
+            last = hashStart
+            while first < last, isBlank(characters[last - 1]) { last -= 1 }
+        }
+        return first < last ? Array(characters[first..<last]) : nil
+    }
+
+    /// Copies from `start` up to the next line break outside a code span, escaping `<`, `|`, `~` outside code spans
+    /// and existing backslash escapes. Returns the index of that line break, or the end of `characters`.
+    private static func escapeInline(in characters: [Character], from start: Int, into output: inout String) -> Int {
+        var index = start
+        while index < characters.count {
+            let character = characters[index]
+            switch character {
+            case "\n":
+                return index
+            case "\\":
+                output.append(character)
+                if index + 1 < characters.count, characters[index + 1] != "\n" {
+                    output.append(characters[index + 1])
+                    index += 2
+                } else {
+                    index += 1
+                }
+            case "`":
+                let end = codeSpanEnd(in: characters, from: index)
+                output += String(characters[index..<end])
+                index = end
+            case "<", "|", "~":
+                output.append("\\")
+                output.append(character)
+                index += 1
+            default:
+                output.append(character)
+                index += 1
+            }
+        }
+        return index
+    }
+
     /// Backslash-escapes, outside code spans and existing escapes:
     /// - at the start of a line: `#`, `>`, `-`, `+`, `=`, and the `.` or `)` of `1.` / `1)` list markers;
     ///   leading spaces and tabs of a line are dropped (four spaces would start an indented code block);
