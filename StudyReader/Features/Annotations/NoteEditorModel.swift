@@ -97,13 +97,17 @@ final class NoteEditorModel {
         }
     }
 
-    /// Document: replaces the note body. Highlight: sets the note, then adds each `#tag` in it.
+    /// Replaces the note (document body or highlight note), then adds each `#tag` in it to the document or highlight.
     /// Tags are only added, so removing `#x` from the note leaves the tag in place.
     private func write(_ body: String) async throws {
         let date = now()
         switch target {
         case .document(let documentId):
             try await notes.saveDocumentNote(documentId: documentId, body: body, at: date)
+            for name in TagParsing.hashTags(in: body) {
+                let tag = try await tags.findOrCreate(name: name, at: date)
+                try await tags.addTag(tag.id, toDocuments: [documentId])
+            }
         case .highlight(let highlightId):
             try await highlights.updateNote(id: highlightId, note: body, at: date)
             for name in TagParsing.hashTags(in: body) {

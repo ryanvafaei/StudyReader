@@ -434,10 +434,8 @@ private struct HighlightBrowserRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 content
                 if !item.highlight.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(item.highlight.note)
-                        .font(.callout)
+                    NoteMarkdownView(item.highlight.note, style: .compact, maxBlocks: 3)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
                 }
                 if !item.tagNames.isEmpty {
                     Text(item.tagNames.map { "#\($0)" }.joined(separator: " "))

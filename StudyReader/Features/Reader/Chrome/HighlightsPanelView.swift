@@ -102,10 +102,8 @@ private struct HighlightRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 content
                 if !row.highlight.note.isEmpty {
-                    Text(row.highlight.note)
-                        .font(.callout)
+                    NoteMarkdownView(row.highlight.note, style: .compact, maxBlocks: 3)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
                 }
                 if !row.tagNames.isEmpty {
                     Text(row.tagNames.map { "#\($0)" }.joined(separator: " "))

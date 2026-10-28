@@ -113,3 +113,4 @@ The export (T87), the editors (popover, browser detail pane and Notes tab keep a
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40703217432, 692 tests); deviations accepted (NotePreviewBlock.swift moved to Annotations/NoteMarkdown.swift; heading level from Heading.level; plain-text fallback block); minor follow-ups (empty heading, #tag in code blocks) in BACKLOG; Mac look check in VISUAL_CHECKS

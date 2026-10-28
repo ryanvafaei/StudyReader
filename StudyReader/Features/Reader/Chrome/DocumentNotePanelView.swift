@@ -59,25 +59,10 @@ struct DocumentNotePanelView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(Self.blocks(noteModel.text).enumerated()), id: \.offset) { _, block in
-                        if block.isRule {
-                            Divider()
-                        } else {
-                            Text(block.text)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.leading, CGFloat(block.indent) * 16)
-                        }
-                    }
-                }
+                NoteMarkdownView(noteModel.text, style: .regular)
                 .textSelection(.enabled)
             }
         }
         .accessibilityLabel("Note preview")
-    }
-
-    /// The note as display blocks (headings, list items, rules, paragraphs); see `NotePreviewBlock`.
-    static func blocks(_ markdown: String) -> [NotePreviewBlock] {
-        NotePreviewBlock.blocks(markdown)
     }
 }

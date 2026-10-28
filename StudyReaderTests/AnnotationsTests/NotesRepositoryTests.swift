@@ -153,6 +153,41 @@ struct NotesRepositoryTests {
         try await database.writer.write { db in try FTSIntegrity.check(db) }
     }
 
+    @MainActor
+    @Test(.timeLimit(.minutes(1)))
+    func documentNoteHashTagsAddTagsToTheDocument() async throws {
+        let sleeper = ManualSleeper()
+        let database = try AppDatabase.makeInMemory()
+        let env = AppEnvironment(
+            fileStore: TestFileStore.make(),
+            database: database,
+            now: FixedNow(TestData.referenceDate),
+            sleeper: sleeper
+        )
+        try await env.documentRepository.insert(TestData.document(id: Self.documentOne, title: "One"))
+
+        let model = NoteEditorModel(target: .document(Self.documentOne), environment: env)
+        await model.load()
+        model.text = "# Week 1\nPlan #Exam and #ml-basics, see #exam"
+        await model.flush()
+        await sleeper.resumeAll()
+
+        let tagNames = try await env.tagRepository.tags(forDocument: Self.documentOne).map(\.name)
+        #expect(tagNames == ["Exam", "ml-basics"])
+        #expect(try await database.writer.read { db in try DocumentTag.fetchCount(db) } == 2)
+        #expect(try await database.writer.read { db in try HighlightTag.fetchCount(db) } == 0)
+        let allNames = try await env.tagRepository.fetchAll().map(\.name)
+        #expect(!allNames.contains("Week"))
+
+        model.text = "nothing"
+        await model.flush()
+        await sleeper.resumeAll()
+        #expect(try await Self.storedDocumentBody(database) == "nothing")
+        let afterRemoval = try await env.tagRepository.tags(forDocument: Self.documentOne).map(\.name)
+        #expect(afterRemoval == ["Exam", "ml-basics"])
+        try await database.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
     @Test(.timeLimit(.minutes(1)))
     func documentNoteUsesPrimaryKeyUpsert() async throws {
         let database = try AppDatabase.makeInMemory()

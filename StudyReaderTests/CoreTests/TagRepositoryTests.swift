@@ -117,6 +117,24 @@ struct TagRepositoryTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func addTagToDocumentsSkipsExistingLinks() async throws {
+        let db = try AppDatabase.makeInMemory()
+        try await Self.seed(db)
+        let documentTwo = "10000000-0000-0000-0000-0000000000D2"
+        try await DocumentRepository(database: db).insert(TestData.document(id: documentTwo, title: "Two"))
+        let repo = TagRepository(database: db)
+        let a = try await repo.findOrCreate(name: "A", at: TestData.referenceDate)
+        try await repo.setTags([a.id], forDocument: Self.documentOne)
+
+        try await repo.addTag(a.id, toDocuments: [Self.documentOne, documentTwo, documentTwo])
+
+        #expect(try await repo.tags(forDocument: Self.documentOne).map(\.id) == [a.id])
+        #expect(try await repo.tags(forDocument: documentTwo).map(\.id) == [a.id])
+        #expect(try await Self.documentLinkCount(db) == 2)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func setAndBulkTags() async throws {
         let db = try AppDatabase.makeInMemory()
         try await Self.seed(db)

@@ -197,6 +197,16 @@ struct TagRepository: Sendable {
         }
     }
 
+    /// Adds the tag to each document in one transaction. Existing links are skipped.
+    func addTag(_ tagId: String, toDocuments documentIds: [String]) async throws {
+        try await writer.write { db in
+            for documentId in Self.uniqueInOrder(documentIds)
+            where try !Self.documentLinkExists(documentId, tagId: tagId, db) {
+                try DocumentTag(documentId: documentId, tagId: tagId).insert(db)
+            }
+        }
+    }
+
     /// Removes the tag from each listed highlight in one transaction. Missing links are ignored.
     func removeTag(_ tagId: String, fromHighlights highlightIds: [String]) async throws {
         try await writer.write { db in

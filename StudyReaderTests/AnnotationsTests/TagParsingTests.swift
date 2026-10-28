@@ -18,4 +18,10 @@ struct TagParsingTests {
         // Extra: the 40-character limit is inclusive.
         #expect(TagParsing.hashTags(in: "#" + String(repeating: "a", count: 40)) == [String(repeating: "a", count: 40)])
     }
+
+    @Test(.timeLimit(.minutes(1)))
+    func documentNoteHeadingsAndTags() {
+        let note = "# Week 1\n#exam prep, see #ML\n## Plan #ml-basics\n- item #exam"
+        #expect(TagParsing.hashTags(in: note) == ["exam", "ML", "ml-basics"])
+    }
 }
