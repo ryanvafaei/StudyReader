@@ -21,13 +21,17 @@ struct HighlightsBrowserView: View {
         VStack(spacing: 0) {
             filterBar
             Divider()
-            HSplitView {
+            // Not an HSplitView: it reports its own small height and stays centred instead of filling the column.
+            HStack(spacing: 0) {
                 listColumn
-                    .frame(minWidth: 320, idealWidth: 420)
+                    .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
+                Divider()
                 detailColumn
-                    .frame(minWidth: 260, idealWidth: 320)
+                    .frame(minWidth: 260, idealWidth: 320, maxWidth: 360, maxHeight: .infinity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .navigationTitle("Highlights")
         .task(id: model.query) { await model.observe() }
         .task { await model.observeLookups() }
@@ -298,7 +302,8 @@ struct HighlightsBrowserView: View {
         HStack(spacing: 10) {
             Text("\(model.selection.count) selected")
                 .font(.callout)
-                .accessibilityLabel("Selected count")
+                .accessibilityLabel("Selected")
+                .accessibilityValue("\(model.selection.count)")
 
             Button("Add Tag…") {
                 tagQuery = ""

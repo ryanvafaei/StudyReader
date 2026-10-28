@@ -108,5 +108,6 @@ struct HighlightDetailView: View {
             }
             .disabled(!noteModel.isLoaded)
             .accessibilityLabel("Note")
+            .accessibilityIdentifier("highlight-detail-note")
     }
 }
