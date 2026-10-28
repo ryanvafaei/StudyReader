@@ -1,4 +1,4 @@
-# Handoff: local Mac session ↔ cloud session (updated 2026-10-28, after the Phase 1 bug hunt)
+# Handoff: local Mac session ↔ cloud session (updated 2026-10-28, Phase 1 finished: all fix tasks done)
 
 Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. Run `./scripts/ci.sh status` at the start. Keep this file current at each phase or checkpoint change and push it.
 
@@ -8,7 +8,8 @@ Read this first in a new cloud session, then CLAUDE.md, ADR-0019 and ADR-0020. R
 - **Closing UI run done** (2026-10-28, ui-tester, cloud mode): `docs/checkpoints/closing-cloud-2026-10-28.md`. 93 tests: 91 passed, **1 SPEC FAIL** (`ExternalOpenTests/testDuplicateOpenWithStillShowsTheSummaryAlert`, Open With right after launch with only the library open imports nothing, 2/2, regression between T74a `ea3e7e1` and `a63c6c3`), **1 flake** (H9, passed on the re-run; BACKLOG B38). UX items and the H9 note are BACKLOG B36, B38; B37 (NotesTabTests warning) and B39 (failure attachment) are folded into T90; NEEDS HUMAN rows are in VISUAL_CHECKS.md "Needs a Mac".
 - **T90 is done** (Open With fix, approved, CI green; cause unconfirmed, Mac row T90). The fresh-clone check passed (run `40739072211`).
 - **Bug hunt done** (2026-10-28): `docs/bugs/phase-1.md`, critical 0, high 2, medium 5, low 10. The user decided the same day: H1, H2, M1+M2, M4, M5 become fix tasks T91–T95 (rows 62–67 in `docs/tasks/phase-1/README.md`); M3, L1–L10 and the Google Picker idea are BACKLOG only (B40–B51).
-- **Now: T91** (row 62, pdf-engine), then T92a → T92b → T93 → T94 → T95, one at a time through the normal loop. None of them runs UI tests.
+- **Bug-hunt fix tasks T91–T95 are done** (T91 `b13f668`, T92a `e5e512a`, T92b `8ceebc9`, T93 `970a05e`, T94 `056bf28`, T95 `c492052`), each approved with green CI (last unit run: 742 tests). The targeted UI run after them passed 17 of 17 (`docs/checkpoints/bughunt-fixes-cloud-2026-10-28.md`: SettingsTests 3/3, ExternalOpenTests + ReaderHighlightTests 14/14, including the Open With test). The final fresh-clone check passed (run `40779390455`).
+- **Phase 1 is finished in cloud mode.** What is left is the user's "Needs a Mac" list in `VISUAL_CHECKS.md` and the open decisions below. Master CI run 40750816981 (T92a) was red once and could not be diagnosed (suspected flaky unit test, BACKLOG note); later runs are green.
 - Backlog pass history: planned 2026-10-28 as nine tasks, rows 47–55 in `docs/tasks/phase-1/README.md`, plus five tasks from the user's decisions the same day (T85–T89, rows 56–60). Every backlog item has a disposition at the end of `docs/BACKLOG.md` (task, done, drop with reason, Mac, or undecided).
 
 | Task | Agent | Covers |
@@ -71,10 +72,10 @@ Bug hunt fix tasks (rows 62–67, planned 2026-10-28 by the architect):
 2. ~~T85 → T89~~ done.
 3. ~~Closing full UI run~~ done (`docs/checkpoints/closing-cloud-2026-10-28.md`, 93 tests, 1 SPEC FAIL, 1 flake).
 4. ~~T90~~ done. ~~Fresh-clone check~~ passed. ~~bug-hunter~~ done (`docs/bugs/phase-1.md`: 0 critical, 2 high, 5 medium, 10 low).
-5. **T91 → T92a → T92b → T93 → T94 → T95**, in that order, normal loop (implementer; then code-reviewer + test-runner CI in parallel; commit and push). Agents and escalation per CLAUDE.md: pdf-engine/integrations/ui-builder are Sonnet (1st rejection: effort high; 2nd: ask the user). Build + unit-test filters only.
-6. ui-tester: one targeted UI run, `./scripts/uitest.sh StudyReaderUITests/SettingsTests` (T92b changed one expectation). Only a spec FAIL becomes a fix task.
-7. test-runner: `./scripts/check-fresh-clone.sh`.
-8. The Phase 1 summary.
+5. ~~T91 → T92a → T92b → T93 → T94 → T95~~ done, in that order, normal loop (implementer; then code-reviewer + test-runner CI in parallel; commit and push). Agents and escalation per CLAUDE.md: pdf-engine/integrations/ui-builder are Sonnet (1st rejection: effort high; 2nd: ask the user). Build + unit-test filters only.
+6. ~~ui-tester: one targeted UI run, `./scripts/uitest.sh StudyReaderUITests/SettingsTests` (T92b changed one expectation). Only a spec FAIL becomes a fix task.~~ done (17 of 17).
+7. ~~test-runner: `./scripts/check-fresh-clone.sh`.~~ passed.
+8. ~~The Phase 1 summary.~~ given in the session.
 9. The user's "Needs a Mac" list in VISUAL_CHECKS.md (done at the end on the Mac; nobody waits for it). It also holds O1, B2, B8 Open Link, B14 2, B15 1, B21 3, B24 1, B32, OB2, the T86 note-look row, the closing-run rows (T90 Open With right after launch, B36 bulk bar, `#tag` styling, Settings > Google unconfigured, B38 H9), and the bug-hunt rows T92 (1) first export creates the folder and the Doc, T92 (2) moved/trashed folder (the orchestrator adds the T91, T92b, T93 and T95 rows from the reports). The T73 rows still mention the old folder field; T92b supersedes that part.
 
 ## Settled user decisions (still in force)
