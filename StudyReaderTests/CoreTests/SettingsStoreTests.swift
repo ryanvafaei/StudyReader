@@ -45,6 +45,36 @@ import Testing
         #expect(store.defaults.object(forKey: "settings.googleExportFolderId") == nil)
     }
 
+    @Test func googleAppFolderIdPerAccount() throws {
+        let store = TestSettings.make()
+        defer { TestSettings.remove(store) }
+        let key = "settings.googleAppFolderIds"
+
+        store.setGoogleAppFolderId("FOLDER_A", forAccount: "A@x.com")
+        #expect(store.googleAppFolderId(forAccount: " a@X.com ") == "FOLDER_A")
+        #expect(store.googleAppFolderId(forAccount: "b@x.com") == nil)
+
+        store.setGoogleAppFolderId("FOLDER_B", forAccount: "b@x.com")
+        #expect(store.googleAppFolderId(forAccount: "a@x.com") == "FOLDER_A")
+        #expect(store.googleAppFolderId(forAccount: "b@x.com") == "FOLDER_B")
+        let stored = try #require(store.defaults.dictionary(forKey: key))
+        #expect(stored.count == 2)
+        #expect(stored.keys.allSatisfy { !$0.contains("@") })
+
+        store.setGoogleAppFolderId(nil, forAccount: "A@x.com")
+        #expect(store.googleAppFolderId(forAccount: "a@x.com") == nil)
+        #expect(store.googleAppFolderId(forAccount: "b@x.com") == "FOLDER_B")
+
+        store.setGoogleAppFolderId("IGNORED", forAccount: "  ")
+        store.setGoogleAppFolderId("IGNORED", forAccount: "")
+        #expect(store.googleAppFolderId(forAccount: "") == nil)
+        #expect(store.googleAppFolderId(forAccount: "  ") == nil)
+        #expect(store.defaults.dictionary(forKey: key)?.count == 1)
+
+        store.setGoogleAppFolderId(nil, forAccount: "b@x.com")
+        #expect(store.defaults.object(forKey: key) == nil)
+    }
+
     @Test func colorLabels() {
         let store = TestSettings.make()
         defer { TestSettings.remove(store) }

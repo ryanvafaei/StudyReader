@@ -16,6 +16,9 @@ enum ExportOutcome: Equatable, Sendable {
 }
 
 /// Uploads rendered Markdown to Google Drive as a Google Doc (ARCHITECTURE §9.2, ADR-0007, ADR-0018).
+/// Every new Doc (first export, Create New Doc, Export Selection) goes into a folder named "StudyReader" that the app
+/// creates in My Drive on the first export, remembers per Google account and reuses (ADR-0018 amendment, app folder):
+/// under `drive.file` the app can only use folders it created itself.
 /// Network and sign-in sit behind `HTTPClient` and `GoogleAuthProviding`; waiting goes through `Sleeper`.
 /// Logs target ids and HTTP status codes only: never tokens, emails, titles or document content.
 actor GoogleExportService {
@@ -23,6 +26,11 @@ actor GoogleExportService {
 
     private static let log = Log.logger("export")
     private static let busyText = "Google Drive is busy. Try again later."
+    private static let folderRefusedText = "Couldn't use the StudyReader folder in Google Drive."
+    private static let unexpectedResponseText = "Google Drive returned an unexpected response."
+
+    /// Gate key of the app-folder resolution. Not a UUID, so it can't collide with a target id.
+    private static let folderGateKey = "#app-folder"
 
     private let auth: any GoogleAuthProviding
     private let http: any HTTPClient
@@ -40,7 +48,8 @@ actor GoogleExportService {
     /// In memory only: a new process starts empty.
     private var exportedHashes: [String: String] = [:]
 
-    /// Targets with an export running, and the exports waiting for them (one gate per target, FIFO).
+    /// Targets with an export running, and the exports waiting for them (one gate per target, FIFO). The reserved key
+    /// `folderGateKey` serializes the app-folder resolution of all exports. Lock order: target gate, then folder gate.
     private var busyTargets: Set<String> = []
     private var gateWaiters: [String: [CheckedContinuation<Void, Never>]] = [:]
 
@@ -119,12 +128,10 @@ actor GoogleExportService {
             return await finish(targetId: targetId, outcome: .failed("Couldn't prepare the export."), upload: nil, folderId: nil)
         }
 
-        let folderId = target.googleFileId == nil ? (target.googleFolderId ?? settingsFolderId) : nil
         let result = await upload(
             title: target.title,
             markdown: markdown,
             fileId: target.googleFileId,
-            folderId: folderId,
             logId: targetId
         )
         switch result {
@@ -133,7 +140,7 @@ actor GoogleExportService {
                 targetId: targetId,
                 outcome: .exported(fileId: success.fileId),
                 upload: success,
-                folderId: folderId,
+                folderId: success.folderId,
                 contentHash: hash
             )
         case .failure(let outcome):
@@ -141,8 +148,9 @@ actor GoogleExportService {
         }
     }
 
-    /// Finds the target for `scope` (or inserts one: title "StudyReader – <scope name>", folder from settings), saves
-    /// `options`, then `export(targetId:)`. Returns the target id too; nil when nothing was saved.
+    /// Finds the target for `scope` (or inserts one: title "StudyReader – <scope name>", no folder yet: a new Doc goes
+    /// into the app folder, ADR-0018 amendment), saves `options`, then `export(targetId:)`. Returns the target id too;
+    /// nil when nothing was saved.
     func exportScope(
         _ scope: ExportScope,
         options: ExportOptions
@@ -160,7 +168,7 @@ actor GoogleExportService {
                     title: title,
                     scope: scope,
                     options: options,
-                    googleFolderId: settingsFolderId,
+                    googleFolderId: nil,
                     createdAt: now()
                 )
                 try await repository.insertTarget(target)
@@ -172,7 +180,7 @@ actor GoogleExportService {
         }
     }
 
-    /// One-off Doc from a selection; always creates a new Doc and saves no target (ADR-0018).
+    /// One-off Doc from a selection, created in the app folder; always creates a new Doc and saves no target (ADR-0018).
     func exportSelection(highlightIds: [String], options: ExportOptions) async -> ExportOutcome {
         guard await auth.isConfigured else { return .notConfigured }
         guard !highlightIds.isEmpty else { return .failed("No highlights selected.") }
@@ -188,7 +196,6 @@ actor GoogleExportService {
             title: Self.title(scopeName: scopeName),
             markdown: markdown,
             fileId: nil,
-            folderId: settingsFolderId,
             logId: "selection"
         )
         switch result {
@@ -205,6 +212,8 @@ actor GoogleExportService {
     private struct UploadSuccess {
         var fileId: String
         var format: ExportFormat
+        /// The app folder a new Doc went into; nil for an update.
+        var folderId: String?
     }
 
     private enum UploadResult {
@@ -232,11 +241,28 @@ actor GoogleExportService {
         var importFormats: [String: [String]]?
     }
 
+    private struct FolderResponse: Decodable {
+        var mimeType: String?
+        var trashed: Bool?
+    }
+
+    private struct FolderListResponse: Decodable {
+        struct Item: Decodable {
+            var id: String?
+        }
+
+        var files: [Item]?
+    }
+
+    private enum FolderResolution {
+        case folder(String)
+        case failure(ExportOutcome)
+    }
+
     private func upload(
         title: String,
         markdown: String,
         fileId: String?,
-        folderId: String?,
         logId: String
     ) async -> UploadResult {
         var token: String
@@ -255,6 +281,16 @@ actor GoogleExportService {
         }
         let content = format == .html ? Self.html(from: markdown) : markdown
 
+        var folderId: String?
+        if fileId == nil {
+            switch await resolveAppFolder(token: &token, logId: logId) {
+            case .folder(let id):
+                folderId = id
+            case .failure(let outcome):
+                return .failure(outcome)
+            }
+        }
+
         let reply = await send(token: &token, logId: logId) { accessToken in
             try DriveUploadRequest.make(
                 fileId: fileId,
@@ -269,9 +305,9 @@ actor GoogleExportService {
         case .success(let data):
             let returnedId = (try? JSONDecoder().decode(FileResponse.self, from: data))?.id
             guard let resolved = returnedId ?? fileId else {
-                return .failure(.failed("Google Drive returned an unexpected response."))
+                return .failure(.failed(Self.unexpectedResponseText))
             }
-            return .success(UploadSuccess(fileId: resolved, format: format))
+            return .success(UploadSuccess(fileId: resolved, format: format, folderId: folderId))
         case .denied:
             return .failure(fileId == nil ? .failed("Google Drive refused the upload.") : .docMissing)
         case .failure(let outcome):
@@ -298,6 +334,77 @@ actor GoogleExportService {
             return .supported(supported)
         case .denied:
             return .supported(true)
+        case .failure(let outcome):
+            return .failure(outcome)
+        }
+    }
+
+    /// The ID of the "StudyReader" folder to create a Doc in (ADR-0018 amendment). Runs behind the folder gate, so
+    /// concurrent first exports make one folder: the second one re-reads the stored ID after it gets the gate.
+    /// 1. A stored ID for the account is checked with `files.get`. A folder that isn't trashed is used, wherever it was
+    ///    moved to (IDs survive moves). A deleted (404), trashed or non-folder item is forgotten and step 2 runs.
+    /// 2. Look for the oldest app-visible, not trashed folder named "StudyReader" (a reinstall or a second Mac finds
+    ///    the one folder). `drive.file` lists only what the app created, so a hand-made folder is never found.
+    /// 3. Otherwise create it in My Drive.
+    /// The result is stored for the account. A pasted folder ID from older builds is never used.
+    /// Logs only which case happened, never an ID or the email.
+    private func resolveAppFolder(token: inout String, logId: String) async -> FolderResolution {
+        await acquireGate(for: Self.folderGateKey)
+        defer { releaseGate(for: Self.folderGateKey) }
+
+        let account = await auth.currentEmail() ?? ""
+        var recreated = false
+        if let stored = settings.googleAppFolderId(forAccount: account) {
+            let reply = await send(token: &token, logId: logId) { accessToken in
+                try DriveUploadRequest.folder(id: stored, accessToken: accessToken)
+            }
+            switch reply {
+            case .success(let data):
+                let info = try? JSONDecoder().decode(FolderResponse.self, from: data)
+                if info?.mimeType == DriveUploadRequest.folderMimeType, info?.trashed != true {
+                    Self.log.info("App folder reused for \(logId, privacy: .public)")
+                    return .folder(stored)
+                }
+            case .denied:
+                break
+            case .failure(let outcome):
+                return .failure(outcome)
+            }
+            settings.setGoogleAppFolderId(nil, forAccount: account)
+            recreated = true
+        }
+
+        let listReply = await send(token: &token, logId: logId) { accessToken in
+            try DriveUploadRequest.findAppFolder(accessToken: accessToken)
+        }
+        switch listReply {
+        case .success(let data):
+            let found = (try? JSONDecoder().decode(FolderListResponse.self, from: data))?.files?.first?.id
+            if let found, !found.isEmpty {
+                settings.setGoogleAppFolderId(found, forAccount: account)
+                Self.log.info("App folder reused for \(logId, privacy: .public)")
+                return .folder(found)
+            }
+        case .denied:
+            return .failure(.failed(Self.folderRefusedText))
+        case .failure(let outcome):
+            return .failure(outcome)
+        }
+
+        let createReply = await send(token: &token, logId: logId) { accessToken in
+            try DriveUploadRequest.createAppFolder(accessToken: accessToken)
+        }
+        switch createReply {
+        case .success(let data):
+            guard let created = (try? JSONDecoder().decode(FileResponse.self, from: data))?.id, !created.isEmpty else {
+                return .failure(.failed(Self.unexpectedResponseText))
+            }
+            settings.setGoogleAppFolderId(created, forAccount: account)
+            let what = recreated ? "recreated" : "created"
+            Self.log.info("App folder \(what, privacy: .public) for \(logId, privacy: .public)")
+            return .folder(created)
+        case .denied:
+            return .failure(.failed(Self.folderRefusedText))
         case .failure(let outcome):
             return .failure(outcome)
         }
@@ -414,11 +521,6 @@ actor GoogleExportService {
     }
 
     // MARK: Helpers
-
-    private var settingsFolderId: String? {
-        let trimmed = settings.googleExportFolderId?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed?.isEmpty == false ? trimmed : nil
-    }
 
     /// A caller cancelled while waiting for the gate still runs its export once the gate is handed to it: the
     /// continuation isn't cancellable, and the export's own requests then end as `.cancelled`.

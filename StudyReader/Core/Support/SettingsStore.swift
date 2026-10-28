@@ -44,6 +44,7 @@ struct SettingsStore: Sendable {
         static let currentColor = "settings.currentColor"
         static let invertPDFInDarkMode = "settings.invertPDFInDarkMode"
         static let googleExportFolderId = "settings.googleExportFolderId"
+        static let googleAppFolderIds = "settings.googleAppFolderIds"
         static let libraryLayout = "settings.libraryLayout"
         static let librarySort = "settings.librarySort"
 
@@ -118,5 +119,36 @@ struct SettingsStore: Sendable {
         case .pink: "Question"
         case .purple: "Don't understand"
         }
+    }
+}
+
+extension SettingsStore {
+    /// ID of the "StudyReader" folder the app uses in this Google account's Drive (ADR-0018 amendment). Stored in one
+    /// dictionary under "settings.googleAppFolderIds", keyed by `Hashing.sha256Hex(of: email.trimmed.lowercased())`,
+    /// so the email itself is never written to the defaults. nil for an empty email.
+    func googleAppFolderId(forAccount email: String) -> String? {
+        guard let key = Self.accountKey(email) else { return nil }
+        return googleAppFolderIds[key]
+    }
+
+    /// nil removes the entry. Does nothing for an empty email.
+    func setGoogleAppFolderId(_ folderId: String?, forAccount email: String) {
+        guard let key = Self.accountKey(email) else { return }
+        var all = googleAppFolderIds
+        all[key] = folderId
+        if all.isEmpty {
+            defaults.removeObject(forKey: Key.googleAppFolderIds)
+        } else {
+            defaults.set(all, forKey: Key.googleAppFolderIds)
+        }
+    }
+
+    private var googleAppFolderIds: [String: String] {
+        defaults.dictionary(forKey: Key.googleAppFolderIds) as? [String: String] ?? [:]
+    }
+
+    private static func accountKey(_ email: String) -> String? {
+        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized.isEmpty ? nil : Hashing.sha256Hex(of: normalized)
     }
 }

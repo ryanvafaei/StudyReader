@@ -93,3 +93,4 @@ Inside `GoogleExportService` (private, names are suggestions): `resolveAppFolder
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer integrations Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40750045543, 713 tests); no spec deviations; the Settings/AppSettings/ExportTargetsModel reads of googleExportFolderId stay until T92b; HighlightsBrowserModelTests/exportSelectionIgnoresASecondCall now ends failed instead of exported (still asserts what it should); Mac rows T92 (1)(2) in VISUAL_CHECKS

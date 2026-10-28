@@ -118,6 +118,42 @@ struct DriveUploadRequestTests {
         #expect(header != first.value(forHTTPHeaderField: "Content-Type"))
     }
 
+    @Test func folderRequests() throws {
+        let get = try DriveUploadRequest.folder(id: "APPFOLDER", accessToken: "tok")
+        #expect(get.httpMethod == "GET")
+        #expect(
+            get.url?.absoluteString
+                == "https://www.googleapis.com/drive/v3/files/APPFOLDER?fields=id,mimeType,trashed"
+        )
+        #expect(get.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
+        #expect(get.httpBody == nil)
+
+        let odd = try DriveUploadRequest.folder(id: "a/b?c", accessToken: "tok")
+        #expect(odd.url?.path(percentEncoded: true) == "/drive/v3/files/a%2Fb%3Fc")
+        #expect(odd.url?.query() == "fields=id,mimeType,trashed")
+
+        let find = try DriveUploadRequest.findAppFolder(accessToken: "tok")
+        #expect(find.httpMethod == "GET")
+        #expect(find.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
+        #expect(find.httpBody == nil)
+        let url = try #require(find.url)
+        #expect(url.path() == "/drive/v3/files")
+        let items = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        #expect(items.map(\.name) == ["q", "spaces", "orderBy", "pageSize", "fields"])
+        #expect(
+            items.first?.value
+                == "name = 'StudyReader' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        )
+        #expect(items.dropFirst().map(\.value) == ["drive", "createdTime", "1", "files(id)"])
+
+        let create = try DriveUploadRequest.createAppFolder(accessToken: "tok")
+        #expect(create.httpMethod == "POST")
+        #expect(create.url?.absoluteString == "https://www.googleapis.com/drive/v3/files?fields=id")
+        #expect(create.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
+        #expect(create.value(forHTTPHeaderField: "Content-Type") == "application/json; charset=UTF-8")
+        #expect(body(create) == #"{"mimeType":"application/vnd.google-apps.folder","name":"StudyReader"}"#)
+    }
+
     @Test func importFormatsRequest() throws {
         let request = try DriveUploadRequest.importFormats(accessToken: "tok")
         #expect(request.httpMethod == "GET")

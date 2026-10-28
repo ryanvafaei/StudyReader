@@ -75,7 +75,67 @@ enum DriveUploadRequest {
         return request
     }
 
+    // MARK: App folder (ADR-0018 amendment)
+
+    static let folderMimeType = "application/vnd.google-apps.folder"
+    static let appFolderName = "StudyReader"
+
+    /// `GET …/drive/v3/files/{id}?fields=id,mimeType,trashed`: tells whether a stored folder still exists.
+    static func folder(id: String, accessToken: String) throws -> URLRequest {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "www.googleapis.com"
+        components.percentEncodedPath = "/drive/v3/files/" + encodePathSegment(id)
+        components.percentEncodedQuery = "fields=id,mimeType,trashed"
+        guard let url = components.url else { throw BuildError.invalidURL }
+        return getRequest(url, accessToken: accessToken)
+    }
+
+    /// `GET …/drive/v3/files` listing the oldest app-visible, not trashed folder named "StudyReader".
+    static func findAppFolder(accessToken: String) throws -> URLRequest {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "www.googleapis.com"
+        components.path = "/drive/v3/files"
+        components.queryItems = [
+            URLQueryItem(
+                name: "q",
+                value: "name = '\(appFolderName)' and mimeType = '\(folderMimeType)' and trashed = false"
+            ),
+            URLQueryItem(name: "spaces", value: "drive"),
+            URLQueryItem(name: "orderBy", value: "createdTime"),
+            URLQueryItem(name: "pageSize", value: "1"),
+            URLQueryItem(name: "fields", value: "files(id)"),
+        ]
+        guard let url = components.url else { throw BuildError.invalidURL }
+        return getRequest(url, accessToken: accessToken)
+    }
+
+    /// `POST …/drive/v3/files?fields=id` creating the "StudyReader" folder in My Drive (no parents).
+    static func createAppFolder(accessToken: String) throws -> URLRequest {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "www.googleapis.com"
+        components.percentEncodedPath = "/drive/v3/files"
+        components.percentEncodedQuery = "fields=id"
+        guard let url = components.url else { throw BuildError.invalidURL }
+        let metadata = try metadataJSON(Metadata(name: appFolderName, mimeType: folderMimeType, parents: nil))
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data(metadata.utf8)
+        return request
+    }
+
     // MARK: Helpers
+
+    private static func getRequest(_ url: URL, accessToken: String) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        return request
+    }
 
     private struct Metadata: Encodable {
         var name: String

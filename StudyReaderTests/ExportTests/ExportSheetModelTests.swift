@@ -101,7 +101,12 @@ struct ExportSheetModelTests {
 
     @Test(.timeLimit(.minutes(1)))
     func exportShowsOutcome() async throws {
-        let h = try await Harness(replies: [Self.about, .response(status: 200, body: #"{"id": "FILE1"}"#)])
+        let h = try await Harness(replies: [
+            Self.about,
+            .response(status: 200, body: #"{"files":[]}"#),
+            .response(status: 200, body: #"{"id": "APPFOLDER"}"#),
+            .response(status: 200, body: #"{"id": "FILE1"}"#),
+        ])
         defer { h.cleanUp() }
         let model = ExportSheetModel(session: h.session, initialScope: .document(Self.docId))
         await model.load()
