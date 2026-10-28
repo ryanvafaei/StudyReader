@@ -6,17 +6,36 @@ import Observation
 @MainActor @Observable
 final class ExportTargetsModel {
     private(set) var targets: [ExportTarget] = []
-    var folderLink: String
-    private(set) var folderError: String?
     /// Targets with an Export Now / Create New Doc in flight.
     private(set) var exportingIds: Set<String> = []
+    /// The StudyReader folder's ID for the account last passed to `refreshAppFolder(account:)` (nil when signed out or
+    /// before the first export). Read from `SettingsStore.googleAppFolderId(forAccount:)`.
+    private(set) var appFolderId: String?
+    /// true after `consumeLegacyFolderNotice()` found a pasted folder ID saved by an older build.
+    private(set) var showsLegacyFolderNotice = false
 
     @ObservationIgnored private let session: AppSession
     @ObservationIgnored private var environment: AppEnvironment { session.environment }
+    @ObservationIgnored private var appFolderAccount: String?
 
     init(session: AppSession) {
         self.session = session
-        self.folderLink = session.settings.googleExportFolderId ?? ""
+    }
+
+    /// Re-reads `appFolderId` for `email` (nil email → nil) and remembers `email` for the refresh after an export.
+    func refreshAppFolder(account email: String?) {
+        appFolderAccount = email
+        appFolderId = email.flatMap { environment.settingsStore.googleAppFolderId(forAccount: $0) }
+    }
+
+    /// Reads and removes the legacy key; sets `showsLegacyFolderNotice` when it held a non-empty value.
+    func consumeLegacyFolderNotice() {
+        let store = environment.settingsStore
+        let legacy = store.legacyGoogleExportFolderId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !legacy.isEmpty {
+            showsLegacyFolderNotice = true
+        }
+        store.legacyGoogleExportFolderId = nil
     }
 
     func observe() async {
@@ -30,35 +49,23 @@ final class ExportTargetsModel {
         }
     }
 
-    /// An empty link clears the setting. An invalid one keeps the old folder and shows an error.
-    func saveFolder() {
-        let trimmed = folderLink.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            session.settings.googleExportFolderId = nil
-            folderLink = ""
-            folderError = nil
-            return
-        }
-        guard let id = DriveFolderLink.folderId(from: trimmed) else {
-            folderError = String(localized: "That isn't a Google Drive folder link.")
-            return
-        }
-        session.settings.googleExportFolderId = id
-        folderLink = id
-        folderError = nil
-    }
-
     func exportNow(_ id: String) async {
         guard !exportingIds.contains(id) else { return }
         exportingIds.insert(id)
-        defer { exportingIds.remove(id) }
+        defer {
+            exportingIds.remove(id)
+            refreshAppFolder(account: appFolderAccount)
+        }
         _ = await environment.googleExportService.export(targetId: id)
     }
 
     private func clearAndExport(_ id: String) async {
         guard !exportingIds.contains(id) else { return }
         exportingIds.insert(id)
-        defer { exportingIds.remove(id) }
+        defer {
+            exportingIds.remove(id)
+            refreshAppFolder(account: appFolderAccount)
+        }
         try? await environment.exportRepository.clearFileId(id: id)
         _ = await environment.googleExportService.export(targetId: id)
     }
@@ -75,6 +82,11 @@ final class ExportTargetsModel {
     /// For a missing Doc: forgets the file ID and exports again, which creates a new Doc.
     func createNewDoc(_ id: String) async {
         await clearAndExport(id)
+    }
+
+    /// https://drive.google.com/drive/folders/<id>
+    nonisolated static func folderURL(folderId: String) -> URL {
+        URL(string: "https://drive.google.com/drive/folders/\(folderId)") ?? URL(filePath: "/")
     }
 
     nonisolated static func docURL(fileId: String) -> URL {

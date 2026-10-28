@@ -63,7 +63,7 @@ final class SettingsTests: XCTestCase {
             window.staticTexts["Google export not configured"].waitForExistence(timeout: 8),
             "The Google tab doesn't say \"Google export not configured\"."
         )
-        XCTAssertFalse(window.textFields["Export folder link"].exists, "The unconfigured Google tab shows the export folder field.")
+        XCTAssertFalse(window.staticTexts["Exports go to the StudyReader folder in your Google Drive."].exists, "The unconfigured Google tab shows the export folder section.")
         XCTAssertFalse(
             window.descendants(matching: .any)["Export targets"].exists,
             "The unconfigured Google tab shows the Export targets section."

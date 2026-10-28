@@ -43,7 +43,7 @@ struct SettingsStore: Sendable {
         static let autoHighlight = "settings.autoHighlight"
         static let currentColor = "settings.currentColor"
         static let invertPDFInDarkMode = "settings.invertPDFInDarkMode"
-        static let googleExportFolderId = "settings.googleExportFolderId"
+        static let legacyGoogleExportFolderId = "settings.googleExportFolderId"
         static let googleAppFolderIds = "settings.googleAppFolderIds"
         static let libraryLayout = "settings.libraryLayout"
         static let librarySort = "settings.librarySort"
@@ -75,14 +75,15 @@ struct SettingsStore: Sendable {
         nonmutating set { defaults.set(newValue, forKey: Key.invertPDFInDarkMode) }
     }
 
+    /// A pasted folder ID saved by an older build. Only `ExportTargetsModel.consumeLegacyFolderNotice()` reads it.
     /// Setting nil removes the key.
-    var googleExportFolderId: String? {
-        get { defaults.string(forKey: Key.googleExportFolderId) }
+    var legacyGoogleExportFolderId: String? {
+        get { defaults.string(forKey: Key.legacyGoogleExportFolderId) }
         nonmutating set {
             if let newValue {
-                defaults.set(newValue, forKey: Key.googleExportFolderId)
+                defaults.set(newValue, forKey: Key.legacyGoogleExportFolderId)
             } else {
-                defaults.removeObject(forKey: Key.googleExportFolderId)
+                defaults.removeObject(forKey: Key.legacyGoogleExportFolderId)
             }
         }
     }

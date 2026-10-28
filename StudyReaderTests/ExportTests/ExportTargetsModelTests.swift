@@ -6,25 +6,77 @@ import Testing
 @Suite("ExportTargetsModel")
 struct ExportTargetsModelTests {
     @Test(.timeLimit(.minutes(1)))
-    func folderLinkParsing() throws {
+    func appFolderFollowsTheAccount() throws {
         let session = try ReaderTestSupport.makeSession()
         defer { ReaderTestSupport.cleanUp(session) }
+        session.environment.settingsStore.setGoogleAppFolderId("F1", forAccount: "a@example.com")
         let model = ExportTargetsModel(session: session)
 
-        model.folderLink = "https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp?usp=sharing"
-        model.saveFolder()
-        #expect(model.folderError == nil)
-        #expect(session.settings.googleExportFolderId == "1AbCdEfGhIjKlMnOp")
+        model.refreshAppFolder(account: "a@example.com")
+        #expect(model.appFolderId == "F1")
+        model.refreshAppFolder(account: "b@example.com")
+        #expect(model.appFolderId == nil)
+        model.refreshAppFolder(account: "a@example.com")
+        model.refreshAppFolder(account: nil)
+        #expect(model.appFolderId == nil)
+        #expect(ExportTargetsModel.folderURL(folderId: "F1").absoluteString == "https://drive.google.com/drive/folders/F1")
+    }
 
-        model.folderLink = "not a folder link!"
-        model.saveFolder()
-        #expect(model.folderError != nil)
-        #expect(session.settings.googleExportFolderId == "1AbCdEfGhIjKlMnOp")
+    @Test(.timeLimit(.minutes(1)))
+    func legacyFolderNoticeShowsOnce() throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        let store = session.environment.settingsStore
+        store.legacyGoogleExportFolderId = "PASTED123"
 
-        model.folderLink = "  "
-        model.saveFolder()
-        #expect(model.folderError == nil)
-        #expect(session.settings.googleExportFolderId == nil)
+        let model = ExportTargetsModel(session: session)
+        #expect(!model.showsLegacyFolderNotice)
+        model.consumeLegacyFolderNotice()
+        #expect(model.showsLegacyFolderNotice)
+        #expect(store.defaults.object(forKey: "settings.googleExportFolderId") == nil)
+
+        let again = ExportTargetsModel(session: session)
+        again.consumeLegacyFolderNotice()
+        #expect(!again.showsLegacyFolderNotice)
+
+        store.legacyGoogleExportFolderId = "   "
+        let blank = ExportTargetsModel(session: session)
+        blank.consumeLegacyFolderNotice()
+        #expect(!blank.showsLegacyFolderNotice)
+        #expect(store.legacyGoogleExportFolderId == nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func exportNowRefreshesTheAppFolder() async throws {
+        let base = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        let about = StubHTTPClient.Reply.response(
+            status: 200,
+            body: #"{"importFormats":{"text/markdown":["application/vnd.google-apps.document"]}}"#
+        )
+        let http = StubHTTPClient([
+            about,
+            .response(status: 200, body: #"{"files":[]}"#),
+            .response(status: 200, body: #"{"id":"APPFOLDER"}"#),
+            .response(status: 200, body: #"{"id":"FILE1"}"#),
+        ])
+        let environment = AppEnvironment(
+            fileStore: base.fileStore,
+            database: base.database,
+            now: base.now,
+            settingsStore: TestSettings.make(),
+            httpClient: http,
+            googleAuth: StubGoogleAuth()
+        )
+        let session = AppSession(environment: environment)
+        defer { ReaderTestSupport.cleanUp(session) }
+        let target = TestData.exportTarget()
+        try await environment.exportRepository.insertTarget(target)
+
+        let model = ExportTargetsModel(session: session)
+        model.refreshAppFolder(account: "student@example.com")
+        #expect(model.appFolderId == nil)
+        await model.exportNow(target.id)
+        #expect(model.appFolderId == "APPFOLDER")
     }
 
     @Test

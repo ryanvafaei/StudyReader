@@ -108,8 +108,17 @@ struct GoogleSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .task { await model.refresh() }
+        .task {
+            await model.refresh()
+            targets.refreshAppFolder(account: model.email)
+            if model.state != .notConfigured {
+                targets.consumeLegacyFolderNotice()
+            }
+        }
         .task { await targets.observe() }
+        .onChange(of: model.email) { _, email in
+            targets.refreshAppFolder(account: email)
+        }
         .confirmationDialog(
             "Remove this export target? The Google Doc isn't deleted.",
             isPresented: Binding(
@@ -127,7 +136,10 @@ struct GoogleSettingsView: View {
             Button("Cancel", role: .cancel) { pendingRemove = nil }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            Task { await model.refresh() }
+            Task {
+                await model.refresh()
+                targets.refreshAppFolder(account: model.email)
+            }
         }
     }
 
@@ -170,22 +182,26 @@ struct GoogleSettingsView: View {
 
     private var folderSection: some View {
         Section("Export folder") {
-            HStack {
-                TextField("Drive folder link or ID", text: $targets.folderLink)
-                    .labelsHidden()
-                    .onSubmit { targets.saveFolder() }
-                    .accessibilityLabel("Export folder link")
-                Button("Save") { targets.saveFolder() }
-                    .accessibilityLabel("Save export folder")
-            }
-            if let message = targets.folderError {
-                Text(message)
-                    .foregroundStyle(.red)
-                    .accessibilityLabel(message)
-            }
-            Text("Leave empty to export to the top level of your Drive.")
+            Text("Exports go to the StudyReader folder in your Google Drive.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            if let folderId = targets.appFolderId {
+                Button("Open in Drive") {
+                    NSWorkspace.shared.open(ExportTargetsModel.folderURL(folderId: folderId))
+                }
+                .accessibilityLabel("Open the StudyReader folder in Google Drive")
+            } else if model.email != nil {
+                Text("It's created on your first export.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            if targets.showsLegacyFolderNotice {
+                let notice = String(localized: "The export folder link you saved earlier isn't used anymore. New Docs go to the StudyReader folder.")
+                Text(notice)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(notice)
+            }
         }
     }
 

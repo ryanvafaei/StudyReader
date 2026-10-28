@@ -67,3 +67,4 @@ nonisolated static func folderURL(folderId: String) -> URL
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-28, implementer ui-builder Sonnet medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40752077818, 713 tests in 94 suites: the DriveFolderLinkTests suite was deleted); no spec deviations; the SettingsTests.swift change (old folder-field assertion) is not UI-run yet: one targeted SettingsTests run by ui-tester after T95; minor follow-ups in BACKLOG; Mac row T92b in VISUAL_CHECKS

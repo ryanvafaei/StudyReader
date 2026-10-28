@@ -11,7 +11,7 @@ import Testing
         #expect(store.autoHighlight == true)
         #expect(store.currentColor == .yellow)
         #expect(store.invertPDFInDarkMode == true)
-        #expect(store.googleExportFolderId == nil)
+        #expect(store.legacyGoogleExportFolderId == nil)
         #expect(store.libraryLayout == .grid)
         #expect(store.librarySort == .dateAdded)
     }
@@ -25,7 +25,7 @@ import Testing
         store.autoHighlight = false
         store.currentColor = .purple
         store.invertPDFInDarkMode = false
-        store.googleExportFolderId = "folder-123"
+        store.legacyGoogleExportFolderId = "folder-123"
         store.libraryLayout = .list
         store.librarySort = .title
         store.setColorLabel("Review", for: .blue)
@@ -35,13 +35,13 @@ import Testing
         #expect(reread.autoHighlight == false)
         #expect(reread.currentColor == .purple)
         #expect(reread.invertPDFInDarkMode == false)
-        #expect(reread.googleExportFolderId == "folder-123")
+        #expect(reread.legacyGoogleExportFolderId == "folder-123")
         #expect(reread.libraryLayout == .list)
         #expect(reread.librarySort == .title)
         #expect(reread.colorLabel(for: .blue) == "Review")
 
-        store.googleExportFolderId = nil
-        #expect(SettingsStore(suiteName: suiteName).googleExportFolderId == nil)
+        store.legacyGoogleExportFolderId = nil
+        #expect(SettingsStore(suiteName: suiteName).legacyGoogleExportFolderId == nil)
         #expect(store.defaults.object(forKey: "settings.googleExportFolderId") == nil)
     }
 

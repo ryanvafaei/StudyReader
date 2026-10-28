@@ -23,10 +23,6 @@ final class AppSettings {
         didSet { store.invertPDFInDarkMode = invertPDFInDarkMode }
     }
 
-    var googleExportFolderId: String? {
-        didSet { store.googleExportFolderId = googleExportFolderId }
-    }
-
     /// Index = `HighlightColor.rawValue` (5 entries).
     private(set) var colorLabels: [String]
 
@@ -36,7 +32,6 @@ final class AppSettings {
         self.autoHighlight = store.autoHighlight
         self.currentColor = store.currentColor
         self.invertPDFInDarkMode = store.invertPDFInDarkMode
-        self.googleExportFolderId = store.googleExportFolderId
         self.colorLabels = HighlightColor.allCases.map { store.colorLabel(for: $0) }
     }
 
