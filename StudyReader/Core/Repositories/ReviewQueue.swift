@@ -234,6 +234,36 @@ enum ReviewQueueSQL {
         ) ?? 0
     }
 
+    /// Candidates of a themed review (ADR-0022): not suspended cards whose highlight matches `filter`, due or not,
+    /// new or not. Ordered cardId ASC. `HighlightBrowseSQL.conditions` builds the WHERE part, so the themed scope
+    /// uses the same matching as the browser and the export.
+    static func themedCandidates(_ db: Database, filter: HighlightBrowserFilter) throws -> [ReviewQueueEntry] {
+        let conditions = HighlightBrowseSQL.conditions(for: filter)
+        return try Row.fetchAll(
+            db,
+            sql: """
+                SELECT \(entryColumns)
+                FROM reviewCard rc
+                \(entryJoins)
+                WHERE rc.suspended = 0 AND rc.highlightId IN (
+                    SELECT h.id FROM highlight h
+                    JOIN document d ON d.id = h.documentId
+                    WHERE \(conditions.sql)
+                )
+                ORDER BY rc.id ASC
+                """,
+            arguments: StatementArguments(conditions.arguments)
+        ).map(entry)
+    }
+
+    /// The themed snapshot: candidates for `filter` and the cards rated since `dayStart` (any session kind), one read.
+    static func themedQueue(_ db: Database, filter: HighlightBrowserFilter, dayStart: Date) throws -> ThemedQueueSnapshot {
+        ThemedQueueSnapshot(
+            candidates: try themedCandidates(db, filter: filter),
+            ratedTodayCardIds: try activity(db, dayStart: dayStart).ratedCardIds
+        )
+    }
+
     /// Maps a queue row. GRDB's default Date decoding differs from the record strategies, so dates are read as Doubles.
     private static func entry(_ row: Row) -> ReviewQueueEntry {
         let dueAt: Double = row["dueAt"]

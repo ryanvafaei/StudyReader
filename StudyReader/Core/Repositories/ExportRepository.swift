@@ -231,11 +231,7 @@ struct ExportRepository: Sendable {
             guard let id = scope.id, let review = try ThemedReview.fetchOne(db, key: id) else {
                 throw RepositoryError.notFound
             }
-            filter.tagIds = Set(review.filter.tagIds)
-            filter.tagMode = review.filter.tagMode
-            filter.documentIds = Set(review.filter.documentIds)
-            filter.categoryIds = Set(review.filter.categoryIds)
-            filter.colors = Set(review.filter.colors)
+            filter = review.filter.highlightBrowserFilter
         }
         return filter
     }

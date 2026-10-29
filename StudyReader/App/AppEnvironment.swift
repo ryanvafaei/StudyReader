@@ -15,6 +15,7 @@ struct AppEnvironment: Sendable {
     let tagRepository: TagRepository
     let notesRepository: NotesRepository
     let exportRepository: ExportRepository
+    let themedReviewRepository: ThemedReviewRepository
     let highlightService: HighlightService
     let documentTextRepository: DocumentTextRepository
     let extractionService: ExtractionService
@@ -76,6 +77,7 @@ struct AppEnvironment: Sendable {
         self.notesRepository = NotesRepository(database: database)
         let exportRepository = ExportRepository(database: database)
         self.exportRepository = exportRepository
+        self.themedReviewRepository = ThemedReviewRepository(database: database)
         let googleExportService = GoogleExportService(
             auth: googleAuth,
             http: httpClient,

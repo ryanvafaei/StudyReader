@@ -87,3 +87,4 @@ Tests use an in-memory database, `TestData` records, cards from `ReviewCardFacto
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer data-layer haiku medium (reworks: none; first attempt did nothing, re-run), reviewer code-reviewer sonnet medium: APPROVED, spec met; out-of-spec edit to ExportRepository.swift (shared ThemedReviewFilter.highlightBrowserFilter mapping) verified behaviour-neutral; observeAllOrdersByName uses an async iterator + timeLimit instead of TestWait.until: accepted; CI build and full unit tests green, 904 tests (runs 40939453186, 40939758259)
