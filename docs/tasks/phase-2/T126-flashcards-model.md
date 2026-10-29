@@ -69,3 +69,4 @@ final class FlashcardsModel {
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer review-engine haiku medium (reworks: none), reviewer code-reviewer sonnet medium: APPROVED, spec met (masteryHighlightId is a settable stored var instead of get-only: accepted, same sheet-target pattern as HighlightsBrowserModel); CI build and full unit tests green, 940 tests (runs 40959352242, 40959903928)
