@@ -55,3 +55,4 @@ Tests use an in-memory database, `TestData` records, cards from `ReviewCardFacto
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer data-layer haiku medium (reworks: none), reviewer code-reviewer sonnet medium: APPROVED, spec met (criterion 2 split into two tests: no coverage lost; reviewer did not open ADR-0012/0021 directly); CI build and full unit tests green, 877 tests (runs 40921656933, 40922090032)

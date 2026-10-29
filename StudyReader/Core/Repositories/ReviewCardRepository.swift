@@ -4,10 +4,14 @@ import GRDB
 /// Errors from creating review cards through this repository (T99; T114 adds the Mastery cases).
 enum ReviewCardError: Error, Equatable, LocalizedError {
     case notPassive
+    case notMasteryCard
+    case highlightMismatch
 
     var errorDescription: String? {
         switch self {
         case .notPassive: "Only passive cards can be created here."
+        case .notMasteryCard: "Only cloze and question cards can be changed here."
+        case .highlightMismatch: "These cards belong to another highlight."
         }
     }
 }
@@ -188,6 +192,59 @@ extension ReviewCardRepository {
 struct RescheduledCard: Sendable, Equatable {
     var fsrsCard: String     // StoredFSRSCard JSON with the new due
     var dueAt: Date          // == its due
+}
+
+/// Mastery (cloze and Q&A) card writes (T114, ADR-0021). Each method is one transaction; suspension goes
+/// through `ReviewSuspension` only.
+extension ReviewCardRepository {
+    /// One transaction. Every card must be cloze or qa (else `.notMasteryCard`) and belong to `highlightId` (else
+    /// `.highlightMismatch`). Missing highlight → `RepositoryError.notFound`. Nothing is written when a check fails.
+    /// Inserts each card, then recomputes the highlight's suspension (its passive card becomes `.mastery`).
+    func insertMasteryCards(_ cards: [ReviewCard], highlightId: String) async throws {
+        try await writer.write { db in
+            guard try Highlight.fetchOne(db, key: highlightId) != nil else {
+                throw RepositoryError.notFound
+            }
+            for card in cards {
+                guard card.cardType != .passive else { throw ReviewCardError.notMasteryCard }
+                guard card.highlightId == highlightId else { throw ReviewCardError.highlightMismatch }
+            }
+            for card in cards {
+                try card.insert(db)
+            }
+            try ReviewSuspension.recompute(highlightIds: [highlightId], db)
+        }
+    }
+
+    /// Column-limited update of `clozeRanges`, `question` and `answer`. FSRS state, `dueAt`, `state` and
+    /// `introducedAt` are untouched. Missing card → `RepositoryError.notFound`; passive → `.notMasteryCard`.
+    func updateMasteryCard(id: String, clozeRanges: [[Int]]?, question: String?, answer: String?) async throws {
+        try await writer.write { db in
+            guard var card = try ReviewCard.fetchOne(db, key: id) else {
+                throw RepositoryError.notFound
+            }
+            guard card.cardType != .passive else { throw ReviewCardError.notMasteryCard }
+            card.clozeRanges = clozeRanges
+            card.question = question
+            card.answer = answer
+            try card.update(db, columns: ["clozeRanges", "question", "answer"])
+        }
+    }
+
+    /// One transaction: deletes the card (its review logs go with it through the cascade), then recomputes its
+    /// highlight's suspension. Passive → `.notMasteryCard` (nothing deleted). Returns false when no card had `id`.
+    @discardableResult
+    func deleteMasteryCard(id: String) async throws -> Bool {
+        try await writer.write { db in
+            guard let card = try ReviewCard.fetchOne(db, key: id) else {
+                return false
+            }
+            guard card.cardType != .passive else { throw ReviewCardError.notMasteryCard }
+            try card.delete(db)
+            try ReviewSuspension.recompute(highlightIds: [card.highlightId], db)
+            return true
+        }
+    }
 }
 
 /// Card action writes (T103, SPEC F-18 "Change frequency").
