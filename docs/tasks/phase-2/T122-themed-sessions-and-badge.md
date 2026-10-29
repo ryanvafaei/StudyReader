@@ -40,8 +40,8 @@ actor ReviewService {
 //   phase .finished(ReviewSummary(reviewed: 0, remembered: 0, rememberedPercent: 0, dueTomorrow: <service value>)).
 //   This replaces T108's "Themed reviews aren't available yet." placeholder message.
 // - ratings use context .themed(id:) (ReviewService already logs kind and id, T105).
-// - when the queue becomes empty after a rating: completeThemedReview(id:) (errors → errorMessage, the summary
-//   still shows), then .finished.
+// - when the queue becomes empty for any reason (rated, deleted, suspended or dropped; amended by T122a): completeThemedReview(id:)
+//   once (errors → errorMessage, the summary still shows), then .finished.
 private(set) var themedReviewName: String?
 
 @MainActor @Observable final class ReviewBadgeModel {
@@ -51,6 +51,7 @@ private(set) var themedReviewName: String?
 }
 ```
 - Leaving a themed session early (`endSession()`) never marks it completed.
+- Amended by T122a (2026-10-29, user decision): a themed session completes when its queue runs out for any reason (rated, deleted or suspended), not only through ratings. See `docs/tasks/phase-2/T122a-themed-completion-any-reason.md`.
 - The daily session model stays as it is; a themed session model is a separate `ReviewSessionModel(session:context:)` instance created by the Themed Reviews section (T124).
 
 ## Acceptance criteria

@@ -61,6 +61,9 @@ final class ReviewSessionModel {
     private var plan: DailyReviewPlan?
     private var reviewedCount = 0
     private var rememberedCount = 0
+    /// Set while the finish runs, so a themed review is completed once even if another path empties the queue
+    /// during the completion await (ADR-0022).
+    private var isFinishing = false
 
     private(set) var phase: Phase = .idle
     /// queue.first is the current card.
@@ -137,11 +140,9 @@ final class ReviewSessionModel {
             queue = items
             self.plan = nil
             resetCounters()
-            if items.isEmpty {
-                phase = .finished(await makeSummary())
-            } else {
-                phase = .reviewing
-            }
+            // An empty queue finishes at once; a themed review completes here too (ADR-0022).
+            phase = .reviewing
+            await finishIfEmpty()
         } catch {
             Log.app.error("Review session failed to start: \(String(describing: error), privacy: .public)")
             phase = .failed("The review couldn't be started.")
@@ -170,16 +171,14 @@ final class ReviewSessionModel {
         } catch ReviewServiceError.cardMissing, ReviewServiceError.cardSuspended {
             errorMessage = nil
             dropFirst()
-            // Dropped without a rating: the queue can empty here, but that does not complete a themed review.
-            await finishIfEmpty(completingThemed: false)
+            await finishIfEmpty()
             return
         } catch {
             Log.app.error("Rating failed: \(String(describing: error), privacy: .public)")
             errorMessage = "The rating couldn't be saved."
             return
         }
-        // The queue emptied through a rating: a themed review completes here (ADR-0022).
-        await finishIfEmpty(completingThemed: true)
+        await finishIfEmpty()
     }
 
     /// SPEC F-18 Skip: the current card moves to the end. Nothing is written. A one-card queue stays as it is.
@@ -275,6 +274,7 @@ final class ReviewSessionModel {
     private func resetCounters() {
         reviewedCount = 0
         rememberedCount = 0
+        isFinishing = false
         position = 0
         isRevealed = false
         showOriginal = false
@@ -328,12 +328,13 @@ final class ReviewSessionModel {
         }
     }
 
-    /// Finishes when the queue is empty. Only a rating completes a themed review (`completingThemed`), so a
-    /// session that empties through a drop or a frequency change ends without completion. A completion error goes
-    /// to `errorMessage`; the summary still shows.
-    private func finishIfEmpty(completingThemed: Bool = false) async {
-        guard phase == .reviewing, queue.isEmpty else { return }
-        if completingThemed, let reviewId = context.themedReviewId {
+    /// Finishes when the queue is empty, however it emptied: rated, deleted, suspended or dropped (ADR-0022). A themed
+    /// session completes its review here, exactly once. A daily session only finishes. A completion error goes to
+    /// `errorMessage`; the summary still shows.
+    private func finishIfEmpty() async {
+        guard phase == .reviewing, queue.isEmpty, !isFinishing else { return }
+        isFinishing = true
+        if let reviewId = context.themedReviewId {
             do {
                 try await environment.reviewService.completeThemedReview(id: reviewId)
             } catch {

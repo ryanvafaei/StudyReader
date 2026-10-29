@@ -1,0 +1,2 @@
+suite=unit
+filters=StudyReaderTests/ThemedSessionTests StudyReaderTests/ReviewSessionModelTests StudyReaderTests/ReviewBadgeModelTests StudyReaderTests/ThemedCompletionTests
