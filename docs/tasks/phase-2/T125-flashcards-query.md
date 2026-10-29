@@ -64,3 +64,4 @@ In-memory database, `TestData` records, cards inserted with explicit states/susp
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer data-layer haiku medium (reworks: none; first attempt did nothing, re-run), reviewer code-reviewer sonnet medium: APPROVED, spec met; last-review (lr) subquery duplicated from ReviewQueueSQL: accepted; CI build and full unit tests green, 934 tests (runs 40956514442, 40956852904)

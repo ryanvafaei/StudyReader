@@ -188,6 +188,25 @@ extension ReviewCardRepository {
     }
 }
 
+/// Flashcards list reads (T125, SPEC F-17). The SQL lives in `FlashcardSQL`; each method is one read.
+extension ReviewCardRepository {
+    /// Cards matching `filter`, ordered dueAt ASC, id ASC. One read transaction.
+    func flashcards(filter: FlashcardFilter) async throws -> [FlashcardItem] {
+        try await writer.read { db in
+            try FlashcardSQL.flashcards(db, filter: filter)
+        }
+    }
+
+    /// Live version of `flashcards(filter:)`. The first element is the current value.
+    func observeFlashcards(filter: FlashcardFilter) -> AsyncValueObservation<[FlashcardItem]> {
+        ValueObservation
+            .tracking { db in
+                try FlashcardSQL.flashcards(db, filter: filter)
+            }
+            .values(in: writer)
+    }
+}
+
 /// The FSRS state after a frequency change (ReviewScheduler.rescheduledDue, T105).
 struct RescheduledCard: Sendable, Equatable {
     var fsrsCard: String     // StoredFSRSCard JSON with the new due
