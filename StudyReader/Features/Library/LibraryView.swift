@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Library section (SPEC F-01): grid or list of documents, sort, filter, layout, context menu and delete.
-/// Holds only view state (pending delete, sheets). The selection lives in `AppSession`. Everything else lives in `LibraryModel`.
+/// Holds only view state (pending delete, sheets). The selection and the filter live in `AppSession`. Everything else lives in `LibraryModel`.
 struct LibraryView: View {
     let session: AppSession
     /// Opens the import picker (File > Import, or the toolbar button).
@@ -15,7 +15,7 @@ struct LibraryView: View {
     init(session: AppSession, onImport: @escaping () -> Void) {
         self.session = session
         self.onImport = onImport
-        _model = State(initialValue: LibraryModel(environment: session.environment))
+        _model = State(initialValue: LibraryModel(session: session))
     }
 
     var body: some View {

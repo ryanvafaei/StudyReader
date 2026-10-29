@@ -14,6 +14,10 @@ final class AppSession {
     /// The library's selected document id. Kept here, not in LibraryView, so it survives the search results replacing
     /// the library (BACKLOG B22 1). LibraryView shows it only while the document is listed (`LibraryModel.existingSelection`).
     var librarySelection: String?
+    /// The library's filter (category, tag, file type, has highlights). Kept here, not in LibraryView's model, so it
+    /// survives the search results replacing the library and a switch to another sidebar section (W2, BACKLOG B22).
+    /// Not persisted across launches.
+    var libraryFilter = LibraryFilter()
 
     init(environment: AppEnvironment) {
         self.environment = environment

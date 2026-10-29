@@ -40,7 +40,11 @@ final class LibraryModel {
         didSet { settingsStore.libraryLayout = layout }
     }
 
-    var filter = LibraryFilter()
+    var filter: LibraryFilter {
+        didSet {
+            if filter != oldValue { onFilterChange(filter) }
+        }
+    }
 
     /// Categories for the filter menu, from `CategoryRepository.observeAll()`.
     private(set) var categories: [DocumentCategory] = []
@@ -63,7 +67,16 @@ final class LibraryModel {
     @ObservationIgnored private let extractionService: ExtractionService
     @ObservationIgnored private let settingsStore: SettingsStore
 
-    init(environment: AppEnvironment) {
+    @ObservationIgnored private let onFilterChange: @MainActor (LibraryFilter) -> Void
+
+    /// `filter` starts as the given value; every later change is passed to `onFilterChange` (W2).
+    init(
+        environment: AppEnvironment,
+        filter: LibraryFilter = LibraryFilter(),
+        onFilterChange: @escaping @MainActor (LibraryFilter) -> Void = { _ in }
+    ) {
+        self.filter = filter
+        self.onFilterChange = onFilterChange
         self.documents = environment.documentRepository
         self.categoryRepository = environment.categoryRepository
         self.tagRepository = environment.tagRepository
@@ -72,6 +85,15 @@ final class LibraryModel {
         self.settingsStore = environment.settingsStore
         self.sort = environment.settingsStore.librarySort
         self.layout = environment.settingsStore.libraryLayout
+    }
+
+    /// The model LibraryView uses: starts with `session.libraryFilter` and writes every filter change back to it.
+    convenience init(session: AppSession) {
+        self.init(
+            environment: session.environment,
+            filter: session.libraryFilter,
+            onFilterChange: { session.libraryFilter = $0 }
+        )
     }
 
     /// Runs the live list until the calling task is cancelled (`.task {}` in the view).
@@ -103,6 +125,9 @@ final class LibraryModel {
             for try await observed in categoryRepository.observeAll() {
                 guard generation == categoriesGeneration, !Task.isCancelled else { break }
                 categories = observed
+                if let categoryId = filter.categoryId, !observed.contains(where: { $0.id == categoryId }) {
+                    filter.categoryId = nil
+                }
             }
         } catch {
             guard generation == categoriesGeneration, !Task.isCancelled else { return }
@@ -118,6 +143,9 @@ final class LibraryModel {
             for try await observed in tagRepository.observeAll() {
                 guard generation == tagsGeneration, !Task.isCancelled else { break }
                 tags = observed
+                if let tagId = filter.tagId, !observed.contains(where: { $0.id == tagId }) {
+                    filter.tagId = nil
+                }
             }
         } catch {
             guard generation == tagsGeneration, !Task.isCancelled else { return }

@@ -312,6 +312,69 @@ struct LibraryModelTests {
         #expect(model.existingSelection(kept.id) == kept.id)
     }
 
+    @Test("the library filter survives a new model for the same session and Clear Filters resets it")
+    func filterSurvivesANewModelForTheSameSession() throws {
+        let session = AppSession(environment: try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate)))
+        defer { TestFileStore.remove(session.environment.fileStore) }
+        #expect(session.libraryFilter == LibraryFilter())
+
+        let first = LibraryModel(session: session)
+        first.filter.categoryId = "c1"
+        first.filter.tagId = "t1"
+        first.filter.fileType = .markdown
+        first.filter.hasHighlightsOnly = true
+
+        let expected = LibraryFilter(categoryId: "c1", tagId: "t1", fileType: .markdown, hasHighlightsOnly: true)
+        #expect(session.libraryFilter == expected)
+        #expect(session.search.filters == SearchFilters())
+
+        let second = LibraryModel(session: session)
+        #expect(second.filter == expected)
+        second.filter = LibraryFilter()
+        #expect(session.libraryFilter == LibraryFilter())
+
+        let third = LibraryModel(session: session)
+        #expect(third.filter == LibraryFilter())
+        #expect(!third.filter.isActive)
+
+        let plain = LibraryModel(environment: session.environment)
+        #expect(plain.filter == LibraryFilter())
+        plain.filter.hasHighlightsOnly = true
+        #expect(session.libraryFilter == LibraryFilter())
+    }
+
+    @Test("a kept filter drops a deleted tag or category and keeps the other fields",
+          .timeLimit(.minutes(1)))
+    func filterDropsADeletedTagOrCategory() async throws {
+        let session = AppSession(environment: try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate)))
+        defer { TestFileStore.remove(session.environment.fileStore) }
+        let env = session.environment
+        let tag = try await env.tagRepository.findOrCreate(name: "exam", at: TestData.referenceDate)
+        let category = try await env.categoryRepository.create(name: "Seminar")
+
+        let model = LibraryModel(session: session)
+        let tagsTask = Task { await model.observeTags() }
+        let categoriesTask = Task { await model.observeCategories() }
+        try await waitUntil {
+            model.tags.contains { $0.id == tag.id } && model.categories.contains { $0.id == category.id }
+        }
+        model.filter.tagId = tag.id
+        model.filter.categoryId = category.id
+        model.filter.hasHighlightsOnly = true
+
+        try await env.tagRepository.delete(id: tag.id)
+        try await waitUntil { model.filter.tagId == nil }
+        _ = try await env.categoryRepository.delete(id: category.id)
+        try await waitUntil { model.filter.categoryId == nil }
+
+        #expect(model.filter == LibraryFilter(hasHighlightsOnly: true))
+        #expect(session.libraryFilter == LibraryFilter(hasHighlightsOnly: true))
+        tagsTask.cancel()
+        categoriesTask.cancel()
+        await tagsTask.value
+        await categoriesTask.value
+    }
+
     @Test("cover versions follow the cover file's modification date and skip documents without a cover")
     func coverVersionsFollowTheCoverFile() throws {
         let environment = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))

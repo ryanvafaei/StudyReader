@@ -103,3 +103,4 @@ var filter: LibraryFilter   // didSet: if filter != oldValue { onFilterChange(fi
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-29, implementer ui-builder Sonnet medium (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40846314983, 753 tests); no spec deviations; no existing UI test depends on the filter reset, so no UI run; Mac row W2 in VISUAL_CHECKS; minor follow-ups in BACKLOG
