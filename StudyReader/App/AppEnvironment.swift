@@ -193,9 +193,10 @@ struct AppEnvironment: Sendable {
 
     /// AppDatabase.makeInMemory() plus a FileStore rooted at
     /// FileManager.default.temporaryDirectory/StudyReader-InMemory/<UUID>/StudyReader (directories created).
-    /// Removes in-memory folders older than one hour first.
+    /// Removes in-memory folders older than one hour by the wall clock (`SystemNow`), never by the injected `now`,
+    /// so a test with a future clock can't delete the folders of tests still running (backlog L2).
     static func inMemory(now: any Now = SystemNow()) throws -> AppEnvironment {
-        let removed = removeStaleInMemoryFolders(in: inMemoryParentURL, olderThan: now().addingTimeInterval(-3600))
+        let removed = removeStaleInMemoryFolders(in: inMemoryParentURL, olderThan: SystemNow()().addingTimeInterval(-3600))
         if removed > 0 {
             Log.files.info("Removed \(removed, privacy: .public) stale in-memory libraries")
         }

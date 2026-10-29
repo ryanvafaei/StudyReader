@@ -30,6 +30,18 @@ struct AppEnvironmentTests {
         #expect(rootPath.hasPrefix(temporaryPath))
     }
 
+    @Test func inMemoryWithAFutureClockKeepsOtherLibraries() throws {
+        let a = try AppEnvironment.inMemory()
+        defer { TestFileStore.remove(a.fileStore) }
+        _ = try a.fileStore.createDocumentFolder(documentId: UUID().uuidString)
+        let future = Date(timeIntervalSince1970: 1_900_000_000)
+        let b = try AppEnvironment.inMemory(now: FixedNow(future))
+        defer { TestFileStore.remove(b.fileStore) }
+
+        #expect(FileManager.default.fileExists(atPath: a.fileStore.rootURL.path(percentEncoded: false)))
+        #expect(b.now() == future)
+    }
+
     @Test func detectsTestHost() {
         #expect(AppEnvironment.isRunningUnitTests(environment: ["XCTestConfigurationFilePath": "x"]))
         #expect(AppEnvironment.isRunningUnitTests(environment: ["XCTestBundlePath": "x"]))

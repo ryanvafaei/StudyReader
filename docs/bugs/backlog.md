@@ -22,7 +22,6 @@ The deferred Phase 1 findings (M3 and L1–L10 from [`phase-1.md`](phase-1.md), 
 
 Source: [`phase-0-second-pass.md`](phase-0-second-pass.md) (2026-10-24). Its only medium, M1, was fixed by T26. By user decision on 2026-10-24, L1 was fixed by T27 and the `DateStorageTests` part of L7 by T26; both are committed and removed here. L4 was fixed by T29 and removed here. L5 and L6 were fixed by T32 and removed here. T27-F1 was resolved by T31 and removed. L3 was fixed by T42 (ARCHITECTURE §6 rule 5 amended) and removed. The other lows have no tasks. Plan each one as a task when its "revisit when" trigger is reached, then remove it here and name the task.
 
-- **L2. `inMemory(now:)` uses the injected clock for temp-folder cleanup.** Severity: low. [Report](phase-0-second-pass.md#l2-inmemorynow-uses-the-injected-domain-clock-to-judge-folder-age-so-a-future-fixednow-deletes-the-folders-of-tests-that-are-still-running). A future `FixedNow` makes every existing `StudyReader-InMemory/<UUID>` folder look stale, so parallel tests lose their folders.
   - Suggested fix: compute the one-hour cleanup cutoff from the real wall clock or the folders' file-system dates, independent of the injected `Now`, or clean up only in `defaultFactory`. Add the report's failing test.
   - Suggested agent: ui-builder.
   - Revisit when: opportunistic. At the latest before any test passes a future `FixedNow` to `AppEnvironment.inMemory(now:)` (Phase 2 scheduling tests).
