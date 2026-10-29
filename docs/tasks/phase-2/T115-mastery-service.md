@@ -74,3 +74,4 @@ Tests use an in-memory `AppEnvironment(…, now: FixedNow(r))`, documents and hi
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer review-engine haiku medium (reworks: none), reviewer code-reviewer sonnet medium: APPROVED, spec met, three deviations accepted (unmatched saved draft inserted as new; notFound mapped to highlightMissing; test range [11,6]); CI build and full unit tests green, 884 tests (runs 40925441291, 40925913182)
