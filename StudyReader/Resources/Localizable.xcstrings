@@ -23,6 +23,50 @@
     "%lld %%" : {
 
     },
+    "%lld cards to review" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld card to review"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld cards to review"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Reviewed %lld cards" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Reviewed %lld card"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Reviewed %lld cards"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld documents" : {
 
     },

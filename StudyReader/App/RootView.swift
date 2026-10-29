@@ -21,6 +21,7 @@ struct RootView: View {
             List(SidebarItem.allCases, selection: $model.selection) { item in
                 Label(item.title, systemImage: item.systemImage)
                     .tag(item)
+                    .badge(item == .review ? session.reviewBadge.dailyDueCount : 0)
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 210)
         } detail: {
@@ -35,6 +36,9 @@ struct RootView: View {
             } else if model.selection == .highlights {
                 // LibraryView (with its hidden Return/Escape buttons) is not in the hierarchy here (T69).
                 HighlightsBrowserView(session: session)
+            } else if model.selection == .review {
+                // LibraryView is not in the hierarchy here, so its Return/Escape buttons are gone (T109).
+                ReviewSectionView(session: session)
             } else if let item = model.selection {
                 ContentUnavailableView(
                     item.title,
@@ -83,6 +87,9 @@ struct RootView: View {
         .focusedSceneValue(\.importActions, ImportActions(importFiles: { isShowingImporter = true }))
         // The library window is the first tab of the group that reader windows join (ADR-0017, T52).
         .background(WindowAccessor { ReaderTabbing.configureMain($0) })
+        .task(id: session.settings.dailyLimits) {
+            await session.reviewBadge.observe()
+        }
         .task {
             // Dock and Open With URLs that arrived before this window existed are handed over here.
             ExternalURLRouter.shared.attach { urls in
