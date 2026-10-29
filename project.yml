@@ -34,7 +34,8 @@ packages:
     from: 0.9.0
   FSRS:
     url: https://github.com/open-spaced-repetition/swift-fsrs
-    from: 5.0.0
+    # main, not a release: 5.0.0 is FSRS-5 with an internal API; FSRS-6 is public only on main (ADR-0006, ADR-0021)
+    revision: 4fbaf20184d62f82a9f44f343337c61a2c5483e9
   GoogleSignIn:
     url: https://github.com/google/GoogleSignIn-iOS
     from: 10.1.0

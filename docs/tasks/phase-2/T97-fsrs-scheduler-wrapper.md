@@ -12,7 +12,7 @@
 One thin, fully tested wrapper around swift-fsrs. Everything outside `ReviewScheduler.swift` works with our own Codable types, so the stored JSON never depends on the library's encoding (ADR-0021).
 
 ## Step 0: read the library API (before writing code)
-The pinned version is swift-fsrs **5.0.0**, revision `129e4dc99625ee2dd2ee627fab866f2993e3d7` (`StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`). Known facts: `FSRSDefaults` is public but its `defaultW` is internal and `defaultWv6` doesn't exist; `Rating` is public and `CaseIterable` (`PackageLinkTests/fsrsRatingsAvailable`). Read the public API of `FSRS`, `FSRSParameters`, `Card`, `ReviewLog`, `Rating`, `CardState` and the result type of `next(card:now:grade:)`:
+(Superseded 2026-10-29: the package is now pinned to `main` @ 4fbaf20 where `FSRSDefaults.defaultWv6` is public; see ADR-0006 amendment. The text below describes the 5.0.0 findings.) The pinned version was swift-fsrs **5.0.0**, revision `129e4dc99625ee2dd2ee627fab866f2993e3d7` (`StudyReader.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`). Known facts: `FSRSDefaults` is public but its `defaultW` is internal and `defaultWv6` doesn't exist; `Rating` is public and `CaseIterable` (`PackageLinkTests/fsrsRatingsAvailable`). Read the public API of `FSRS`, `FSRSParameters`, `Card`, `ReviewLog`, `Rating`, `CardState` and the result type of `next(card:now:grade:)`:
 - on a Mac: `build/DerivedData/SourcePackages/checkouts/swift-fsrs/Sources/`;
 - in a cloud session: `gh api "repos/open-spaced-repetition/swift-fsrs/contents/Sources?ref=129e4dc99625ee2dd2ee627fab866f2993e3d7"` to list files, then `gh api -H "Accept: application/vnd.github.raw" "repos/open-spaced-repetition/swift-fsrs/contents/<path>?ref=129e4dc99625ee2dd2ee627fab866f2993e3d7"` per file.
 If you can't read the source, or the library has no way to get its default FSRS-6 weights (21 values) or `w[20]`, report BLOCKED with what you found. Don't copy a weight list by hand. Note the exact API names you used in the report.
@@ -132,3 +132,4 @@ Tests use `ReviewScheduler(enableFuzz: false)`, fixed dates (`TestData.reference
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer review-engine sonnet high (reworks: none; first attempt BLOCKED on swift-fsrs 5.0.0, user chose pin to main @ 4fbaf20), reviewer code-reviewer sonnet high: APPROVED, spec met, pin consistent; CI build and full unit tests green (runs 40863001447, 40863394410)

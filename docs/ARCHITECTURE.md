@@ -96,7 +96,7 @@ settings:
 packages:
   GRDB:          { url: https://github.com/groue/GRDB.swift,                 from: 7.11.1 }
   swift-markdown: { url: https://github.com/swiftlang/swift-markdown,         from: 0.9.0 }
-  FSRS:          { url: https://github.com/open-spaced-repetition/swift-fsrs, from: 5.0.0 }
+  FSRS:          { url: https://github.com/open-spaced-repetition/swift-fsrs, revision: 4fbaf20184d62f82a9f44f343337c61a2c5483e9 }  # main, not a release: FSRS-6 is public only there (ADR-0006)
   GoogleSignIn:  { url: https://github.com/google/GoogleSignIn-iOS,          from: 10.1.0 }
 targets:
   StudyReader:
@@ -506,7 +506,7 @@ _{Author} · {Category}_
 ## 10. Review engine
 
 ### 10.1 Scheduling (`ReviewScheduler`, pure struct)
-Amended 2026-10-29 by ADR-0021: swift-fsrs 5.0.0 has no `FSRSDefaults.defaultWv6`, and the rest of the app never sees FSRS types. Exact signatures: `docs/tasks/phase-2/T97-fsrs-scheduler-wrapper.md`.
+Amended 2026-10-29 by ADR-0021 and ADR-0006: swift-fsrs is pinned to main @ `4fbaf20` (FSRS-6 public, `FSRSDefaults.defaultWv6` available), and the rest of the app never sees FSRS types. Exact signatures: `docs/tasks/phase-2/T97-fsrs-scheduler-wrapper.md`.
 ```swift
 struct ReviewScheduler: Sendable {
   var weights: [Double]        // the library's default FSRS-6 weights (21)
@@ -518,7 +518,7 @@ struct ReviewScheduler: Sendable {
 - Only this file imports FSRS. It maps `StoredFSRSCard` (our JSON in `reviewCard.fsrsCard`) to `FSRS.Card` and back, builds `FSRS(parameters:)` with `requestRetention: retention`, the weights, `enableFuzz`, `enableShortTerm: false`, and calls `next(card:now:grade:)`.
 - Suspension rule (`FrequencyPolicy.suspendedReason`, applied by `ReviewSuspension.recompute`), `introducedAt` at the first rating, cloze text stored in `answer`: ADR-0021. Session limits, review day, keys: ADR-0022.
 - `FrequencyPolicy.retention(card:category:)`: card override > category; low 0.80, normal 0.90, high 0.95; off → suspended (never scheduled).
-- New cards: `FSRS.Card(due: now)` (public initializer; `FSRSDefaults.createEmptyCard` is internal) with `dueAt = now`.
+- New cards: `FSRS.Card(due: now)` (public initializer) with `dueAt = now`.
 - `Rating` cases in swift-fsrs: `.manual` (never used), `.again`, `.hard`, `.good`, `.easy`. Two-button mode maps Forgot → `.again`, Remembered → `.good`.
 
 ### 10.2 Session builders (pure, take `Now`)

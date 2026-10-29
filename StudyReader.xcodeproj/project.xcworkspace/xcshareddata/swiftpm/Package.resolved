@@ -87,8 +87,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/open-spaced-repetition/swift-fsrs",
       "state" : {
-        "revision" : "129e4dc4e99625ee2dd2ee627fab866f2993e3d7",
-        "version" : "5.0.0"
+        "revision" : "4fbaf20184d62f82a9f44f343337c61a2c5483e9"
       }
     },
     {
