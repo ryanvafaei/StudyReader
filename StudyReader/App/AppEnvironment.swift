@@ -109,6 +109,11 @@ struct AppEnvironment: Sendable {
             await extractionService.enqueue(documentId: id)
         }
         Log.files.info("Re-queued \(ids.count, privacy: .public) extractions at launch")
+        let backfilled = (try? await maintenance.backfillPassiveCardsOnce(
+            cards: reviewCardRepository,
+            settings: settingsStore
+        )) ?? 0
+        Log.files.info("Backfilled \(backfilled, privacy: .public) passive review cards at launch")
         await googleSignIn?.restorePreviousSignIn()
         if runsExportSync {
             await exportSyncScheduler.start()

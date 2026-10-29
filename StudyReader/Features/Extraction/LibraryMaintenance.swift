@@ -25,6 +25,18 @@ struct LibraryMaintenance: Sendable {
         return orphans
     }
 
+    /// Runs the passive-card backfill once per Mac (T129, ADR-0021). Does nothing when `settings.passiveCardBackfillDone`
+    /// is set. Otherwise backfills with a passive card due at each highlight's creation (oldest first among new cards),
+    /// then sets the flag. On error the flag stays false, so the next launch retries. Returns the number inserted.
+    func backfillPassiveCardsOnce(cards: ReviewCardRepository, settings: SettingsStore) async throws -> Int {
+        guard !settings.passiveCardBackfillDone else { return 0 }
+        let inserted = try await cards.backfillPassiveCards { highlight in
+            try ReviewCardFactory.passive(highlightId: highlight.id, now: highlight.createdAt)
+        }
+        settings.passiveCardBackfillDone = true
+        return inserted
+    }
+
     /// Ids with `extractionStatus` 'pending', or 'done' with `extractionVersion` below the current version for their
     /// type. Failed documents are not retried. Sorted by id.
     func documentIdsNeedingExtraction() async throws -> [String] {

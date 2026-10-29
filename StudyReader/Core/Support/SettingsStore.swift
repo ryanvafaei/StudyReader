@@ -47,6 +47,7 @@ struct SettingsStore: Sendable {
         static let googleAppFolderIds = "settings.googleAppFolderIds"
         static let libraryLayout = "settings.libraryLayout"
         static let librarySort = "settings.librarySort"
+        static let passiveCardBackfillDone = "settings.passiveCardBackfillDone"
 
         static func colorLabel(_ color: HighlightColor) -> String {
             "settings.colorLabel.\(color.rawValue)"
@@ -96,6 +97,12 @@ struct SettingsStore: Sendable {
     var librarySort: LibrarySort {
         get { defaults.string(forKey: Key.librarySort).flatMap(LibrarySort.init(rawValue:)) ?? .dateAdded }
         nonmutating set { defaults.set(newValue.rawValue, forKey: Key.librarySort) }
+    }
+
+    /// true once `LibraryMaintenance.backfillPassiveCardsOnce` has run on this Mac (T129, ADR-0015).
+    var passiveCardBackfillDone: Bool {
+        get { defaults.object(forKey: Key.passiveCardBackfillDone) as? Bool ?? false }
+        nonmutating set { defaults.set(newValue, forKey: Key.passiveCardBackfillDone) }
     }
 
     func colorLabel(for color: HighlightColor) -> String {

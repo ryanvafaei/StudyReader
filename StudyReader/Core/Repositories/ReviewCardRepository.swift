@@ -67,6 +67,27 @@ struct ReviewCardRepository: Sendable {
         }
     }
 
+    /// One-time backfill for highlights made before cards existed (T129, ADR-0021). One transaction. For every
+    /// highlight with no review card (any type), in createdAt then id order, builds a card with `makeCard` and inserts
+    /// it through `insertAutomaticPassiveCard` (category rule and suspension included). Returns the number inserted.
+    @discardableResult
+    func backfillPassiveCards(_ makeCard: @Sendable (Highlight) throws -> ReviewCard) async throws -> Int {
+        try await writer.write { db -> Int in
+            let highlights = try Highlight.fetchAll(db, sql: """
+                SELECT * FROM highlight
+                WHERE id NOT IN (SELECT highlightId FROM reviewCard)
+                ORDER BY createdAt, id
+                """)
+            var inserted = 0
+            for highlight in highlights {
+                if try Self.insertAutomaticPassiveCard(makeCard(highlight), db) {
+                    inserted += 1
+                }
+            }
+            return inserted
+        }
+    }
+
     /// For use INSIDE another repository's write (HighlightRepository.insert, T100). Inserts `card` only when
     /// `FrequencyPolicy.createsCardAutomatically(frequency:autoCreateCards:)` is true for the category of the card's
     /// highlight (highlight → document → category) and the highlight has no review card yet; then recomputes that
