@@ -23,6 +23,31 @@ final class AppSettings {
         didSet { store.invertPDFInDarkMode = invertPDFInDarkMode }
     }
 
+    var reviewDailyLimit: Int {
+        didSet { store.reviewDailyLimit = reviewDailyLimit }
+    }
+
+    var reviewNewPerDay: Int {
+        didSet { store.reviewNewPerDay = reviewNewPerDay }
+    }
+
+    var showFourRatingButtons: Bool {
+        didSet { store.showFourRatingButtons = showFourRatingButtons }
+    }
+
+    var reviewReminderEnabled: Bool {
+        didSet { store.reviewReminderEnabled = reviewReminderEnabled }
+    }
+
+    /// Minutes after local midnight.
+    var reviewReminderMinutes: Int {
+        didSet { store.reviewReminderMinutes = reviewReminderMinutes }
+    }
+
+    var dailyLimits: DailyLimits {
+        DailyLimits(dailyLimit: reviewDailyLimit, newPerDay: reviewNewPerDay)
+    }
+
     /// Index = `HighlightColor.rawValue` (5 entries).
     private(set) var colorLabels: [String]
 
@@ -32,6 +57,11 @@ final class AppSettings {
         self.autoHighlight = store.autoHighlight
         self.currentColor = store.currentColor
         self.invertPDFInDarkMode = store.invertPDFInDarkMode
+        self.reviewDailyLimit = store.reviewDailyLimit
+        self.reviewNewPerDay = store.reviewNewPerDay
+        self.showFourRatingButtons = store.showFourRatingButtons
+        self.reviewReminderEnabled = store.reviewReminderEnabled
+        self.reviewReminderMinutes = store.reviewReminderMinutes
         self.colorLabels = HighlightColor.allCases.map { store.colorLabel(for: $0) }
     }
 

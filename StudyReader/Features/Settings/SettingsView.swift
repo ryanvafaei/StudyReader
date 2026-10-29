@@ -15,7 +15,7 @@ struct SettingsRootView: View {
     }
 }
 
-/// Settings window (⌘,). Phase 1 tabs: General, Reading, Data, Google. Review comes later (F-22).
+/// Settings window (⌘,). Tabs: General, Reading, Review, Data, Google.
 struct SettingsView: View {
     static let width: CGFloat = 520
 
@@ -27,6 +27,8 @@ struct SettingsView: View {
                 .tabItem { Label("General", systemImage: "gearshape") }
             ReadingSettingsView(settings: session.settings)
                 .tabItem { Label("Reading", systemImage: "book") }
+            ReviewSettingsView(settings: session.settings, categories: session.environment.categoryRepository)
+                .tabItem { Label("Review", systemImage: "rectangle.stack") }
             DataSettingsView(rootURL: session.environment.fileStore.rootURL)
                 .tabItem { Label("Data", systemImage: "externaldrive") }
             GoogleSettingsView(session: session)

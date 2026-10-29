@@ -16,6 +16,37 @@ import Testing
         #expect(store.librarySort == .dateAdded)
     }
 
+    @Test func reviewDefaultsAndClamping() {
+        let store = TestSettings.make()
+        defer { TestSettings.remove(store) }
+
+        #expect(store.reviewDailyLimit == 15)
+        #expect(store.reviewNewPerDay == 5)
+        #expect(store.showFourRatingButtons == false)
+        #expect(store.reviewReminderEnabled == false)
+        #expect(store.reviewReminderMinutes == 540)
+
+        store.reviewDailyLimit = 0
+        #expect(store.reviewDailyLimit == 1)
+        store.reviewDailyLimit = 900
+        #expect(store.reviewDailyLimit == 500)
+        store.reviewNewPerDay = -1
+        #expect(store.reviewNewPerDay == 0)
+        store.reviewNewPerDay = 101
+        #expect(store.reviewNewPerDay == 100)
+        store.reviewReminderMinutes = -5
+        #expect(store.reviewReminderMinutes == 0)
+        store.reviewReminderMinutes = 2000
+        #expect(store.reviewReminderMinutes == 1439)
+
+        store.defaults.set(9999, forKey: "settings.reviewDailyLimit")
+        store.defaults.set(-3, forKey: "settings.reviewNewPerDay")
+        store.defaults.set(5000, forKey: "settings.reviewReminderMinutes")
+        #expect(store.reviewDailyLimit == 500)
+        #expect(store.reviewNewPerDay == 0)
+        #expect(store.reviewReminderMinutes == 1439)
+    }
+
     @Test func roundTrips() throws {
         let store = TestSettings.make()
         defer { TestSettings.remove(store) }

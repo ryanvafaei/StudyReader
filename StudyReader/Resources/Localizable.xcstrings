@@ -144,6 +144,21 @@
     "Cover" : {
 
     },
+    "Create cards automatically" : {
+
+    },
+    "Create cards automatically for %@" : {
+
+    },
+    "Daily limit" : {
+
+    },
+    "Daily limit: %lld" : {
+
+    },
+    "Daily review" : {
+
+    },
     "Data" : {
 
     },
@@ -220,6 +235,9 @@
     "Fit Width" : {
 
     },
+    "Frequency for %@" : {
+
+    },
     "General" : {
 
     },
@@ -233,6 +251,9 @@
 
     },
     "Has Highlights" : {
+
+    },
+    "High" : {
 
     },
     "Highlight automatically when I select text" : {
@@ -346,6 +367,9 @@
     "List" : {
 
     },
+    "Low" : {
+
+    },
     "Markdown" : {
 
     },
@@ -371,6 +395,12 @@
     "Never opened" : {
 
     },
+    "New cards per day" : {
+
+    },
+    "New cards per day: %lld" : {
+
+    },
     "New Category" : {
 
     },
@@ -392,7 +422,16 @@
     "No tags yet" : {
 
     },
+    "Normal" : {
+
+    },
     "Notes" : {
+
+    },
+    "Off" : {
+
+    },
+    "Off suspends the category's cards. Cards for new highlights are created only when this is on and the frequency isn't Off." : {
 
     },
     "OK" : {
@@ -452,6 +491,15 @@
     "Redo" : {
 
     },
+    "Remind me to review" : {
+
+    },
+    "Reminder" : {
+
+    },
+    "Reminder time" : {
+
+    },
     "Remove tag %@" : {
 
     },
@@ -504,6 +552,12 @@
 
     },
     "Show as grid or list" : {
+
+    },
+    "Show four rating buttons" : {
+
+    },
+    "Show four rating buttons (Again, Hard, Good, Easy)" : {
 
     },
     "Show or hide the Highlights and Notes panel" : {
@@ -566,6 +620,9 @@
     "The categories couldn't be updated. Try again." : {
 
     },
+    "The category couldn't be changed." : {
+
+    },
     "The document couldn't be opened." : {
 
     },
@@ -612,6 +669,9 @@
 
     },
     "This section isn't built yet." : {
+
+    },
+    "Time" : {
 
     },
     "Title" : {

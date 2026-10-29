@@ -48,6 +48,11 @@ struct SettingsStore: Sendable {
         static let libraryLayout = "settings.libraryLayout"
         static let librarySort = "settings.librarySort"
         static let passiveCardBackfillDone = "settings.passiveCardBackfillDone"
+        static let reviewDailyLimit = "settings.reviewDailyLimit"
+        static let reviewNewPerDay = "settings.reviewNewPerDay"
+        static let showFourRatingButtons = "settings.showFourRatingButtons"
+        static let reviewReminderEnabled = "settings.reviewReminderEnabled"
+        static let reviewReminderMinutes = "settings.reviewReminderMinutes"
 
         static func colorLabel(_ color: HighlightColor) -> String {
             "settings.colorLabel.\(color.rawValue)"
@@ -105,6 +110,44 @@ struct SettingsStore: Sendable {
         nonmutating set { defaults.set(newValue, forKey: Key.passiveCardBackfillDone) }
     }
 
+    static let reviewDailyLimitRange = 1...500
+    static let reviewNewPerDayRange = 0...100
+    private static let reviewReminderMinutesRange = 0...1439
+
+    /// Cards per daily review (F-15). Clamped to `reviewDailyLimitRange`.
+    var reviewDailyLimit: Int {
+        get { clampedInt(Key.reviewDailyLimit, default: 15, range: Self.reviewDailyLimitRange) }
+        nonmutating set { defaults.set(newValue.clamped(to: Self.reviewDailyLimitRange), forKey: Key.reviewDailyLimit) }
+    }
+
+    /// New cards introduced per review day (ADR-0022). Clamped to `reviewNewPerDayRange`.
+    var reviewNewPerDay: Int {
+        get { clampedInt(Key.reviewNewPerDay, default: 5, range: Self.reviewNewPerDayRange) }
+        nonmutating set { defaults.set(newValue.clamped(to: Self.reviewNewPerDayRange), forKey: Key.reviewNewPerDay) }
+    }
+
+    var showFourRatingButtons: Bool {
+        get { defaults.object(forKey: Key.showFourRatingButtons) as? Bool ?? false }
+        nonmutating set { defaults.set(newValue, forKey: Key.showFourRatingButtons) }
+    }
+
+    var reviewReminderEnabled: Bool {
+        get { defaults.object(forKey: Key.reviewReminderEnabled) as? Bool ?? false }
+        nonmutating set { defaults.set(newValue, forKey: Key.reviewReminderEnabled) }
+    }
+
+    /// Minutes after local midnight, 0...1439. Default 540 (09:00).
+    var reviewReminderMinutes: Int {
+        get { clampedInt(Key.reviewReminderMinutes, default: 540, range: Self.reviewReminderMinutesRange) }
+        nonmutating set {
+            defaults.set(newValue.clamped(to: Self.reviewReminderMinutesRange), forKey: Key.reviewReminderMinutes)
+        }
+    }
+
+    private func clampedInt(_ key: String, default fallback: Int, range: ClosedRange<Int>) -> Int {
+        (defaults.object(forKey: key) as? Int).map { $0.clamped(to: range) } ?? fallback
+    }
+
     func colorLabel(for color: HighlightColor) -> String {
         defaults.string(forKey: Key.colorLabel(color)) ?? Self.defaultColorLabel(for: color)
     }
@@ -127,6 +170,12 @@ struct SettingsStore: Sendable {
         case .pink: "Question"
         case .purple: "Don't understand"
         }
+    }
+}
+
+private extension Int {
+    func clamped(to range: ClosedRange<Int>) -> Int {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
 
