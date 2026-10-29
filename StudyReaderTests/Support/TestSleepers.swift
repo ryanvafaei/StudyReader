@@ -31,12 +31,12 @@ actor ManualSleeper: Sleeper {
         }
     }
 
-    /// Yields until `n` sleeps are suspended. Gives up after 10_000 yields with an issue.
-    func waitForSleepers(_ n: Int) async {
-        for _ in 0..<10_000 {
-            if pendingCount >= n { return }
-            await Task.yield()
-        }
-        Issue.record("Expected \(n) sleepers, have \(pendingCount)")
+    /// Polls up to 5 s (`TestWait`) until `n` sleeps are suspended; records an issue on timeout.
+    func waitForSleepers(_ n: Int, sourceLocation: SourceLocation = #_sourceLocation) async {
+        if await TestWait.until({ await self.pendingCount >= n }) { return }
+        Issue.record(
+            Comment(rawValue: "Timed out after 5 s waiting for \(n) sleepers; have \(pendingCount)"),
+            sourceLocation: sourceLocation
+        )
     }
 }

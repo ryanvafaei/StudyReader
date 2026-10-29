@@ -62,28 +62,28 @@ private actor RecordingExporter: ExportPerforming {
         }
     }
 
-    func waitForExports(_ n: Int) async {
-        for _ in 0..<10_000 {
-            if exported.count >= n { return }
-            await Task.yield()
-        }
-        Issue.record("Expected \(n) exports, have \(exported.count)")
+    func waitForExports(_ n: Int, sourceLocation: SourceLocation = #_sourceLocation) async {
+        if await TestWait.until({ await self.exported.count >= n }) { return }
+        Issue.record(
+            Comment(rawValue: "Timed out after 5 s waiting for \(n) exports; have \(exported.count): \(exported)"),
+            sourceLocation: sourceLocation
+        )
     }
 
-    func waitForHeld(_ n: Int) async {
-        for _ in 0..<10_000 {
-            if held.count >= n { return }
-            await Task.yield()
-        }
-        Issue.record("Expected \(n) held exports, have \(held.count)")
+    func waitForHeld(_ n: Int, sourceLocation: SourceLocation = #_sourceLocation) async {
+        if await TestWait.until({ await self.heldCount >= n }) { return }
+        Issue.record(
+            Comment(rawValue: "Timed out after 5 s waiting for \(n) held exports; have \(held.count)"),
+            sourceLocation: sourceLocation
+        )
     }
 
-    func waitForHashRequests(_ n: Int) async {
-        for _ in 0..<10_000 {
-            if hashRequests >= n { return }
-            await Task.yield()
-        }
-        Issue.record("Expected \(n) hash requests, have \(hashRequests)")
+    func waitForHashRequests(_ n: Int, sourceLocation: SourceLocation = #_sourceLocation) async {
+        if await TestWait.until({ await self.hashRequests >= n }) { return }
+        Issue.record(
+            Comment(rawValue: "Timed out after 5 s waiting for \(n) hash requests; have \(hashRequests)"),
+            sourceLocation: sourceLocation
+        )
     }
 }
 
@@ -122,13 +122,14 @@ struct ExportSyncSchedulerTests {
         }
 
         /// Starts the scheduler and waits until it has read the current database state, so later edits count.
-        func start() async {
+        func start(sourceLocation: SourceLocation = #_sourceLocation) async {
+            let scheduler = scheduler
             await scheduler.start()
-            for _ in 0..<10_000 {
-                if await scheduler.isWatchingChanges { return }
-                await Task.yield()
-            }
-            Issue.record("The scheduler never read the initial state")
+            if await TestWait.until({ await scheduler.isWatchingChanges }) { return }
+            Issue.record(
+                Comment(rawValue: "Timed out after 5 s: the scheduler never read the initial state"),
+                sourceLocation: sourceLocation
+            )
         }
 
         /// A highlight note of a new length: changes what an export reads.

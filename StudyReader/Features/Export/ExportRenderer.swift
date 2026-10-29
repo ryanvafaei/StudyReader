@@ -6,6 +6,7 @@ enum ExportRenderer {
     /// never two blank lines in a row. Documents are ordered by title, highlights by `positionKey`, whatever the
     /// order of `content`. Image highlights are dropped when `options.includeImages` is false.
     /// Notes go through `ExportMarkdownSafety.note` (ADR-0007 amendment).
+    /// Titles, authors and the scope name go through `ExportMarkdownSafety.plainText` (ADR-0007 amendment 2026-10-29).
     static func render(
         _ content: ExportContent,
         options: ExportOptions,
@@ -17,7 +18,7 @@ enum ExportRenderer {
         let highlightCount = documents.reduce(0) { $0 + $1.highlights.count }
 
         var blocks: [[String]] = [
-            ["# StudyReader – \(content.scopeName)"],
+            ["# StudyReader – \(ExportMarkdownSafety.plainText(content.scopeName))"],
             [
                 "_Exported \(timestamp(generatedAt, timeZone: timeZone)) · "
                     + "\(count(highlightCount, "highlight")) from \(count(documents.count, "document"))_"
@@ -56,8 +57,8 @@ enum ExportRenderer {
             let note = options.includeDocumentNotes ? document.documentNote : nil
             guard !highlights.isEmpty || note != nil else { return nil }
             return Prepared(
-                title: document.title,
-                author: document.author,
+                title: ExportMarkdownSafety.plainText(document.title),
+                author: ExportMarkdownSafety.plainText(document.author),
                 categoryName: document.categoryName,
                 note: note,
                 highlights: highlights
@@ -225,10 +226,12 @@ enum ExportRenderer {
 }
 
 /// Makes user text safe for the exported Markdown (T58 review, BACKLOG B11; ADR-0007 amendment 2026-10-28, T87).
-/// Two entry points: `neutralise` for highlight text (escapes everything that Google Docs conversion would parse as
-/// block structure or HTML; `RichTextMarkdown.escape` already escapes the inline characters, this adds the rest) and
-/// `note` for notes (keeps inline Markdown and lists, rewrites headings, escapes a line-start `#tag`, `<`, `|`, `~`).
-/// Both run inside the renderer only, so `ExportHighlight.body` and `.note` keep the contract of ARCHITECTURE §9.1.
+/// Three entry points: `neutralise` for highlight text (escapes everything that Google Docs conversion would parse as
+/// block structure or HTML; `RichTextMarkdown.escape` already escapes the inline characters, this adds the rest),
+/// `note` for notes (keeps inline Markdown and lists, rewrites headings, escapes a line-start `#tag`, `<`, `|`, `~`,
+/// closes an open code fence and escapes `=`/`-` underline lines) and `plainText` for plain one-line text: document
+/// titles, authors and the scope name (ADR-0007 amendment 2026-10-29, W1).
+/// All run inside the renderer only, so `ExportHighlight.body` and `.note` keep the contract of ARCHITECTURE §9.1.
 enum ExportMarkdownSafety {
     /// How note headings are rewritten.
     enum NoteHeadings: Sendable {
@@ -242,12 +245,20 @@ enum ExportMarkdownSafety {
     /// links and code; rewrites headings; escapes a line-start `#` that isn't a heading; escapes `<`, `|`, `~`.
     /// Lines that start inside a code span, or whose indentation holds a tab or 4+ spaces, get no heading or `#`
     /// rule (CommonMark reads them as code or list continuation); the inline escapes still apply outside code spans.
+    /// A backtick code fence still open at the end of the note gets a closing fence of the opener's length, so it can't
+    /// swallow the rest of the export (in `.bold` mode the first line follows `- Note: ` and never opens a fence;
+    /// tilde fences need nothing, `~` is escaped). A line made only of `=` or only of `-` (up to 3 leading spaces,
+    /// trailing spaces or tabs allowed) gets a backslash, so it is no setext underline and no rule. Not covered, left
+    /// as written: spaced or mixed runs (`- - -`, `-- -`, `= =`, `-=`) and thematic breaks of `*` or `_` (`***`,
+    /// `* * *`, `___`); they render as a horizontal rule, never as a heading.
     static func note(_ markdown: String, headings: NoteHeadings) -> String {
-        let characters = Array(
-            markdown
+        let normalised = closingOpenFence(
+            in: markdown
                 .replacingOccurrences(of: "\r\n", with: "\n")
-                .replacingOccurrences(of: "\r", with: "\n")
+                .replacingOccurrences(of: "\r", with: "\n"),
+            headings: headings
         )
+        let characters = Array(normalised)
         var output = ""
         output.reserveCapacity(characters.count)
         var index = 0
@@ -260,6 +271,41 @@ enum ExportMarkdownSafety {
             }
         }
         return output
+    }
+
+    /// `text` with a closing backtick fence appended when a fence opened at the top level is still open at its end.
+    /// CommonMark rules: a fence line is indented by fewer than 4 spaces and no tab; an opener is a run of 3 or more
+    /// backticks with no backtick in the rest of the line; a closer is a run at least as long as the opener's, followed
+    /// only by spaces and tabs. Lines inside a block are not checked for openers.
+    private static func closingOpenFence(in text: String, headings: NoteHeadings) -> String {
+        var openLength: Int?
+        for (number, line) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+            let characters = Array(line)
+            var indentEnd = 0
+            while indentEnd < characters.count, characters[indentEnd] == " " || characters[indentEnd] == "\t" {
+                indentEnd += 1
+            }
+            let indent = characters[0..<indentEnd]
+            guard !indent.contains("\t"), indent.count < 4 else { continue }
+            let run = runLength(of: "`", in: characters, at: indentEnd)
+            guard run >= 3 else { continue }
+            let rest = characters[(indentEnd + run)...]
+            if let length = openLength {
+                if run >= length, rest.allSatisfy({ $0 == " " || $0 == "\t" }) { openLength = nil }
+            } else if !(headings == .bold && number == 0), !rest.contains("`") {
+                openLength = run
+            }
+        }
+        guard let length = openLength else { return text }
+        return text + "\n" + String(repeating: "`", count: length)
+    }
+
+    /// The end of the line at `start` when it holds only `=` or only `-` characters, followed by spaces and tabs.
+    private static func underlineEnd(in characters: [Character], from start: Int) -> Int? {
+        guard start < characters.count, characters[start] == "=" || characters[start] == "-" else { return nil }
+        var end = start + runLength(of: characters[start], in: characters, at: start)
+        while end < characters.count, characters[end] == " " || characters[end] == "\t" { end += 1 }
+        return end == characters.count || characters[end] == "\n" ? end : nil
     }
 
     /// Writes the line that starts at `start` (everything up to a line break outside a code span) and returns the
@@ -276,6 +322,11 @@ enum ExportMarkdownSafety {
         }
         let indent = String(characters[start..<indentEnd])
         let isCodeIndent = indent.contains("\t") || indent.count >= 4
+
+        if !isCodeIndent, let lineEnd = underlineEnd(in: characters, from: indentEnd) {
+            output += indent + "\\" + String(characters[indentEnd..<lineEnd])
+            return lineEnd
+        }
 
         guard !isCodeIndent, indentEnd < characters.count, characters[indentEnd] == "#" else {
             output += indent
@@ -435,6 +486,35 @@ enum ExportMarkdownSafety {
             }
         }
         return output
+    }
+
+    /// Plain text (a document title, an author, the scope name) made safe as inline text on one line of the export
+    /// (ADR-0007 amendment 2026-10-29, W1). Line breaks collapse to one space; the text is then escaped like highlight
+    /// text (`RichTextMarkdown.escape`, then `neutralise`), and a trailing `#` run after a space is escaped.
+    static func plainText(_ plain: String) -> String {
+        func isBlank(_ character: Character) -> Bool { character == " " || character == "\t" }
+        var pieces: [String] = []
+        var current: [Character] = []
+        func finishPiece() {
+            var piece = current[...]
+            while let first = piece.first, isBlank(first) { piece.removeFirst() }
+            while let last = piece.last, isBlank(last) { piece.removeLast() }
+            if !piece.isEmpty { pieces.append(String(piece)) }
+            current = []
+        }
+        for character in plain {
+            if character.isNewline { finishPiece() } else { current.append(character) }
+        }
+        finishPiece()
+
+        var result = neutralise(RichTextMarkdown.escape(pieces.joined(separator: " ")))
+        let characters = Array(result)
+        var hashStart = characters.count
+        while hashStart > 0, characters[hashStart - 1] == "#" { hashStart -= 1 }
+        if hashStart < characters.count, hashStart > 0, isBlank(characters[hashStart - 1]) {
+            result = String(characters[..<hashStart]) + "\\" + String(characters[hashStart...])
+        }
+        return result
     }
 
     /// Index of the `.` or `)` when 1 to 9 ASCII digits start at `start` and one of them follows.

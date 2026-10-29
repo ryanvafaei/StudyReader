@@ -74,6 +74,41 @@ struct ExportRendererTests {
         ])
     }
 
+    /// The content of the title golden files (W1).
+    static func titlesContent() -> ExportContent {
+        ExportContent(scopeName: "Titles", documents: [
+            ExportDocument(
+                id: "d1", title: "Alpha #1 *b* _i_ [x] <y> a|b ~s~ `c` C:\\",
+                author: "Smith_J *et al.* \\", categoryName: "Paper", documentNote: "Note one.",
+                highlights: [highlight("h1", color: .yellow, page: 0, body: "Body one.", tags: ["exam"], position: 1)]
+            ),
+            ExportDocument(
+                id: "d2", title: "Beta\nSecond line\r\n# Not a heading",
+                author: "Line\nBreak", categoryName: "Paper", documentNote: "Note two.",
+                highlights: [highlight("h2", color: .yellow, page: 1, body: "Body two.", tags: ["exam"], position: 1)]
+            ),
+            ExportDocument(
+                id: "d3", title: "# Overview #",
+                author: "", categoryName: "Paper", documentNote: "Note three.",
+                highlights: [highlight("h3", color: .yellow, page: 2, body: "Body three.", position: 1)]
+            ),
+        ])
+    }
+
+    /// The content of the note-block golden files (W1).
+    static func noteBlocksContent() -> ExportContent {
+        ExportContent(scopeName: "Blocks", documents: [
+            ExportDocument(
+                id: "d1", title: "Blocks Doc", author: "", categoryName: "Paper",
+                documentNote: "Summary\n---\nTotal\n===\n```swift\nlet x = 1\n# not a heading",
+                highlights: [
+                    highlight("h1", color: .yellow, page: 0, body: "Plain body.",
+                              note: "Why\n-\nBecause\n```\ncode", tags: ["exam"], position: 1),
+                ]
+            ),
+        ])
+    }
+
     static func render(_ content: ExportContent, _ options: ExportOptions = ExportOptions()) -> String {
         ExportRenderer.render(content, options: options, colorLabels: labels, generatedAt: generatedAt, timeZone: utc)
     }
@@ -294,6 +329,122 @@ struct ExportRendererTests {
         #expect(!lines.contains { $0.hasPrefix("- b") })
         #expect(lines.contains("`` `a - b` ``"))
         #expect(ExportMarkdownSafety.neutralise("`x\ny`") == "`x y`")
+    }
+
+    /// SPEC F-21, ADR-0007 amendment 2026-10-29
+    @Test(.timeLimit(.minutes(1)))
+    func titlesByDocument() throws {
+        #expect(Self.render(Self.titlesContent()) == (try ExportGoldens.string("titles-by-document")))
+    }
+
+    /// SPEC F-21, ADR-0007 amendment 2026-10-29
+    @Test(.timeLimit(.minutes(1)))
+    func titlesByTag() throws {
+        let output = Self.render(Self.titlesContent(), ExportOptions(groupBy: .tag))
+        #expect(output == (try ExportGoldens.string("titles-by-tag")))
+    }
+
+    /// SPEC F-09 AC4, ADR-0007 amendment 2026-10-29
+    @Test(.timeLimit(.minutes(1)))
+    func noteBlocksByDocument() throws {
+        #expect(Self.render(Self.noteBlocksContent()) == (try ExportGoldens.string("note-blocks-by-document")))
+    }
+
+    /// SPEC F-09 AC4, ADR-0007 amendment 2026-10-29
+    @Test(.timeLimit(.minutes(1)))
+    func noteBlocksByTag() throws {
+        let output = Self.render(Self.noteBlocksContent(), ExportOptions(groupBy: .tag))
+        #expect(output == (try ExportGoldens.string("note-blocks-by-tag")))
+    }
+
+    /// SPEC F-21, ADR-0007 amendment 2026-10-29
+    @Test(.timeLimit(.minutes(1)))
+    func plainTextRules() {
+        func plain(_ text: String) -> String { ExportMarkdownSafety.plainText(text) }
+        #expect(plain("Lecture 3: Gradient Descent") == "Lecture 3: Gradient Descent")
+        #expect(plain("Alpha #1 *b* _i_ [x] <y> a|b ~s~ `c` C:\\")
+            == "Alpha #1 \\*b\\* \\_i\\_ \\[x\\] \\<y> a\\|b \\~s\\~ \\`c\\` C:\\\\")
+        #expect(plain("Smith_J *et al.* \\") == "Smith\\_J \\*et al.\\* \\\\")
+        // Looks like a heading, list, quote or underline
+        #expect(plain("# Overview #") == "\\# Overview \\#")
+        #expect(plain("## Intro") == "\\## Intro")
+        #expect(plain("- Draft") == "\\- Draft")
+        #expect(plain("+ Plus") == "\\+ Plus")
+        #expect(plain("> Quote") == "\\> Quote")
+        #expect(plain("1. Introduction") == "1\\. Introduction")
+        #expect(plain("2) Methods") == "2\\) Methods")
+        #expect(plain("===") == "\\===")
+        // A trailing # run after a space would be read as a closing sequence
+        #expect(plain("Notes ##") == "Notes \\##")
+        #expect(plain("C# and F#") == "C# and F#")
+        // Line breaks collapse to one space; ends trimmed
+        #expect(plain("Beta\nSecond line\r\n# Not a heading") == "Beta Second line # Not a heading")
+        #expect(plain("A\r\n\r\n  B \n") == "A B")
+        #expect(plain("A\u{2028}B\u{85}C") == "A B C")
+        #expect(plain("  Padded\t") == "Padded")
+        // Other escapes from neutralise
+        #expect(plain("AT&T") == "AT\\&T")
+        #expect(plain("") == "")
+    }
+
+    /// SPEC F-09 AC4, ADR-0007 amendment 2026-10-29
+    @Test(.timeLimit(.minutes(1)))
+    func noteFenceRules() {
+        func note(_ text: String, _ headings: ExportMarkdownSafety.NoteHeadings) -> String {
+            ExportMarkdownSafety.note(text, headings: headings)
+        }
+        // An unclosed backtick fence is closed with a fence of the opener's length
+        #expect(note("```\ncode", .demoted) == "```\ncode\n```")
+        #expect(note("```swift\nlet a = 1", .demoted) == "```swift\nlet a = 1\n```")
+        #expect(note("`````\nx", .demoted) == "`````\nx\n`````")
+        #expect(note("  ```\ncode", .demoted) == "  ```\ncode\n```")
+        // Inside the closed block nothing is rewritten
+        #expect(note("```\n# Plan\n#todo a<b", .demoted) == "```\n# Plan\n#todo a<b\n```")
+        // Already closed: unchanged; text after a closed block keeps the T87 rules
+        #expect(note("```\ncode\n```", .demoted) == "```\ncode\n```")
+        #expect(note("```\ncode\n```\n# After", .demoted) == "```\ncode\n```\n#### After")
+        #expect(note("```\ncode\n````", .demoted) == "```\ncode\n````")
+        // Four backticks are not closed by three
+        #expect(note("````\ncode\n```", .demoted) == "````\ncode\n```\n````")
+        // A closing line holds only backticks and spaces
+        #expect(note("```\na ``` b", .demoted) == "```\na ``` b\n```")
+        // Not fences: tildes (escaped by the T87 rule), 4-space or tab indent, two backticks, a backtick in the info string
+        #expect(note("~~~\ncode", .demoted) == "\\~\\~\\~\ncode")
+        #expect(note("    ```\ncode", .demoted) == "    ```\ncode")
+        #expect(note("\t```\ncode", .demoted) == "\t```\ncode")
+        #expect(note("``\ncode", .demoted) == "``\ncode")
+        #expect(note("```a`b\ncode", .demoted) == "```a`b\ncode")
+        // Highlight notes: the first line follows "- Note: ", so it never opens a fence
+        #expect(note("```\ncode", .bold) == "```\ncode")
+        #expect(note("Why\n```\ncode", .bold) == "Why\n```\ncode\n```")
+    }
+
+    /// SPEC F-09 AC4, ADR-0007 amendment 2026-10-29
+    @Test(.timeLimit(.minutes(1)))
+    func noteUnderlineRules() {
+        func note(_ text: String, _ headings: ExportMarkdownSafety.NoteHeadings) -> String {
+            ExportMarkdownSafety.note(text, headings: headings)
+        }
+        #expect(note("---", .demoted) == "\\---")
+        #expect(note("===", .demoted) == "\\===")
+        #expect(note("-", .demoted) == "\\-")
+        #expect(note("=", .bold) == "\\=")
+        #expect(note("A\n---", .demoted) == "A\n\\---")
+        #expect(note("A\n===", .bold) == "A\n\\===")
+        #expect(note("A\n===  ", .demoted) == "A\n\\===  ")
+        #expect(note("A\n----\t", .demoted) == "A\n\\----\t")
+        #expect(note("   --", .demoted) == "   \\--")
+        // Not covered or not an underline: left as written
+        #expect(note("    ---", .demoted) == "    ---")
+        #expect(note("- item", .demoted) == "- item")
+        #expect(note("-=", .demoted) == "-=")
+        #expect(note("= =", .demoted) == "= =")
+        #expect(note("- - -", .demoted) == "- - -")
+        #expect(note("-- -", .demoted) == "-- -")
+        #expect(note("***", .demoted) == "***")
+        #expect(note("* * *", .demoted) == "* * *")
+        #expect(note("___", .demoted) == "___")
+        #expect(note("```\n---\n===\n```", .demoted) == "```\n---\n===\n```")
     }
 
     @Test(.timeLimit(.minutes(1)))

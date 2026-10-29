@@ -445,3 +445,4 @@ Users of the changed helpers (from Grep), so the reviewer can check none is weak
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+2026-10-29, implementer integrations Sonnet high (no reworks), reviewer code-reviewer Sonnet medium: APPROVED, CI green (run 40844834941, 751 tests; successResetsFailureRetries passes, the flaky waits now use TestWait.until); no behavioural deviations; the six existing goldens are unchanged, four new goldens; also replaced waitForHashRequests, Harness.start() and ManualSleeper.waitForSleepers (same 10,000-yield pattern); follow-ups in BACKLOG: fence-in-list-item closer at column 0 (spec hole), closer longer than opener, other yield-count waits
