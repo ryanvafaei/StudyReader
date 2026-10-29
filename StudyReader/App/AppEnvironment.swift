@@ -63,9 +63,11 @@ struct AppEnvironment: Sendable {
         self.documentRepository = DocumentRepository(database: database)
         self.highlightRepository = HighlightRepository(database: database)
         self.reviewCardRepository = ReviewCardRepository(database: database)
+        self.themedReviewRepository = ThemedReviewRepository(database: database)
         self.reviewService = ReviewService(
             cards: self.reviewCardRepository,
             highlights: self.highlightRepository,
+            themedReviews: self.themedReviewRepository,
             now: now
         )
         self.masteryService = MasteryService(
@@ -77,7 +79,6 @@ struct AppEnvironment: Sendable {
         self.notesRepository = NotesRepository(database: database)
         let exportRepository = ExportRepository(database: database)
         self.exportRepository = exportRepository
-        self.themedReviewRepository = ThemedReviewRepository(database: database)
         let googleExportService = GoogleExportService(
             auth: googleAuth,
             http: httpClient,

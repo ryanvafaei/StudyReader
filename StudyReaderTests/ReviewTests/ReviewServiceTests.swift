@@ -17,13 +17,18 @@ enum ReviewTestFixture {
         calendar.startOfDay(for: TestData.referenceDate)
     }
 
+    /// A fixed seed for themed sessions, so their order is repeatable.
+    static let makeSeed: @Sendable () -> UInt64 = { 42 }
+
     static func service(_ env: AppEnvironment, clock: FixedNow) -> ReviewService {
         ReviewService(
             cards: env.reviewCardRepository,
             highlights: env.highlightRepository,
+            themedReviews: env.themedReviewRepository,
             now: clock,
             calendar: calendar,
-            scheduler: ReviewScheduler(enableFuzz: false)
+            scheduler: ReviewScheduler(enableFuzz: false),
+            makeSeed: makeSeed
         )
     }
 

@@ -10,6 +10,8 @@ final class ReviewBadgeModel {
     private let calendar: Calendar
 
     private(set) var dailyDueCount = 0
+    /// How many themed reviews are due today (SPEC F-20 AC2, ADR-0022). Shown on the Themed Reviews sidebar item.
+    private(set) var themedDueCount = 0
 
     init(environment: AppEnvironment, settings: AppSettings, calendar: Calendar = .current) {
         self.environment = environment
@@ -27,6 +29,22 @@ final class ReviewBadgeModel {
             }
         } catch {
             Log.app.error("Review badge observation failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Streams the themed reviews and sets `themedDueCount` to how many are due now (ThemedReviewSchedule).
+    /// Returns when the task is cancelled or the observation fails.
+    func observeThemed() async {
+        do {
+            let observation = environment.themedReviewRepository.observeAll()
+            for try await reviews in observation {
+                let now = environment.now()
+                themedDueCount = reviews.filter {
+                    ThemedReviewSchedule.isDue($0, now: now, calendar: calendar)
+                }.count
+            }
+        } catch {
+            Log.app.error("Themed review badge observation failed: \(String(describing: error), privacy: .public)")
         }
     }
 }

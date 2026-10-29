@@ -74,6 +74,8 @@ final class ReviewSessionModel {
     var showOriginal = false
     /// The last action error, cleared by the next success.
     private(set) var errorMessage: String?
+    /// The name of the themed review being run (nil in a daily session).
+    private(set) var themedReviewName: String?
 
     init(session: AppSession, context: ReviewSessionContext = .daily) {
         self.environment = session.environment
@@ -109,11 +111,12 @@ final class ReviewSessionModel {
         phase == .reviewing && current != nil && !isBusy
     }
 
-    /// Loads today's plan from the service (daily context). Does nothing while a session is running.
+    /// Loads today's plan from the service (daily context), or the plan of the themed review (themed context).
+    /// Does nothing while a session is running.
     func loadPlan() async {
         guard phase != .reviewing else { return }
-        if case .themed = context {
-            phase = .failed("Themed reviews aren't available yet.")
+        if case .themed(let reviewId) = context {
+            await loadThemedPlan(reviewId: reviewId)
             return
         }
         do {
@@ -167,12 +170,16 @@ final class ReviewSessionModel {
         } catch ReviewServiceError.cardMissing, ReviewServiceError.cardSuspended {
             errorMessage = nil
             dropFirst()
+            // Dropped without a rating: the queue can empty here, but that does not complete a themed review.
+            await finishIfEmpty(completingThemed: false)
+            return
         } catch {
             Log.app.error("Rating failed: \(String(describing: error), privacy: .public)")
             errorMessage = "The rating couldn't be saved."
             return
         }
-        await finishIfEmpty()
+        // The queue emptied through a rating: a themed review completes here (ADR-0022).
+        await finishIfEmpty(completingThemed: true)
     }
 
     /// SPEC F-18 Skip: the current card moves to the end. Nothing is written. A one-card queue stays as it is.
@@ -254,11 +261,12 @@ final class ReviewSessionModel {
         await finishIfEmpty()
     }
 
-    /// Back to idle. The view calls `loadPlan()` again to start over.
+    /// Back to idle. The view calls `loadPlan()` again to start over. Never completes a themed review (ADR-0022).
     func endSession() {
         phase = .idle
         queue = []
         plan = nil
+        themedReviewName = nil
         resetCounters()
     }
 
@@ -292,8 +300,47 @@ final class ReviewSessionModel {
         queue[0] = fresh
     }
 
-    private func finishIfEmpty() async {
+    /// Loads the themed review's plan. Zero cards completes the review at once (ADR-0022) and finishes with a zero
+    /// summary. A completion error goes to `errorMessage`; the summary still shows.
+    private func loadThemedPlan(reviewId: String) async {
+        do {
+            let loaded = try await environment.reviewService.themedPlan(reviewId: reviewId)
+            themedReviewName = loaded.review.name
+            if loaded.cardIds.isEmpty {
+                resetCounters()
+                plan = nil
+                do {
+                    try await environment.reviewService.completeThemedReview(id: reviewId)
+                } catch {
+                    Log.app.error("Themed review completion failed: \(String(describing: error), privacy: .public)")
+                    errorMessage = "The themed review couldn't be marked completed."
+                }
+                phase = .finished(await makeSummary())
+                return
+            }
+            plan = DailyReviewPlan(cardIds: loaded.cardIds, dueCount: loaded.cardIds.count, newCount: 0)
+            phase = .ready(dueCount: loaded.cardIds.count, newCount: 0)
+        } catch {
+            Log.app.error("Themed plan failed to load: \(String(describing: error), privacy: .public)")
+            phase = .failed(
+                (error as? ThemedReviewError)?.errorDescription ?? "The review plan couldn't be loaded."
+            )
+        }
+    }
+
+    /// Finishes when the queue is empty. Only a rating completes a themed review (`completingThemed`), so a
+    /// session that empties through a drop or a frequency change ends without completion. A completion error goes
+    /// to `errorMessage`; the summary still shows.
+    private func finishIfEmpty(completingThemed: Bool = false) async {
         guard phase == .reviewing, queue.isEmpty else { return }
+        if completingThemed, let reviewId = context.themedReviewId {
+            do {
+                try await environment.reviewService.completeThemedReview(id: reviewId)
+            } catch {
+                Log.app.error("Themed review completion failed: \(String(describing: error), privacy: .public)")
+                errorMessage = "The themed review couldn't be marked completed."
+            }
+        }
         phase = .finished(await makeSummary())
     }
 

@@ -138,6 +138,7 @@ struct SampleLibraryTests {
         let service = ReviewService(
             cards: env.reviewCardRepository,
             highlights: env.highlightRepository,
+            themedReviews: env.themedReviewRepository,
             now: FixedNow(TestData.referenceDate),
             calendar: ReviewTestFixture.calendar
         )

@@ -69,3 +69,5 @@ private(set) var themedReviewName: String?
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer review-engine haiku medium, reviewer code-reviewer sonnet medium: CHANGES REQUESTED (1st), production code correct; tests miss spec assertions: themedRatedCardsLeaveTodaysDailyReview never shows the card back on a later day; finishingMarksCompleted does not assert ThemedReviewSchedule.isDue false for the rest of the day / true after next 04:00; minor: due-first not asserted, FSRS state change not asserted; test-only rework
+- 2026-10-29, implementer review-engine haiku high (rework 1, test-only, effort high), reviewer code-reviewer sonnet high: APPROVED, all four findings fixed, instants re-derived against the 05:00 session time, production files unchanged; CI build and full unit tests green, 919 tests (runs 40948651568, 40949052385)

@@ -54,4 +54,50 @@ struct ReviewBadgeModelTests {
 
         try await env.database.writer.write { db in try FTSIntegrity.check(db) }
     }
+
+    @Test func countsDueThemedReviews() async throws {
+        let clock = FixedNow(ReviewTestFixture.base.addingTimeInterval(5 * 3_600))
+        let store = TestFileStore.make()
+        try store.createRootDirectories()
+        defer { TestFileStore.remove(store) }
+        let settingsStore = TestSettings.make()
+        defer { TestSettings.remove(settingsStore) }
+        let env = AppEnvironment(
+            fileStore: store,
+            database: try AppDatabase.makeInMemory(),
+            now: clock,
+            settingsStore: settingsStore
+        )
+
+        // Never completed, so due.
+        let review1 = try await env.themedReviewRepository.create(
+            ThemedReviewDraft(name: "Never completed"),
+            at: ReviewTestFixture.base
+        )
+        // Completed now, so not due again until the next interval.
+        let review2 = try await env.themedReviewRepository.create(
+            ThemedReviewDraft(name: "Completed today"),
+            at: ReviewTestFixture.base
+        )
+        try await env.themedReviewRepository.markCompleted(id: review2.id, at: clock())
+
+        let badge = ReviewBadgeModel(
+            environment: env,
+            settings: AppSettings(store: settingsStore),
+            calendar: ReviewTestFixture.calendar
+        )
+        let observer = Task { await badge.observeThemed() }
+        defer { observer.cancel() }
+
+        let one = await TestWait.until { await badge.themedDueCount == 1 }
+        #expect(one, "Badge should count only the themed review that is due")
+
+        // Completing the due review clears the badge.
+        try await env.themedReviewRepository.markCompleted(id: review1.id, at: clock())
+
+        let zero = await TestWait.until { await badge.themedDueCount == 0 }
+        #expect(zero, "Badge should drop to 0 once every themed review is completed")
+
+        try await env.database.writer.write { db in try FTSIntegrity.check(db) }
+    }
 }

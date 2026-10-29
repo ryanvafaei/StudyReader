@@ -1,6 +1,6 @@
 import Foundation
 
-/// Which session a rating belongs to. `.themed` is used from T122 on.
+/// Which session a rating belongs to. `.themed` carries the themed review's id (ADR-0022).
 enum ReviewSessionContext: Sendable, Equatable {
     case daily
     case themed(id: String)
@@ -43,22 +43,29 @@ enum ReviewServiceError: Error, Equatable, LocalizedError {
 actor ReviewService {
     private let cards: ReviewCardRepository
     private let highlights: HighlightRepository
+    private let themedReviews: ThemedReviewRepository
     private let now: any Now
     private let calendar: Calendar
     private let scheduler: ReviewScheduler
+    /// Supplies the seed of a themed session's random order (T122). Tests pass a fixed seed.
+    private let makeSeed: @Sendable () -> UInt64
 
     init(
         cards: ReviewCardRepository,
         highlights: HighlightRepository,
+        themedReviews: ThemedReviewRepository,
         now: any Now,
         calendar: Calendar = .current,
-        scheduler: ReviewScheduler = ReviewScheduler()
+        scheduler: ReviewScheduler = ReviewScheduler(),
+        makeSeed: @escaping @Sendable () -> UInt64 = { UInt64.random(in: .min ... .max) }
     ) {
         self.cards = cards
         self.highlights = highlights
+        self.themedReviews = themedReviews
         self.now = now
         self.calendar = calendar
         self.scheduler = scheduler
+        self.makeSeed = makeSeed
     }
 
     /// The daily queue for the review day that contains `now()`, planned with `limits` (DailyReviewBuilder).
@@ -69,6 +76,26 @@ actor ReviewService {
             dayStart: ReviewDay.start(containing: current, calendar: calendar)
         )
         return DailyReviewBuilder.build(snapshot, limits: limits)
+    }
+
+    /// The themed plan (SPEC F-20, ADR-0022): the review's candidates for the review day that contains `now()`,
+    /// picked by ThemedReviewBuilder with a fresh seed. A missing review throws `ThemedReviewError.notFound`.
+    func themedPlan(reviewId: String) async throws -> (review: ThemedReview, cardIds: [String]) {
+        guard let review = try await themedReviews.fetch(id: reviewId) else {
+            throw ThemedReviewError.notFound
+        }
+        let current = now()
+        let snapshot = try await themedReviews.themedQueue(
+            filter: review.filter,
+            dayStart: ReviewDay.start(containing: current, calendar: calendar)
+        )
+        let cardIds = ThemedReviewBuilder.build(snapshot, review: review, now: current, seed: makeSeed())
+        return (review, cardIds)
+    }
+
+    /// Marks a themed review completed on the current review day (ADR-0022).
+    func completeThemedReview(id: String) async throws {
+        try await themedReviews.markCompleted(id: id, at: now())
     }
 
     func items(cardIds: [String]) async throws -> [ReviewCardItem] {
