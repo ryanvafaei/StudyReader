@@ -129,3 +129,57 @@ struct ReviewCardRepository: Sendable {
         try ReviewCard.filter(Column("highlightId") == highlightId).fetchCount(db)
     }
 }
+
+/// Review queue reads and the rating write (T102). The SQL lives in `ReviewQueueSQL`; each method is one
+/// `read` or `write` transaction.
+extension ReviewCardRepository {
+    /// One read: due and new candidates plus today's activity, from one snapshot.
+    func dailyQueue(now: Date, dayStart: Date) async throws -> DailyQueueSnapshot {
+        try await writer.read { db in
+            try ReviewQueueSQL.dailyQueue(db, now: now, dayStart: dayStart)
+        }
+    }
+
+    /// Live version of `dailyQueue`. Each run reads `now()` and the review day that contains it.
+    func observeDailyQueue(now: any Now, calendar: Calendar) -> AsyncValueObservation<DailyQueueSnapshot> {
+        ValueObservation
+            .tracking { db in
+                let current = now()
+                return try ReviewQueueSQL.dailyQueue(
+                    db,
+                    now: current,
+                    dayStart: ReviewDay.start(containing: current, calendar: calendar)
+                )
+            }
+            .values(in: writer)
+    }
+
+    /// Items in the order of `cardIds`; ids without a card are skipped.
+    func items(cardIds: [String]) async throws -> [ReviewCardItem] {
+        try await writer.read { db in
+            try ReviewQueueSQL.items(db, cardIds: cardIds)
+        }
+    }
+
+    func item(cardId: String) async throws -> ReviewCardItem? {
+        try await writer.read { db in
+            try ReviewQueueSQL.item(db, cardId: cardId)
+        }
+    }
+
+    /// One transaction: updates the card (`fsrsCard`, `dueAt`, `state`, and `introducedAt` when NULL) and inserts
+    /// the log row. Missing card → `RepositoryError.notFound`, nothing written.
+    @discardableResult
+    func recordRating(_ write: RatingWrite) async throws -> ReviewLogEntry {
+        try await writer.write { db in
+            try ReviewQueueSQL.recordRating(db, write)
+        }
+    }
+
+    /// Cards not suspended, state != new, dueAt < date.
+    func dueCount(before date: Date) async throws -> Int {
+        try await writer.read { db in
+            try ReviewQueueSQL.dueCount(db, before: date)
+        }
+    }
+}
