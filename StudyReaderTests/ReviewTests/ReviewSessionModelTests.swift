@@ -265,6 +265,23 @@ struct ReviewSessionModelTests {
         try await session.environment.database.writer.write { db in try FTSIntegrity.check(db) }
     }
 
+    @Test func reloadBeforeSkipCarriesTheNewNote() async throws {
+        let session = try await seededSession(texts: ["One", "Two"])
+        defer { ReaderTestSupport.cleanUp(session) }
+        let env = session.environment
+        let model = await startedModel(session)
+        let first = try #require(model.queue.first)
+
+        try await env.highlightRepository.updateNote(id: first.highlight.id, note: "Fresh note", at: sessionTime)
+        await model.reloadCurrent()
+        model.skip()
+
+        #expect(model.queue.last?.id == first.id)
+        #expect(model.queue.last?.highlight.note == "Fresh note")
+
+        try await env.database.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
     @Test func missingCardIsDropped() async throws {
         let session = try await seededSession()
         defer { ReaderTestSupport.cleanUp(session) }

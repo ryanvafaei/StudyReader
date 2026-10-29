@@ -60,3 +60,5 @@ T112 proves all three with a UI test (`ReviewSessionTests/testKeysInTheNoteField
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer ui-builder sonnet medium, reviewer code-reviewer sonnet medium: CHANGES REQUESTED (1st), (1) opening Note/Edit does not move focus into the editor, so 1/2/Space typed before clicking in can still rate/reveal (ADR-0022 failure); (2) onSkip flushes the note but never calls reloadCurrent, so the skipped card returns with a stale note
+- 2026-10-29, implementer ui-builder sonnet high (rework 1, effort high: focus handoff + onKeyPress guard while an editor is open; reloadCurrent before skip), reviewer code-reviewer sonnet high: APPROVED, both findings fixed; CI build and full unit tests green, 866 tests (runs 40908809837, 40909213339). Visual check pending (Mac row in VISUAL_CHECKS.md)

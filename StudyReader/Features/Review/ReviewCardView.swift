@@ -5,6 +5,14 @@ struct ReviewCardView: View {
     let model: ReviewSessionModel
     let session: AppSession
     @FocusState private var isFocused: Bool
+    @FocusState private var focusedEditor: EditorField?
+    @State private var noteModel: NoteEditorModel?
+    @State private var editDraft: ReviewEditDraft?
+
+    private enum EditorField: Hashable {
+        case note
+        case edit
+    }
 
     var body: some View {
         ScrollView {
@@ -29,6 +37,35 @@ struct ReviewCardView: View {
                         revealButton
                     }
                     ratingRow
+                    ReviewActionsBar(
+                        model: model,
+                        session: session,
+                        isNoteOpen: noteModel != nil,
+                        isEditOpen: editDraft != nil,
+                        onToggleNote: { Task { await toggleNote() } },
+                        onToggleEdit: toggleEdit,
+                        onFrequency: { value in
+                            Task {
+                                await settleNote()
+                                await model.setFrequency(value)
+                            }
+                        },
+                        onSkip: {
+                            Task {
+                                if noteModel != nil {
+                                    await settleNote()
+                                    await model.reloadCurrent()
+                                }
+                                model.skip()
+                            }
+                        }
+                    )
+                    if let noteModel {
+                        noteEditor(noteModel)
+                    }
+                    if let editDraft {
+                        editEditor(editDraft)
+                    }
                     if let message = model.errorMessage {
                         Text(LocalizedStringKey(message))
                             .font(.caption)
@@ -45,12 +82,30 @@ struct ReviewCardView: View {
         .focusEffectDisabled()
         .focused($isFocused)
         .onAppear { isFocused = true }
-        .onChange(of: model.current?.id) { _, _ in isFocused = true }
+        .onChange(of: model.current?.id) { _, _ in
+            noteModel = nil
+            editDraft = nil
+            focusedEditor = nil
+            isFocused = true
+        }
+        .onDisappear {
+            let pending = noteModel
+            Task {
+                await pending?.flush()
+                await model.reloadCurrent()
+            }
+        }
         .onKeyPress(characters: CharacterSet(charactersIn: " 1234"), phases: .down) { press in
+            guard noteModel == nil, editDraft == nil else { return .ignored }
             guard let key = press.characters.first,
                   let action = model.action(forKey: key)
             else { return .ignored }
-            Task { await model.perform(action) }
+            Task {
+                if case .rate = action {
+                    await settleNote()
+                }
+                await model.perform(action)
+            }
             return .handled
         }
     }
@@ -114,6 +169,93 @@ struct ReviewCardView: View {
         }
     }
 
+    /// Saves the open note now, so the next card change or write sees it.
+    private func settleNote() async {
+        await noteModel?.flush()
+    }
+
+    private func toggleNote() async {
+        if let open = noteModel {
+            await open.flush()
+            noteModel = nil
+            await model.reloadCurrent()
+            focusedEditor = nil
+            isFocused = true
+        } else if let highlightId = model.current?.highlight.id {
+            noteModel = NoteEditorModel(target: .highlight(highlightId), environment: session.environment)
+            isFocused = false
+            focusedEditor = .note
+        }
+    }
+
+    private func toggleEdit() {
+        if editDraft != nil {
+            closeEdit()
+        } else if let highlight = model.current?.highlight, highlight.kind == .text {
+            editDraft = ReviewEditDraft(highlight: highlight)
+            isFocused = false
+            focusedEditor = .edit
+        }
+    }
+
+    private func closeEdit() {
+        editDraft = nil
+        focusedEditor = nil
+        isFocused = true
+    }
+
+    private func noteEditor(_ editor: NoteEditorModel) -> some View {
+        @Bindable var editor = editor
+        return VStack(alignment: .leading, spacing: 4) {
+            TextEditor(text: $editor.text)
+                .font(.body)
+                .frame(minHeight: 80)
+                .scrollContentBackground(.hidden)
+                .padding(6)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                .focused($focusedEditor, equals: .note)
+                .accessibilityLabel(Text("Note"))
+                .accessibilityIdentifier("review-note-editor")
+            if let message = editor.lastError {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .task { await editor.load() }
+    }
+
+    private func editEditor(_ draft: ReviewEditDraft) -> some View {
+        @Bindable var draft = draft
+        return VStack(alignment: .leading, spacing: 8) {
+            TextEditor(text: $draft.text)
+                .font(.body)
+                .frame(minHeight: 80)
+                .scrollContentBackground(.hidden)
+                .padding(6)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                .focused($focusedEditor, equals: .edit)
+                .accessibilityLabel(Text("Highlight text"))
+                .accessibilityIdentifier("review-edit-editor")
+            HStack {
+                Button("Cancel") {
+                    closeEdit()
+                }
+                .accessibilityLabel(Text("Cancel"))
+                .accessibilityIdentifier("review-edit-cancel")
+                Button("Save") {
+                    Task {
+                        await model.editHighlightText(draft.valueToStore)
+                        closeEdit()
+                    }
+                }
+                .disabled(model.isBusy)
+                .accessibilityLabel(Text("Save"))
+                .accessibilityIdentifier("review-edit-save")
+            }
+        }
+    }
+
     private var revealButton: some View {
         Button {
             model.reveal()
@@ -133,7 +275,10 @@ struct ReviewCardView: View {
         HStack(spacing: 10) {
             ForEach(model.ratingButtons) { button in
                 Button {
-                    Task { await model.rate(button.rating) }
+                    Task {
+                        await settleNote()
+                        await model.rate(button.rating)
+                    }
                 } label: {
                     VStack(spacing: 2) {
                         Text(button.title)
