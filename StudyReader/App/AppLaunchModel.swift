@@ -84,7 +84,9 @@ final class AppLaunchModel {
         }.value
         switch result {
         case .success(let environment):
-            session = AppSession(environment: environment)
+            let newSession = AppSession(environment: environment)
+            session = newSession
+            Task { await newSession.applyReminderSettings() }
             AppDelegate.terminationWrites = environment.pendingWrites
             state = .ready(environment)
             Task { await environment.startBackgroundWork() }

@@ -27,7 +27,12 @@ struct SettingsView: View {
                 .tabItem { Label("General", systemImage: "gearshape") }
             ReadingSettingsView(settings: session.settings)
                 .tabItem { Label("Reading", systemImage: "book") }
-            ReviewSettingsView(settings: session.settings, categories: session.environment.categoryRepository)
+            ReviewSettingsView(
+                settings: session.settings,
+                reminder: session.reminder,
+                applyReminder: { await session.applyReminderSettings() },
+                categories: session.environment.categoryRepository
+            )
                 .tabItem { Label("Review", systemImage: "rectangle.stack") }
             DataSettingsView(rootURL: session.environment.fileStore.rootURL)
                 .tabItem { Label("Data", systemImage: "externaldrive") }

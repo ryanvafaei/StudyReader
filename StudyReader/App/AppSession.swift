@@ -13,6 +13,8 @@ final class AppSession {
     let reviewBadge: ReviewBadgeModel
     /// The daily review session, kept so leaving the review section and coming back resumes it (ADR-0022).
     /// Holds no reference back to this session: it keeps `environment` and `settings` only.
+    /// Keeps the daily review reminder notification in step with the settings (ADR-0022).
+    let reminder: ReviewReminderScheduler
     @ObservationIgnored private var dailyReview: ReviewSessionModel?
     /// True while the library search field has keyboard focus (bound to `.searchFocused`).
     var isSearchFocused = false
@@ -31,6 +33,23 @@ final class AppSession {
         self.importCoordinator = ImportCoordinator(importService: environment.importService)
         self.search = SearchModel(environment: environment)
         self.reviewBadge = ReviewBadgeModel(environment: environment, settings: settings)
+        // The user's library is decided like export sync (`runsExportSync`). Tests, previews and the in-memory
+        // library get a no-op center so they never ask for notification permission.
+        let center: any ReminderNotificationCenter = environment.runsExportSync
+            ? SystemReminderNotificationCenter()
+            : NoopReminderNotificationCenter()
+        self.reminder = ReviewReminderScheduler(center: center)
+    }
+
+    /// Applies the reminder settings. If permission is denied, turns the setting off so the toggle matches.
+    func applyReminderSettings() async {
+        let applied = await reminder.apply(
+            enabled: settings.reviewReminderEnabled,
+            minutes: settings.reviewReminderMinutes
+        )
+        if !applied && settings.reviewReminderEnabled {
+            settings.reviewReminderEnabled = false
+        }
     }
 
     /// The daily review session model, created once and reused. Views read it through here so a session survives

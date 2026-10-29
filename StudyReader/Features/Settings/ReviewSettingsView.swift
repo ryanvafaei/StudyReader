@@ -47,11 +47,20 @@ final class ReviewSettingsModel {
 /// Settings > Review tab (SPEC F-22).
 struct ReviewSettingsView: View {
     @Bindable var settings: AppSettings
+    let reminder: ReviewReminderScheduler
+    let applyReminder: @MainActor () async -> Void
     @State private var model: ReviewSettingsModel
     @Environment(\.calendar) private var calendar
 
-    init(settings: AppSettings, categories: CategoryRepository) {
+    init(
+        settings: AppSettings,
+        reminder: ReviewReminderScheduler,
+        applyReminder: @escaping @MainActor () async -> Void,
+        categories: CategoryRepository
+    ) {
         self.settings = settings
+        self.reminder = reminder
+        self.applyReminder = applyReminder
         _model = State(initialValue: ReviewSettingsModel(categories: categories))
     }
 
@@ -76,10 +85,16 @@ struct ReviewSettingsView: View {
                 Toggle("Remind me to review", isOn: $settings.reviewReminderEnabled)
                     .accessibilityLabel("Remind me to review")
 
+                if let message = reminder.deniedMessage {
+                    Text(message).foregroundStyle(.secondary)
+                }
+
                 DatePicker("Time", selection: reminderTime, displayedComponents: .hourAndMinute)
                     .disabled(!settings.reviewReminderEnabled)
                     .accessibilityLabel("Reminder time")
             }
+            .onChange(of: settings.reviewReminderEnabled) { Task { await applyReminder() } }
+            .onChange(of: settings.reviewReminderMinutes) { Task { await applyReminder() } }
 
             Section {
                 ForEach(model.categories) { category in

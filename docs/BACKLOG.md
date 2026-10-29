@@ -187,3 +187,4 @@ Same keys as above. Tasks W1 and W2 are rows 68–69 in `docs/tasks/phase-1/READ
 - T110 (reviewer, minor): a failed note flush on Skip/Rate/Frequency is silent (`noteModel` is dropped on card change); keep the card in place when `lastError != nil` after the flush.
 - T110 (reviewer, minor): add `ReviewEditDraftTests` cases for an `editedText` start that is unchanged, and for `valueToStore` when the text equals the original after an edit.
 - T110 (reviewer, risk): if T112 or the Mac pass shows the note/edit editor not auto-focusing (focus set in the same update that creates the view), set `focusedEditor` on the next main-actor turn (`Task { @MainActor in … }`); do not change the onKeyPress guard.
+- T113 (reviewer, minor): in `AppSession.swift` the new `reminder` property sits between the `dailyReview` doc comment and the `dailyReview` property, so that comment now attaches to `reminder`; move it. A `scheduleDaily` failure turns the toggle off without any message.
