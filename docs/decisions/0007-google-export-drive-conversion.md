@@ -20,4 +20,9 @@ Highlight text is neutralised by `ExportMarkdownSafety.neutralise` (T70). Notes 
 - **Headings are demoted** so a note can't break the export's outline. In a document note (under `### Document note` or `### <title>`), `#`, `##` and `###` become `####`; `####` to `######` stay as they are. In a highlight's `- Note:` item, a heading line becomes `**text**`.
 - **A line-start `#` not followed by a space and text is escaped** (`#todo` → `\#todo`), so a tag never becomes a heading in Google Docs. This is the same rule as in the app: `# text` is a heading, `#name` is a tag.
 - `<`, `|` and `~` are escaped outside code spans, as for highlight text.
-Titles and authors still go in raw. Whether to escape them is undecided (BACKLOG B29).
+Titles and authors still go in raw. Whether to escape them is undecided (BACKLOG B29). (Decided 2026-10-29, see below.)
+
+## Amendment 2026-10-29: titles, authors, fences and underline lines (user decision, task W1)
+- **Titles, authors and the scope name** go through `ExportMarkdownSafety.plainText`: line breaks collapse to one space, then the same escaping as highlight text (`RichTextMarkdown.escape`, then `neutralise`), plus an escaped trailing `#` run after a space. Category and tag names stay raw.
+- **Unclosed fence:** a note that ends inside an open backtick fence (CommonMark rules, top level; in a highlight note the first line can't open one) gets a closing fence of the opener's length. Tilde fences are already neutralised by the `~` escape.
+- **Underline lines:** a note line of only `=` or only `-` (up to 3 leading spaces, trailing spaces allowed) gets a `\` before its first character. Spaced or `*`/`_` thematic breaks, headings after list or quote markers, and headings inside multi-line code spans are not covered (BACKLOG).

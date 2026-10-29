@@ -101,13 +101,15 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 65 | [T93 Quitting never loses the last typed note text](T93-flush-notes-on-quit.md) (bug hunt M4) | ui-builder | T92b (order only), T91 (`ReaderModel`) | yes (Mac row T93 from the report) |
 | 66 | [T94 Drive errors mapped by reason; queued exports are always retried](T94-drive-error-reasons-and-queued-retries.md) (bug hunt M1, M2) | integrations | T92a, T92b, T93 (order only) | no |
 | 67 | [T95 One link filter for every clickable link from imported Markdown and notes](T95-one-link-filter-everywhere.md) (bug hunt M5) | pdf-engine | T94 (order only) | yes (Mac row T95 from the report) |
+| 68 | [W1 Export escaping for titles, authors, unclosed fences and underline lines; a time-bounded wait in the scheduler tests](W1-export-escaping-and-flaky-scheduler-test.md) (wrap-up, user decision 2026-10-29: BACKLOG B29 titles/authors, B48 line breaks, T87 holes 2 and 3, red T92a master run) | integrations | T95 (order only) | no (golden files and unit tests) |
+| 69 | [W2 The library filters survive a search](W2-library-filters-survive-search.md) (wrap-up, user decision 2026-10-29: BACKLOG B22 library filter) | ui-builder | W1 (order only) | yes (Mac row W2 from the report) |
 
 Task numbers continue after Phase 0's last commit (T28). Rows 24a–24k (T52a–T52k) are fixes from the T52 checkpoint (`docs/checkpoints/T52-manual-2026-10-25.md`, `docs/checkpoints/T52-cloud-2026-10-27.md`); they run after T52 and before T53. T52a–T52h ran in letter order (T52h after T52b). T52i–T52k come from the user's triage on 2026-10-27 and run in row order: T52k, then T52i, then T52j (T52j adds to `MetadataSheetTests.swift` after T52i). U7 from the triage is part of T53; O1 (Library tab order after Move Tab to New Window + Merge All Windows) stays open until the user's real tab-drag check on a Mac (docs/HANDOFF.md). Tasks with "none" or early dependencies (T42, T57, T64) may run earlier if a chain is blocked, but keep one implementer at a time.
 
 ### End-of-phase backlog pass (rows 47–55, planned 2026-10-28)
 CLAUDE.md "Per phase" step 4: one fix pass over `docs/BACKLOG.md` (its "Disposition" section maps every item to a task, a drop reason, the Mac list or a user decision). Run T76 → T84 in row order, one at a time, through the normal loop (implementer → CI build + unit tests with code-reviewer in parallel → commit and push). The order alternates areas so no two consecutive tasks edit the same file: T76 search · T77 PDF/rich text · T78 repositories · T79 text reader · T80 export service · T81 highlight controllers · T82 reader chrome · T83 export UI/browser/Settings · T84 UI tests and seed.
 - **UI tests:** only T84 runs XCUITests (its own targeted classes via `./scripts/ci.sh uitest …`, max 2 attempts, never in parallel with another CI job). T76–T83 verify with `./scripts/build.sh` and unit-test filters only.
-- **Not in any task:** B18 (the Undo/Redo replacement stays as accepted, user decision 2026-10-28), escaping titles and authors in the export and hoisting the library filter (both undecided, see BACKLOG B29 and B22), and the Mac items (O1, B2, B8 Open Link, B14 2, B15 1, B21 3, B24 1, B32, OB2).
+- **Not in any task:** B18 (the Undo/Redo replacement stays as accepted, user decision 2026-10-28), escaping titles and authors in the export and hoisting the library filter (both undecided then, see BACKLOG B29 and B22; decided 2026-10-29 as W1 and W2, rows 68–69), and the Mac items (O1, B2, B8 Open Link, B14 2, B15 1, B21 3, B24 1, B32, OB2).
 
 ### User decisions 2026-10-28 (rows 56–60)
 The user answered the open backlog decisions; the tasks run after T84, in row order:
@@ -132,6 +134,13 @@ bug-hunter's report `docs/bugs/phase-1.md` (critical 0, high 2, medium 5, low 10
 - **UI tests:** none of T91–T95 runs XCUITests; each verifies with `./scripts/build.sh` and unit-test filters only. T92b changes one existing UI-test expectation (`SettingsTests/testGoogleTabShowsNotConfiguredAndHidesFolderAndTargets`), so the closing state gets **one targeted UI run** by ui-tester after T95: `./scripts/uitest.sh StudyReaderUITests/SettingsTests` (cloud mode on Linux; never in parallel with another CI job). No other task changes UI-test expectations.
 - **Closing steps after T95:** (1) the targeted `SettingsTests` UI run; (2) test-runner `./scripts/check-fresh-clone.sh`; (3) the Phase 1 summary. No second bug hunt.
 - **Shared files in this block, in order:** `ReaderModel.swift` (T91, T93), `GoogleExportService.swift` (T92a, T94), `ExportTargetsModel.swift` (T92b, T94), `SettingsStore.swift` (T92a, T92b), `GoogleExportServiceTests.swift` (T92a, T94), `ExportSheetModelTests.swift` (T92a), `ExportSheetModel.swift` (T94).
+
+### Phase 1 wrap-up (rows 68–69, user decision 2026-10-29)
+Two small tasks, through the normal loop (implementer → CI build + unit tests by test-runner with code-reviewer in parallel → commit `W1: <title>` / `W2: <title>` and push), in row order: **W1 → W2.** They share no files.
+- **W1** (integrations): titles, authors and the scope name are escaped like highlight text with line breaks collapsed to a space (`ExportMarkdownSafety.plainText`); notes get a closing fence when they end inside an open backtick fence, and a line of only `=` or `-` is escaped (SPEC F-21, ADR-0007 amendment 2026-10-29). Also replaces the 10,000-yield waits in `ExportSyncSchedulerTests` (and `ManualSleeper.waitForSleepers`) with a 5 s wall-clock wait (`TestWait.until`): the cause of the red T92a master run 40750816981. Still open in BACKLOG: T87 hole (1), B47/L7, tag and category names, spaced or `*`/`_` thematic breaks.
+- **W2** (ui-builder): the library filter (`LibraryFilter`) moves into `AppSession.libraryFilter`, the same way T85 moved the selection; deleted tag or category ids are dropped from it. The search results' own filters (`SearchFilters`, T66) stay separate. Not persisted across launches.
+- **UI tests:** neither task runs XCUITests (build + unit-test filters only). No existing UI test covers the export Markdown or the library Filter menu, so no targeted UI run follows. W2's Mac row goes to VISUAL_CHECKS.md "Needs a Mac".
+- **Shared files with earlier tasks:** `ExportRenderer.swift` (T70, T77, T80, T87, W1), `ExportSyncSchedulerTests.swift` (T74, T80, T94, W1), `TestSleepers.swift` (T33, W1), `AppSession.swift` (… T85, W2), `LibraryModel.swift` (T46, T90, W2), `LibraryView.swift` (… T85, W2).
 
 ## Points of care for the orchestrator
 - **T30** is done and committed.
@@ -201,6 +210,8 @@ bug-hunter's report `docs/bugs/phase-1.md` (critical 0, high 2, medium 5, low 10
 | `PendingWriteFlushing`, `PendingWrites` (`AppEnvironment.pendingWrites`), `AppDelegate.terminationWrites` | T93 |
 | `DriveErrorReason`, `ExportSyncScheduler.manualExportEnded(targetId:outcome:)` | T94 |
 | `LinkPolicy` (`openableSchemes`, `isOpenable(_:)`), `View.studyReaderLinkPolicy()`; `TextReaderView.openableLinkSchemes`/`isOpenable` removed | T95 |
+| `ExportMarkdownSafety.plainText(_:)`; tests: `TestWait.until(timeout:interval:_:)`, `TestWait.timeout`, `TestWait.interval` | W1 |
+| `AppSession.libraryFilter`, `LibraryModel.init(environment:filter:onFilterChange:)`, `LibraryModel.init(session:)` | W2 |
 
 ## Module map after Phase 1
 ```
@@ -246,7 +257,7 @@ StudyReaderTests/                      + LibraryTests, ExtractionTests, Markdown
 - **Q7 (T65, T70):** tag filter semantics as specified. Confirmed.
 
 ## Phase done when
-- All 82 tasks (rows 1–46; T75 in row 2a; the T52 checkpoint fixes T52a–T52k in rows 24a–24k; the checkpoint fixes T63a, T69a, T74a in rows 24n, 41a, 46a; the backlog pass T76–T84 in rows 47–55; the user-decision tasks T85–T89 in rows 56–60; the closing-run fix T90 in row 61; and the bug hunt fixes T91, T92a, T92b, T93, T94, T95 in rows 62–67) are approved and committed (`TNN: <title>`), and every visual check is confirmed by the user.
+- All 84 tasks (rows 1–46; T75 in row 2a; the T52 checkpoint fixes T52a–T52k in rows 24a–24k; the checkpoint fixes T63a, T69a, T74a in rows 24n, 41a, 46a; the backlog pass T76–T84 in rows 47–55; the user-decision tasks T85–T89 in rows 56–60; the closing-run fix T90 in row 61; the bug hunt fixes T91, T92a, T92b, T93, T94, T95 in rows 62–67; and the wrap-up tasks W1, W2 in rows 68–69) are approved and committed (`TNN: <title>`, `W1: <title>`, `W2: <title>`), and every visual check is confirmed by the user.
 - The closing full UI run by ui-tester (after T89) has no open spec FAIL (its one FAIL is T90; T90's own run 3 shows `ExternalOpenTests` green), and the targeted `SettingsTests` run after T95 is green.
 - The full suite passes via test-runner, and `./scripts/check-fresh-clone.sh` passes.
 - The SPEC §6 "done when" flow works on the user's Mac with a real lecture PDF and Gemini Notebook.
