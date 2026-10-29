@@ -22,6 +22,7 @@ struct ThemedReviewsView: View {
                 listView
             }
         }
+        .navigationTitle("Themed Reviews")
         .task { await model.observe() }
         .sheet(item: $model.editorRequest) { request in
             ThemedReviewEditorSheet(reviewId: request.reviewId, environment: session.environment)

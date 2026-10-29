@@ -27,6 +27,7 @@ struct ReviewSectionView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .navigationTitle("Review")
     }
 
     private var dailyReview: some View {

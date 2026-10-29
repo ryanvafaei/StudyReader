@@ -20,6 +20,7 @@ struct RootView: View {
         return NavigationSplitView {
             List(SidebarItem.allCases, selection: $model.selection) { item in
                 Label(item.title, systemImage: item.systemImage)
+                    .accessibilityIdentifier("sidebar-\(item.rawValue)")
                     .tag(item)
                     .badge(badgeCount(for: item))
             }

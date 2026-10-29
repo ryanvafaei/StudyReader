@@ -18,6 +18,7 @@ struct ReviewSessionView: View {
         switch model.phase {
         case .idle:
             ProgressView()
+                .accessibilityIdentifier("review-loading")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready(let due, let new):
             if due + new > 0 {

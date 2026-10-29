@@ -31,3 +31,4 @@ If it is still unclear after 3 UI runs, stop and report the evidence: T112 then 
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer ui-builder sonnet medium (reworks: none), reviewer code-reviewer sonnet medium: APPROVED (four one-line product edits: navigation titles, sidebar and review-loading identifiers); CI build and full unit tests green, 941 tests (runs 40968849182, 40969211038). 3 UI diagnosis runs: cause not found; T112 on the Needs-a-Mac list, tests kept on branch wip/T112-ui-tests
