@@ -84,3 +84,4 @@ Tests use an in-memory `AppEnvironment(…, now: FixedNow(r))` (`defer { TestFil
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer review-engine haiku medium (reworks: 1 small, medium: FTSIntegrity.check added to the 9 tests, found by the orchestrator after approval; not re-reviewed), reviewer code-reviewer sonnet medium: APPROVED, spec met; CI build and full unit tests green on the final tree, 834 tests (runs 40886448156, 40886975803)

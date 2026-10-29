@@ -10,6 +10,7 @@ struct AppEnvironment: Sendable {
     let documentRepository: DocumentRepository
     let highlightRepository: HighlightRepository
     let reviewCardRepository: ReviewCardRepository
+    let reviewService: ReviewService
     let tagRepository: TagRepository
     let notesRepository: NotesRepository
     let exportRepository: ExportRepository
@@ -60,6 +61,11 @@ struct AppEnvironment: Sendable {
         self.documentRepository = DocumentRepository(database: database)
         self.highlightRepository = HighlightRepository(database: database)
         self.reviewCardRepository = ReviewCardRepository(database: database)
+        self.reviewService = ReviewService(
+            cards: self.reviewCardRepository,
+            highlights: self.highlightRepository,
+            now: now
+        )
         self.tagRepository = TagRepository(database: database)
         self.notesRepository = NotesRepository(database: database)
         let exportRepository = ExportRepository(database: database)
