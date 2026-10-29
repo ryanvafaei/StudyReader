@@ -15,4 +15,13 @@ struct AppSessionTests {
         session.librarySelection = nil
         #expect(session.librarySelection == nil)
     }
+
+    @Test func flashcardsModelIsKept() throws {
+        let environment = try AppEnvironment.inMemory()
+        defer { TestFileStore.remove(environment.fileStore) }
+        let session = AppSession(environment: environment)
+
+        #expect(session.reviewSectionMode == .daily)
+        #expect(session.flashcardsModel() === session.flashcardsModel())
+    }
 }

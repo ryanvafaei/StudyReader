@@ -1,6 +1,11 @@
 import Foundation
 import Observation
 
+/// The two screens of the sidebar Review section (ADR-0022).
+enum ReviewSectionMode: String, Sendable {
+    case daily, flashcards
+}
+
 /// Shared state for every window of this app run. Created on the main actor when the library is ready.
 @MainActor @Observable
 final class AppSession {
@@ -16,6 +21,9 @@ final class AppSession {
     /// Keeps the daily review reminder notification in step with the settings (ADR-0022).
     let reminder: ReviewReminderScheduler
     @ObservationIgnored private var dailyReview: ReviewSessionModel?
+    @ObservationIgnored private var flashcards: FlashcardsModel?
+    /// Which screen the Review section shows (Daily Review or Flashcards). Not persisted across launches.
+    var reviewSectionMode: ReviewSectionMode = .daily
     /// True while the library search field has keyboard focus (bound to `.searchFocused`).
     var isSearchFocused = false
     /// The library's selected document id. Kept here, not in LibraryView, so it survives the search results replacing
@@ -60,6 +68,17 @@ final class AppSession {
         }
         let model = ReviewSessionModel(session: self)
         dailyReview = model
+        return model
+    }
+
+    /// The Flashcards model, created once and reused, so the filters and the selected card survive a switch to the
+    /// daily review or another sidebar section. Not persisted across launches.
+    func flashcardsModel() -> FlashcardsModel {
+        if let flashcards {
+            return flashcards
+        }
+        let model = FlashcardsModel(environment: environment)
+        flashcards = model
         return model
     }
 }
