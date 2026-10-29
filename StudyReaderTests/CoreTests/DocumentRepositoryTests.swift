@@ -340,4 +340,46 @@ struct DocumentRepositoryTests {
         let updated = try await iterator.next()
         #expect(updated?.first?.highlightCount == 1)
     }
+
+    @Test func categoryChangeRecomputesSuspension() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = DocumentRepository(database: db)
+        let categories = CategoryRepository(database: db)
+        let documentId = "10000000-0000-0000-0000-0000000000a1"
+        try await repo.insert(TestData.document(
+            id: documentId, title: "Slides", categoryId: BuiltinCategory.lectureSlides.id
+        ))
+        let highlight = TestData.highlight(documentId: documentId)
+        try await HighlightRepository(database: db).insert(highlight)
+        let card = TestData.reviewCard(highlightId: highlight.id)
+        try await db.writer.write { db in try card.insert(db) }
+        try await db.writer.write { db in _ = try ReviewSuspension.recompute(documentIds: [documentId], db) }
+        func cardReason() async throws -> SuspendedReason? {
+            try #require(try await ReviewCardRepository(database: db).fetch(id: card.id)).suspendedReason
+        }
+        #expect(try await cardReason() == nil)
+
+        try await categories.setFrequency(id: BuiltinCategory.notes.id, .off)
+        try await repo.updateMetadata(
+            id: documentId, title: "Slides", author: "", categoryId: BuiltinCategory.notes.id
+        )
+        #expect(try await cardReason() == .frequencyOff)
+
+        try await repo.updateMetadata(
+            id: documentId, title: "Slides", author: "", categoryId: BuiltinCategory.lectureSlides.id
+        )
+        #expect(try await cardReason() == nil)
+
+        // Moving back to Notes, then saving with the same category: title updates, card is unchanged.
+        try await repo.updateMetadata(
+            id: documentId, title: "Slides", author: "", categoryId: BuiltinCategory.notes.id
+        )
+        try await repo.updateMetadata(
+            id: documentId, title: "Renamed", author: "Ada", categoryId: BuiltinCategory.notes.id
+        )
+        let fetched = try #require(try await repo.fetch(id: documentId))
+        #expect(fetched.title == "Renamed")
+        #expect(try await cardReason() == .frequencyOff)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
 }

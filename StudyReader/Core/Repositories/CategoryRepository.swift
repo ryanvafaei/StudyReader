@@ -89,8 +89,33 @@ struct CategoryRepository: Sendable {
         }
     }
 
-    /// Custom categories only. One transaction: move its documents to `BuiltinCategory.other`, then delete
-    /// the row. Returns the number of documents moved.
+    /// Sets `frequency` and recomputes the suspension of every card in the category (ADR-0021), in one
+    /// transaction. Returns the number of cards whose suspension changed.
+    @discardableResult
+    func setFrequency(id: String, _ frequency: ReviewFrequency) async throws -> Int {
+        try await writer.write { db in
+            guard var category = try DocumentCategory.fetchOne(db, key: id) else {
+                throw CategoryError.notFound
+            }
+            category.frequency = frequency
+            try category.update(db, columns: ["frequency"])
+            return try ReviewSuspension.recompute(categoryId: id, db)
+        }
+    }
+
+    /// Existing cards are untouched; the flag only affects new highlights (SPEC F-17).
+    func setAutoCreateCards(id: String, _ enabled: Bool) async throws {
+        try await writer.write { db in
+            guard var category = try DocumentCategory.fetchOne(db, key: id) else {
+                throw CategoryError.notFound
+            }
+            category.autoCreateCards = enabled
+            try category.update(db, columns: ["autoCreateCards"])
+        }
+    }
+
+    /// Custom categories only. One transaction: move its documents to `BuiltinCategory.other`, recompute
+    /// the cards of the moved documents (ADR-0021), then delete the row. Returns the number of documents moved.
     @discardableResult
     func delete(id: String) async throws -> Int {
         try await writer.write { db in
@@ -98,9 +123,14 @@ struct CategoryRepository: Sendable {
                 throw CategoryError.notFound
             }
             guard !category.isBuiltin else { throw CategoryError.builtinCategory }
+            let movedIds = try LibraryDocument
+                .filter(Column("categoryId") == id)
+                .fetchAll(db)
+                .map(\.id)
             let moved = try LibraryDocument
                 .filter(Column("categoryId") == id)
                 .updateAll(db, Column("categoryId").set(to: BuiltinCategory.other.id))
+            try ReviewSuspension.recompute(documentIds: movedIds, db)
             try DocumentCategory.deleteOne(db, key: id)
             return moved
         }

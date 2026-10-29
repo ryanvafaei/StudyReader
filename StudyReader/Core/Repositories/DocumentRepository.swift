@@ -88,15 +88,24 @@ struct DocumentRepository: Sendable {
         return deleted
     }
 
-    /// Title and author are trimmed; an empty title throws `DocumentEditError.emptyTitle`.
+    /// Title and author are trimmed; an empty title throws `DocumentEditError.emptyTitle`. A changed category
+    /// recomputes the document's cards in the same write (ADR-0021).
     func updateMetadata(id: String, title: String, author: String, categoryId: String) async throws {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedAuthor = author.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { throw DocumentEditError.emptyTitle }
-        try await update(id: id, columns: ["title", "author", "categoryId"]) { document in
+        try await writer.write { db in
+            guard var document = try LibraryDocument.fetchOne(db, key: id) else {
+                throw RepositoryError.notFound
+            }
+            let categoryChanged = document.categoryId != categoryId
             document.title = trimmedTitle
             document.author = trimmedAuthor
             document.categoryId = categoryId
+            try document.update(db, columns: ["title", "author", "categoryId"])
+            if categoryChanged {
+                try ReviewSuspension.recompute(documentIds: [id], db)
+            }
         }
     }
 

@@ -150,4 +150,64 @@ struct CategoryRepositoryTests {
         #expect(other.documentCount == 0)
         #expect(updated.map(\.category.name) == ["Lecture slides", "Paper", "Book chapter", "Notes", "Other"])
     }
+
+    @Test func frequencyAndAutoCreatePersist() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = CategoryRepository(database: db)
+        let paper = BuiltinCategory.paper.id
+        let documentId = "10000000-0000-0000-0000-0000000000a1"
+        try await DocumentRepository(database: db).insert(TestData.document(id: documentId, categoryId: paper))
+        let highlight = TestData.highlight(documentId: documentId)
+        try await HighlightRepository(database: db).insert(highlight)
+        let card = TestData.reviewCard(highlightId: highlight.id)
+        try await db.writer.write { db in try card.insert(db) }
+
+        let changed = try await repo.setFrequency(id: paper, .off)
+        #expect(changed == 1)
+        #expect(try await repo.fetch(id: paper)?.frequency == .off)
+        let suspended = try #require(try await ReviewCardRepository(database: db).fetch(id: card.id))
+        #expect(suspended.suspendedReason == .frequencyOff)
+
+        try await repo.setAutoCreateCards(id: paper, false)
+        #expect(try await repo.fetch(id: paper)?.autoCreateCards == false)
+        // The flag only affects new highlights; the existing card keeps its suspension.
+        let afterFlag = try #require(try await ReviewCardRepository(database: db).fetch(id: card.id))
+        #expect(afterFlag.suspended == suspended.suspended)
+        #expect(afterFlag.suspendedReason == .frequencyOff)
+
+        let unknown = "99999999-0000-0000-0000-000000000000"
+        await #expect(throws: CategoryError.notFound) {
+            try await repo.setFrequency(id: unknown, .off)
+        }
+        await #expect(throws: CategoryError.notFound) {
+            try await repo.setAutoCreateCards(id: unknown, true)
+        }
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test func deleteRecomputesSuspension() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = CategoryRepository(database: db)
+        let documents = DocumentRepository(database: db)
+        let custom = try await repo.create(name: "Thesis")
+        let documentId = "10000000-0000-0000-0000-0000000000a1"
+        try await documents.insert(TestData.document(id: documentId, categoryId: custom.id))
+        let highlight = TestData.highlight(documentId: documentId)
+        try await HighlightRepository(database: db).insert(highlight)
+        let card = TestData.reviewCard(highlightId: highlight.id)
+        try await db.writer.write { db in try card.insert(db) }
+        try await repo.setFrequency(id: custom.id, .off)
+        let before = try #require(try await ReviewCardRepository(database: db).fetch(id: card.id))
+        #expect(before.suspendedReason == .frequencyOff)
+
+        let moved = try await repo.delete(id: custom.id)
+
+        #expect(moved == 1)
+        let document = try #require(try await documents.fetch(id: documentId))
+        #expect(document.categoryId == BuiltinCategory.other.id)
+        let after = try #require(try await ReviewCardRepository(database: db).fetch(id: card.id))
+        #expect(after.suspended == false)
+        #expect(after.suspendedReason == nil)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
 }

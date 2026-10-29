@@ -174,3 +174,5 @@ Same keys as above. Tasks W1 and W2 are rows 68–69 in `docs/tasks/phase-1/READ
 - T99 (reviewer, minor): `ReviewCardRepository.cards(forHighlight:)` orders passive-first in Swift; one `ORDER BY (cardType != 'passive'), createdAt, id` would do it in SQL.
 - T99 (reviewer, minor): `ReviewSuspension.recompute` binds one variable per id in an `IN (...)` list; a very large bulk create could exceed SQLite's bound-variable limit. Chunk if bulk create ever runs over tens of thousands of highlights.
 - T99 (reviewer, minor): `insertPassiveCards` runs two queries per card; fine at expected sizes.
+- T101 (reviewer, minor): `CategoryRepository.delete` fetches full `LibraryDocument` rows to get the moved ids; selecting ids only would be cheaper.
+- T101 (reviewer, minor): `DocumentRepositoryTests/categoryChangeRecomputesSuspension` does not directly prove that a same-category save skips the recompute (the document sits in an Off category, so the result looks the same).
