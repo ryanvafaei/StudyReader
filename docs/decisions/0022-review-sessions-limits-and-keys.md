@@ -1,6 +1,6 @@
 # ADR-0022: Review sessions, daily limits and review keys
 
-- Status: Proposed (Phase 2 planning, 2026-10-29; the starred points wait for the user's answers in docs/tasks/phase-2/README.md "Open questions")
+- Status: Accepted (2026-10-29; the user answered Q1–Q9 as recommended)
 - Date: 2026-10-29
 
 ## Context

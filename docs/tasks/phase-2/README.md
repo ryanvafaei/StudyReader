@@ -6,7 +6,7 @@ Epics (SPEC §6): E2.1 Scheduler (FSRS wrapper, F-19, F-17 card creation), E2.2 
 
 Done when (SPEC §6): a daily review and a themed review run end to end with persisted FSRS scheduling.
 
-Planned 2026-10-29 by the architect, in a cloud session. **Show the user the task list and the open questions (end of this file) before implementing.** T113 and T129 depend on answers (Q7, Q2); ADR-0022 is "Proposed" until Q1, Q3, Q5, Q6 and Q7 are answered.
+Planned 2026-10-29 by the architect, in a cloud session. **Show the user the task list and the open questions (end of this file) before implementing.** T113 and T129 depend on answers (Q7, Q2); The user answered Q1–Q9 as recommended on 2026-10-29 (T113 and T129 stay in; B40 and B41 join the backlog pass); ADR-0022 is Accepted.
 
 New ADRs: [0021 review engine data conventions](../../decisions/0021-review-engine-data-conventions.md) (FSRS behind one file, our JSON, weights, suspension rule, cloze text, reschedule formula, no `v3`), [0022 review sessions, daily limits and review keys](../../decisions/0022-review-sessions-limits-and-keys.md). Amended: ARCHITECTURE §10.1–§10.3 (pointers to the ADRs; `defaultWv6` doesn't exist in swift-fsrs 5.0.0), DEPENDENCIES §2/§5 (same correction). For the user: `.claude/agents/review-engine.md` still names `FSRSDefaults.defaultWv6`; only the user can edit agent files.
 
@@ -24,7 +24,7 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 4 | [T99 ReviewCardRepository and ReviewSuspension](T99-review-card-repository.md) | data-layer | T97, T98 | M | no |
 | 5 | [T100 New highlights get a passive review card](T100-passive-card-on-new-highlight.md) | data-layer | T99 | S | no |
 | 6 | [T101 Category frequency and auto-create; suspension follows category changes](T101-category-frequency-and-suspension.md) | data-layer | T99 | M | no |
-| 6a | [T129 One-time backfill of passive cards for older highlights](T129-backfill-passive-cards.md) (**only if Q2 = yes**) | data-layer | T100, T101 | S | yes (Mac row) |
+| 6a | [T129 One-time backfill of passive cards for older highlights](T129-backfill-passive-cards.md) (Q2 = yes) | data-layer | T100, T101 | S | yes (Mac row) |
 | 7 | [T102 Rating writes, review log, daily queue query](T102-ratings-and-daily-queue.md) | data-layer | T99 | M | no |
 | 8 | [T103 Card action writes: frequency override, edited text](T103-card-action-writes.md) | data-layer | T102 | S | no |
 | 9 | [T104 DailyReviewBuilder](T104-daily-review-builder.md) | review-engine | T98, T102 | S | no |
@@ -37,7 +37,7 @@ Run in this order, one at a time (CLAUDE.md workflow). "Agent" shows a per-call 
 | 16 | [T111 Sample library seeds review cards](T111-sample-library-review-cards.md) | ui-builder | T99, T105 | S | no |
 | 17 | [T112 UI tests part 1: daily review](T112-ui-tests-daily-review.md) (runs its own targeted UI class) | ui-builder | T106, T109, T110, T111 | M | no (these are the checks) |
 | — | **Checkpoint R1** (below) | ui-tester | T112 | | |
-| 18 | [T113 Daily review reminder](T113-review-reminder.md) (**only if Q7 = yes**) | ui-builder | T106, T112 (order) | S | yes (Mac row) |
+| 18 | [T113 Daily review reminder](T113-review-reminder.md) (Q7 = yes) | ui-builder | T106, T112 (order) | S | yes (Mac row) |
 | 19 | [T114 Mastery card writes](T114-mastery-card-writes.md) | data-layer | T99 | S | no |
 | 20 | [T115 MasteryService](T115-mastery-service.md) | review-engine | T105, T107, T114 | M | no |
 | 21 | [T116 Browse query: Mastery filter and card counts](T116-browser-mastery-filter-and-card-counts.md) | data-layer | T114 | S | no |
@@ -142,7 +142,7 @@ StudyReaderUITests/                    + ReviewSessionTests, MasteryEditorTests,
                                        Support/StudyReaderUI+Review.swift
 ```
 
-## Open questions (answer before T97 starts; the recommended answer is what the specs assume)
+## Open questions (all answered by the user as recommended, 2026-10-29)
 - **Q1 (ADR-0022, T104):** Is the daily limit (15) a budget per review day or per session? *Recommended: per review day.* A second daily session the same day only shows due cards up to what's left of the 15; new cards up to what's left of the 5.
 - **Q2 (T129):** Your library already has highlights from Phase 1, made before review cards existed. Should they get passive cards once, honouring each category's settings? *Recommended: yes.* They enter the review at the new-per-day rate (5 a day), so there is no flood. If no, drop T129. Then only highlights made from now on, plus "Create Review Cards" in the browser, get cards.
 - **Q3 (ADR-0022, T126, T127):** F-18 lists Forgot/Remembered as available "in the flashcards view" too. Should the Flashcards view offer rating (an ad-hoc review outside any session), and Skip? *Recommended: no.* It offers every other F-18 action; rating stays in daily and themed sessions, so the logs and limits stay meaningful.
