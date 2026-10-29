@@ -74,7 +74,8 @@ actor HighlightService {
             createdAt: date,
             updatedAt: date
         )
-        try await highlights.insert(highlight)
+        let card = try ReviewCardFactory.passive(highlightId: highlight.id, now: date)
+        try await highlights.insert(highlight, passiveCard: card)
         if isAuto {
             lastAutoHighlightId = highlight.id
         }
@@ -115,7 +116,8 @@ actor HighlightService {
             updatedAt: date
         )
         do {
-            try await highlights.insert(highlight)
+            let card = try ReviewCardFactory.passive(highlightId: id, now: date)
+            try await highlights.insert(highlight, passiveCard: card)
         } catch {
             try? FileManager.default.removeItem(at: url)
             throw error

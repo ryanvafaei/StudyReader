@@ -26,12 +26,16 @@ struct HighlightRepository: Sendable {
             .values(in: writer)
     }
 
-    /// One transaction: the highlight, then one `HighlightTag` per distinct tag id (duplicates ignored).
-    func insert(_ highlight: Highlight, tagIds: [String] = []) async throws {
+    /// One transaction: the highlight, one `HighlightTag` per distinct tag id (duplicates ignored), then, when
+    /// `passiveCard` is given, `ReviewCardRepository.insertAutomaticPassiveCard` (which checks the category itself).
+    func insert(_ highlight: Highlight, tagIds: [String] = [], passiveCard: ReviewCard? = nil) async throws {
         try await writer.write { db in
             try highlight.insert(db)
             for tagId in Self.uniqueInOrder(tagIds) {
                 try HighlightTag(highlightId: highlight.id, tagId: tagId).insert(db)
+            }
+            if let passiveCard {
+                _ = try ReviewCardRepository.insertAutomaticPassiveCard(passiveCard, db)
             }
         }
     }
