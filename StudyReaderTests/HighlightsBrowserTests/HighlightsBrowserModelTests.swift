@@ -280,6 +280,89 @@ struct HighlightsBrowserModelTests {
         #expect(model.errorMessage == nil)
     }
 
+    private func waitForItems(_ model: HighlightsBrowserModel, where condition: () -> Bool) async {
+        for _ in 0..<200 where !condition() {
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func masteryFilter() async throws {
+        let (model, env) = try await Self.makeModel()
+        let now = TestData.referenceDate
+        let repo = env.reviewCardRepository
+        try await repo.insertPassiveCards([try ReviewCardFactory.passive(highlightId: Self.h1, now: now)])
+        try await repo.insertPassiveCards([try ReviewCardFactory.passive(highlightId: Self.h2, now: now)])
+        try await repo.insertMasteryCards(
+            [try ReviewCardFactory.mastery(highlightId: Self.h2, cardType: .qa, clozeRanges: nil,
+                                           question: "Q", answer: "A", now: now)],
+            highlightId: Self.h2
+        )
+        // Only h1 (passive) and h2 (passive + Mastery) have cards; h3..h6 have none and count as "without".
+        model.masteryFilter = true
+        #expect(await observed(model, expecting: [Self.h2]) == [Self.h2])
+        model.masteryFilter = false
+        let without = [Self.h4, Self.h3, Self.h6, Self.h5, Self.h1]
+        #expect(await observed(model, expecting: without) == without)
+        model.masteryFilter = nil
+        let all = [Self.h4, Self.h3, Self.h6, Self.h2, Self.h5, Self.h1]
+        #expect(await observed(model, expecting: all) == all)
+        #expect(!model.isFiltered)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func createReviewCardsForSelection() async throws {
+        let (model, env) = try await Self.makeModel()
+        try await env.reviewCardRepository.insertPassiveCards(
+            [try ReviewCardFactory.passive(highlightId: Self.h3, now: TestData.referenceDate)]
+        )
+        let task = Task { await model.observe() }
+        defer { task.cancel() }
+        await waitForItems(model) { model.items.count == 6 }
+
+        model.selection = [Self.h1, Self.h2, Self.h3]
+        #expect(model.canCreateReviewCards)
+        await model.createReviewCards()
+        #expect(model.bulkMessage == "Created 2 review cards")
+        #expect(model.errorMessage == nil)
+        model.dismissBulkMessage()
+        #expect(model.bulkMessage == nil)
+
+        await waitForItems(model) { !model.canCreateReviewCards }
+        #expect(!model.canCreateReviewCards)
+        await model.createReviewCards()
+        #expect(model.bulkMessage == "The selected highlights already have review cards.")
+        let cards = try await env.reviewCardRepository.cards(forHighlight: Self.h1)
+        #expect(cards.count == 1)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func createReviewCardsSingular() async throws {
+        let (model, _) = try await Self.makeModel()
+        let task = Task { await model.observe() }
+        defer { task.cancel() }
+        await waitForItems(model) { model.items.count == 6 }
+        model.selection = [Self.h1]
+        await model.createReviewCards()
+        #expect(model.bulkMessage == "Created 1 review card")
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func createdCardsRespectAnOffCategory() async throws {
+        let (model, env) = try await Self.makeModel()
+        try await env.categoryRepository.setFrequency(id: BuiltinCategory.paper.id, .off)
+        let task = Task { await model.observe() }
+        defer { task.cancel() }
+        await waitForItems(model) { model.items.count == 6 }
+
+        model.selection = [Self.h3]
+        await model.createReviewCards()
+        let cards = try await env.reviewCardRepository.cards(forHighlight: Self.h3)
+        #expect(cards.count == 1)
+        #expect(cards.first?.suspended == true)
+        #expect(cards.first?.suspendedReason == .frequencyOff)
+    }
+
     @Test
     func countTextAgreesWithCount() {
         #expect(HighlightsBrowserModel.countText(0) == "0 highlights")

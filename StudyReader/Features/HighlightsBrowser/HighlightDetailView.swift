@@ -1,6 +1,21 @@
 import AppKit
 import SwiftUI
 
+/// Small "Mastery" capsule shown on rows and in the detail pane of highlights that have Mastery cards (SPEC F-16).
+struct MasteryBadge: View {
+    var body: some View {
+        Text("Mastery")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.accentColor.opacity(0.18), in: Capsule())
+            .foregroundStyle(Color.accentColor)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Has Mastery cards")
+            .accessibilityIdentifier("highlights-mastery-badge")
+    }
+}
+
 /// Detail pane for the one selected browser row: full text or snapshot, editable note and tags, color dots and
 /// "Open in Document". The host sets `.id(item.id)` so each highlight gets a fresh editor.
 struct HighlightDetailView: View {
@@ -9,6 +24,7 @@ struct HighlightDetailView: View {
     let session: AppSession
     let onSetColor: (HighlightColor) -> Void
     let onOpen: () -> Void
+    let onMastery: () -> Void
 
     @State private var noteModel: NoteEditorModel
     @State private var tagModel: TagFieldModel
@@ -18,13 +34,15 @@ struct HighlightDetailView: View {
         thumbnail: NSImage?,
         session: AppSession,
         onSetColor: @escaping (HighlightColor) -> Void,
-        onOpen: @escaping () -> Void
+        onOpen: @escaping () -> Void,
+        onMastery: @escaping () -> Void
     ) {
         self.item = item
         self.thumbnail = thumbnail
         self.session = session
         self.onSetColor = onSetColor
         self.onOpen = onOpen
+        self.onMastery = onMastery
         _noteModel = State(initialValue: NoteEditorModel(target: .highlight(item.id), environment: session.environment))
         _tagModel = State(initialValue: TagFieldModel(target: .highlight(item.id), environment: session.environment))
     }
@@ -39,6 +57,10 @@ struct HighlightDetailView: View {
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                if item.masteryCardCount > 0 {
+                    MasteryBadge()
+                }
 
                 noteEditor
 
@@ -56,6 +78,14 @@ struct HighlightDetailView: View {
                     Label("Open in Document", systemImage: "arrow.up.right.square")
                 }
                 .accessibilityLabel("Open in Document")
+
+                Button {
+                    onMastery()
+                } label: {
+                    Label("Mastery…", systemImage: "brain")
+                }
+                .accessibilityLabel("Mastery")
+                .accessibilityIdentifier("highlights-action-mastery")
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)

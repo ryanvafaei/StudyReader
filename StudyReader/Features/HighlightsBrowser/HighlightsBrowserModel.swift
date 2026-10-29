@@ -31,6 +31,10 @@ final class HighlightsBrowserModel {
     private(set) var exportMessage: String?
     /// true while `exportSelection()` runs, so a double click can't start two exports.
     private(set) var isExporting = false
+    /// Outcome of "Create Review Cards", shown in an alert.
+    private(set) var bulkMessage: String?
+    /// Highlight id the browser shows the Mastery editor for (sheet over the browser).
+    var masteryHighlightId: String?
 
     @ObservationIgnored private let environment: AppEnvironment
     @ObservationIgnored private let calendar: Calendar
@@ -87,6 +91,41 @@ final class HighlightsBrowserModel {
 
     func dismissExportMessage() {
         exportMessage = nil
+    }
+
+    // MARK: - Mastery and review cards
+
+    /// Mastery filter: nil any, true with Mastery cards, false without. Forwards to `filter.hasMastery`.
+    var masteryFilter: Bool? {
+        get { filter.hasMastery }
+        set { filter.hasMastery = newValue }
+    }
+
+    /// true when any selected row has no review card yet.
+    var canCreateReviewCards: Bool { selectedItems.contains { $0.reviewCardCount == 0 } }
+
+    /// Passive cards for the selected rows without any review card. Sets `bulkMessage`, or `errorMessage` on failure.
+    func createReviewCards() async {
+        let ids = selectedItems.filter { $0.reviewCardCount == 0 }.map(\.id)
+        guard !ids.isEmpty else {
+            bulkMessage = String(localized: "The selected highlights already have review cards.")
+            return
+        }
+        do {
+            let now = environment.now()
+            let cards = try ids.map { try ReviewCardFactory.passive(highlightId: $0, now: now) }
+            let created = try await environment.reviewCardRepository.insertPassiveCards(cards)
+            bulkMessage = created == 0
+                ? String(localized: "The selected highlights already have review cards.")
+                : String(localized: "Created \(created) review cards")
+            errorMessage = nil
+        } catch {
+            errorMessage = String(localized: "The review cards couldn't be created.")
+        }
+    }
+
+    func dismissBulkMessage() {
+        bulkMessage = nil
     }
 
     // MARK: - Observation

@@ -218,6 +218,28 @@
     "Delete \"%@\"?" : {
 
     },
+    "Created %lld review cards" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Created %lld review card"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Created %lld review cards"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Delete %lld highlights?" : {
       "localizations" : {
         "en" : {

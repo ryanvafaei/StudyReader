@@ -61,6 +61,25 @@ struct HighlightsBrowserView: View {
         } message: {
             Text(model.exportMessage ?? "")
         }
+        .alert(
+            "Review Cards",
+            isPresented: Binding(
+                get: { model.bulkMessage != nil },
+                set: { if !$0 { model.dismissBulkMessage() } }
+            )
+        ) {
+            Button("OK") { model.dismissBulkMessage() }
+                .accessibilityIdentifier("highlights-bulk-ok")
+        } message: {
+            Text(model.bulkMessage ?? "")
+                .accessibilityIdentifier("highlights-bulk-message")
+        }
+        .sheet(item: Binding(
+            get: { model.masteryHighlightId.map(MasterySheetTarget.init) },
+            set: { model.masteryHighlightId = $0?.id }
+        )) { target in
+            MasteryEditorSheet(highlightId: target.id, session: session)
+        }
         .overlay(alignment: .bottom) {
             if let message = model.errorMessage {
                 Text(message)
@@ -130,6 +149,14 @@ struct HighlightsBrowserView: View {
                     }
                 }
                 .accessibilityLabel("Filter by view")
+
+                Menu(masteryMenuTitle) {
+                    masteryOption("Any", value: nil)
+                    masteryOption("With Mastery", value: true)
+                    masteryOption("Without Mastery", value: false)
+                }
+                .accessibilityLabel("Filter by Mastery")
+                .accessibilityIdentifier("highlights-filter-mastery")
 
                 Spacer()
             }
@@ -204,6 +231,26 @@ struct HighlightsBrowserView: View {
 
     private var countText: String {
         model.hasLoaded ? HighlightsBrowserModel.countText(model.items.count) : ""
+    }
+
+    private var masteryMenuTitle: String {
+        switch model.masteryFilter {
+        case nil: String(localized: "Mastery")
+        case true?: String(localized: "Mastery: With")
+        case false?: String(localized: "Mastery: Without")
+        }
+    }
+
+    private func masteryOption(_ title: LocalizedStringResource, value: Bool?) -> some View {
+        Button {
+            model.masteryFilter = value
+        } label: {
+            if model.masteryFilter == value {
+                Label(String(localized: title), systemImage: "checkmark")
+            } else {
+                Text(String(localized: title))
+            }
+        }
     }
 
     private func menuTitle(_ name: LocalizedStringResource, _ count: Int) -> String {
@@ -352,6 +399,11 @@ struct HighlightsBrowserView: View {
                 .disabled(model.isExporting)
                 .accessibilityLabel("Export selection")
 
+            Button("Create Review Cards") { Task { await model.createReviewCards() } }
+                .disabled(!model.canCreateReviewCards)
+                .accessibilityLabel("Create review cards")
+                .accessibilityIdentifier("highlights-create-review-cards")
+
             Spacer()
 
             Button("Delete…", role: .destructive) { pendingDelete = model.selection }
@@ -392,7 +444,8 @@ struct HighlightsBrowserView: View {
                 thumbnail: item.highlight.imagePath.flatMap { model.thumbnails[$0] },
                 session: session,
                 onSetColor: { color in Task { await model.setColor(color) } },
-                onOpen: { open(item.id) }
+                onOpen: { open(item.id) },
+                onMastery: { model.masteryHighlightId = item.id }
             )
             .id(item.id)
         } else {
@@ -411,12 +464,17 @@ struct HighlightsBrowserView: View {
     }
 }
 
+private struct MasterySheetTarget: Identifiable {
+    let id: String
+}
+
 private extension HighlightListItem {
     /// Document, page and color as the row's accessibility value; `.combine` plus the label would otherwise hide them.
     var accessibilityDetail: String {
         var parts = [documentTitle]
         if let page = highlight.pageIndex { parts.append(String(localized: "p. \(page + 1)")) }
         parts.append(HighlightPalette.title(highlight.color))
+        if masteryCardCount > 0 { parts.append(String(localized: "Has Mastery cards")) }
         return parts.joined(separator: ", ")
     }
 }
@@ -452,6 +510,9 @@ private struct HighlightBrowserRow: View {
                 }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                if item.masteryCardCount > 0 {
+                    MasteryBadge()
+                }
                 if item.highlight.anchorStatus == .orphaned {
                     Text("Couldn't locate in document")
                         .font(.caption)
