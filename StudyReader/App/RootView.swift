@@ -21,7 +21,7 @@ struct RootView: View {
             List(SidebarItem.allCases, selection: $model.selection) { item in
                 Label(item.title, systemImage: item.systemImage)
                     .tag(item)
-                    .badge(item == .review ? session.reviewBadge.dailyDueCount : 0)
+                    .badge(badgeCount(for: item))
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 210)
         } detail: {
@@ -39,6 +39,9 @@ struct RootView: View {
             } else if model.selection == .review {
                 // LibraryView is not in the hierarchy here, so its Return/Escape buttons are gone (T109).
                 ReviewSectionView(session: session)
+            } else if model.selection == .themedReviews {
+                // LibraryView is not in the hierarchy here: Return runs the selected review, Escape does nothing (T124).
+                ThemedReviewsView(session: session)
             } else if let item = model.selection {
                 ContentUnavailableView(
                     item.title,
@@ -91,10 +94,21 @@ struct RootView: View {
             await session.reviewBadge.observe()
         }
         .task {
+            await session.reviewBadge.observeThemed()
+        }
+        .task {
             // Dock and Open With URLs that arrived before this window existed are handed over here.
             ExternalURLRouter.shared.attach { urls in
                 session.importCoordinator.importURLs(urls)
             }
+        }
+    }
+
+    private func badgeCount(for item: SidebarItem) -> Int {
+        switch item {
+        case .review: session.reviewBadge.dailyDueCount
+        case .themedReviews: session.reviewBadge.themedDueCount
+        default: 0
         }
     }
 

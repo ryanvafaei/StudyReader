@@ -45,6 +45,28 @@
         }
       }
     },
+    "Every %lld days" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Every %lld day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Every %lld days"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Reviewed %lld cards" : {
       "localizations" : {
         "en" : {

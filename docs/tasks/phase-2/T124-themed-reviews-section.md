@@ -73,3 +73,4 @@ enum ThemedEditorRequest: Identifiable, Equatable {
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer ui-builder sonnet medium (reworks: none), reviewer code-reviewer sonnet medium: APPROVED, spec met (code-verifiable criteria); sidebar row structure unchanged (only the badge argument became badgeCount(for:)); CI build and full unit tests green, 929 tests (runs 40953467959, 40953745444). Visual check pending (Mac row in VISUAL_CHECKS.md)
