@@ -9,6 +9,11 @@ final class AppSession {
     let importCoordinator: ImportCoordinator
     let router = ReaderRouter()
     let search: SearchModel
+    /// The sidebar badge: today's daily plan size (SPEC F-15).
+    let reviewBadge: ReviewBadgeModel
+    /// The daily review session, kept so leaving the review section and coming back resumes it (ADR-0022).
+    /// Holds no reference back to this session: it keeps `environment` and `settings` only.
+    @ObservationIgnored private var dailyReview: ReviewSessionModel?
     /// True while the library search field has keyboard focus (bound to `.searchFocused`).
     var isSearchFocused = false
     /// The library's selected document id. Kept here, not in LibraryView, so it survives the search results replacing
@@ -20,9 +25,22 @@ final class AppSession {
     var libraryFilter = LibraryFilter()
 
     init(environment: AppEnvironment) {
+        let settings = AppSettings(store: environment.settingsStore)
         self.environment = environment
-        self.settings = AppSettings(store: environment.settingsStore)
+        self.settings = settings
         self.importCoordinator = ImportCoordinator(importService: environment.importService)
         self.search = SearchModel(environment: environment)
+        self.reviewBadge = ReviewBadgeModel(environment: environment, settings: settings)
+    }
+
+    /// The daily review session model, created once and reused. Views read it through here so a session survives
+    /// navigation between sidebar sections.
+    func dailyReviewModel() -> ReviewSessionModel {
+        if let dailyReview {
+            return dailyReview
+        }
+        let model = ReviewSessionModel(session: self)
+        dailyReview = model
+        return model
     }
 }

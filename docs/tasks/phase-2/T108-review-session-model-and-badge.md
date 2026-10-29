@@ -126,3 +126,5 @@ Tests are `@MainActor`, use an in-memory session built on `AppEnvironment.inMemo
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer review-engine haiku medium, reviewer code-reviewer sonnet medium: CHANGES REQUESTED (1st), production code matches spec/ADR-0022 but tests are weaker than criteria 4 and 8 (3 cards/67%/3 log rows; 4 due + 7 new capped by newPerDay 5 -> 9 then 8), minor key/summary/override gaps, no FTSIntegrity.check; test-only rework
+- 2026-10-29, implementer review-engine haiku high (rework 1, test-only, effort high), reviewer code-reviewer sonnet high: APPROVED, all four findings fixed, production files unchanged; CI build and full unit tests green, 862 tests (runs 40901137167, 40901545011)
