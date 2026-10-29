@@ -506,25 +506,30 @@ _{Author} · {Category}_
 ## 10. Review engine
 
 ### 10.1 Scheduling (`ReviewScheduler`, pure struct)
+Amended 2026-10-29 by ADR-0021: swift-fsrs 5.0.0 has no `FSRSDefaults.defaultWv6`, and the rest of the app never sees FSRS types. Exact signatures: `docs/tasks/phase-2/T97-fsrs-scheduler-wrapper.md`.
 ```swift
 struct ReviewScheduler: Sendable {
-  var weights: [Double] = FSRSDefaults.defaultWv6   // FSRS-6
-  var enableFuzz = true                              // tests set false
-  func schedule(card: FSRS.Card, rating: Rating, now: Date, retention: Double) throws -> (card: FSRS.Card, log: FSRS.ReviewLog)
+  var weights: [Double]        // the library's default FSRS-6 weights (21)
+  var enableFuzz = true        // tests set false
+  func schedule(_ card: StoredFSRSCard, rating: ReviewRating, now: Date, retention: Double) throws -> ScheduledReview
+  func rescheduledDue(_ card: StoredFSRSCard, retention: Double) -> Date   // SPEC F-18 frequency change
 }
 ```
-- Builds `FSRS(parameters: .init(requestRetention: retention, w: weights, enableFuzz: enableFuzz, enableShortTerm: false))` and calls `next(card:now:grade:)`.
+- Only this file imports FSRS. It maps `StoredFSRSCard` (our JSON in `reviewCard.fsrsCard`) to `FSRS.Card` and back, builds `FSRS(parameters:)` with `requestRetention: retention`, the weights, `enableFuzz`, `enableShortTerm: false`, and calls `next(card:now:grade:)`.
+- Suspension rule (`FrequencyPolicy.suspendedReason`, applied by `ReviewSuspension.recompute`), `introducedAt` at the first rating, cloze text stored in `answer`: ADR-0021. Session limits, review day, keys: ADR-0022.
 - `FrequencyPolicy.retention(card:category:)`: card override > category; low 0.80, normal 0.90, high 0.95; off → suspended (never scheduled).
 - New cards: `FSRS.Card(due: now)` (public initializer; `FSRSDefaults.createEmptyCard` is internal) with `dueAt = now`.
 - `Rating` cases in swift-fsrs: `.manual` (never used), `.again`, `.hard`, `.good`, `.easy`. Two-button mode maps Forgot → `.again`, Remembered → `.good`.
 
 ### 10.2 Session builders (pure, take `Now`)
 - `DailyReviewBuilder`: due non-suspended cards (`dueAt ≤ now`, written `Column("dueAt") <= now.databaseUnixSeconds`; the same applies to the `introducedToday` and `lastCompletedAt` cutoffs, ADR-0012) ordered by `dueAt` asc, limit `dailyLimit`; then new cards (`state == new`, `introducedAt == nil`) ordered by highlight `createdAt`, limit `newPerDay − introducedToday`. "Today" starts at 04:00 local.
+  - Amended 2026-10-29 (ADR-0022): the builder takes a `DailyQueueSnapshot` (candidate rows plus today's activity) from `ReviewCardRepository.dailyQueue(now:dayStart:)`. Both limits are budgets per review day: due = `dailyLimit` − due cards already rated today in daily sessions, new = `newPerDay` − cards introduced today. Due candidates exclude `state == new`. Cards rated today in any session are left out.
 - `ThemedReviewBuilder`: filter → candidate cards (non-suspended), order dueFirst (due asc, then `lastReview` asc) or random (seeded RNG injectable), limit `cardsPerSession`. Excludes cards already rated today in another session.
 - `ThemedReviewSchedule.isDue(review, now)`: daily → last completed before today's 04:00; everyNDays → ≥ N days since; weekdays → today is a listed weekday and not completed today.
 
 ### 10.3 Mastery
-- Creating cloze/Q&A cards inserts `reviewCard` rows (`cardType` cloze/qa) with fresh FSRS state and sets the passive card `suspended = 1, suspendedReason = 'mastery'`. Deleting the last Mastery card unsuspends the passive card.
+- Creating cloze/Q&A cards inserts `reviewCard` rows (`cardType` cloze/qa) with fresh FSRS state and sets the passive card `suspended = 1, suspendedReason = 'mastery'`. Deleting the last Mastery card unsuspends the passive card (both through `ReviewSuspension.recompute`, ADR-0021).
+- A cloze card stores the text its ranges refer to in `answer` (ADR-0021).
 - Cloze display: replace each range in the active cloze group with `[…]`; back shows full text with the ranges emphasized.
 
 ---

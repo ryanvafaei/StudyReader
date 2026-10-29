@@ -1,2 +1,2 @@
-- [Project conventions](project_conventions.md) — names, ADR-0011..0018 rules: writes, no-v3 Phase 1, settings, reader windows, export seams, tests
-- [Phase status](project_phase_status.md) — Phase 0 done; Phase 1 planned T29–T74; open questions Q1–Q7; Phase 2 carry-overs
+- [Project conventions](project_conventions.md) — names, ADR-0011..0022 rules: writes, no-v3 Phases 1–2, settings, reader windows, export seams, review engine, tests
+- [Phase status](project_phase_status.md) — Phases 0–1 done; Phase 2 planned T96–T129 (checkpoints R1/R2, Q1–Q9 open); carry-overs

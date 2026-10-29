@@ -23,7 +23,7 @@ Only these. Adding any other package needs the user's approval.
 |---|---|---|---|---|---|
 | [groue/GRDB.swift](https://github.com/groue/GRDB.swift) | `GRDB` | from 7.11.1 | MIT | 2026-08-08 | SQLite, migrations, `ValueObservation`, FTS5 (system SQLite supports FTS5 on macOS, no custom build) |
 | [swiftlang/swift-markdown](https://github.com/swiftlang/swift-markdown) | `Markdown` | from 0.9.0 | Apache-2.0 | 2026-09-24 | Parse Markdown (CommonMark + GFM) into an AST; `HTMLFormatter` for the HTML export fallback |
-| [open-spaced-repetition/swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) | `FSRS` | from 5.0.0 | MIT | 2026-05-25 | FSRS-6 scheduling (`FSRSDefaults.defaultWv6`), Swift Testing, concurrency-friendly. Official org listed in [awesome-fsrs](https://github.com/open-spaced-repetition/awesome-fsrs) |
+| [open-spaced-repetition/swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) | `FSRS` | from 5.0.0 | MIT | 2026-05-25 | FSRS-6 scheduling (default parameters; see §5 and ADR-0021), Swift Testing, concurrency-friendly. Official org listed in [awesome-fsrs](https://github.com/open-spaced-repetition/awesome-fsrs) |
 | [google/GoogleSignIn-iOS](https://github.com/google/GoogleSignIn-iOS) | `GoogleSignIn` | from 10.1.0 | Apache-2.0 | 2026-10-22 | Google OAuth on macOS (supports macOS 12+), token refresh and Keychain storage. Pulls in AppAuth, GTMAppAuth, gtm-session-fetcher, GoogleUtilities, app-check |
 
 Apple frameworks (no dependency): SwiftUI, AppKit, PDFKit, NaturalLanguage (`NLEmbedding`), FoundationModels (on-device model, Apple Intelligence Macs), Vision (`RecognizeDocumentsRequest`, macOS 26+, optional later), CryptoKit (SHA-256), Network (`NWPathMonitor`), UniformTypeIdentifiers.
@@ -87,7 +87,7 @@ Source: [Google Sign-In for iOS and macOS: get started](https://developers.googl
 | `RecognizeDocumentsRequest` (Vision) is available on macOS 26+ and returns paragraphs, lists, and tables | [Apple docs](https://developer.apple.com/documentation/vision/recognizedocumentsrequest) |
 | Foundation Models needs an Apple Intelligence–capable device; supports guided generation with `@Generable` | [Apple docs](https://developer.apple.com/documentation/foundationmodels) |
 | GRDB supports FTS5 with the system SQLite on macOS 10.13+ | GRDB README |
-| swift-fsrs implements FSRS-6 with 21 weights (`FSRSDefaults.defaultWv6`); `Card(due:)` is public; `Rating` = manual/again/hard/good/easy | swift-fsrs source |
+| swift-fsrs implements FSRS-6 with 21 weights; `Card(due:)` is public; `Rating` = manual/again/hard/good/easy. Correction (T01, 2026-10-24; ADR-0021): in 5.0.0 `FSRSDefaults.defaultWv6` doesn't exist and `defaultW` is internal; the weights come from the library's default parameters | swift-fsrs source |
 
 ## 6. Considered and rejected
 
