@@ -87,6 +87,16 @@ struct HighlightRepository: Sendable {
         }
     }
 
+    /// SPEC F-18 "Edit highlight". `editedText` is stored as given, except: nil, whitespace-only, or equal to the
+    /// highlight's `text` → nil (no edit). Updates `editedText` and `updatedAt`; the FTS update trigger re-indexes it.
+    /// Missing row: `RepositoryError.notFound`.
+    func updateEditedText(id: String, editedText: String?, at date: Date) async throws {
+        try await update(id: id, columns: ["editedText", "updatedAt"]) { highlight in
+            highlight.editedText = Self.storedEditedText(editedText, original: highlight.text)
+            highlight.updatedAt = date
+        }
+    }
+
     /// Re-anchoring result (ARCHITECTURE §5.3). Missing row: `RepositoryError.notFound`.
     func updateAnchor(
         id: String,
@@ -202,6 +212,15 @@ struct HighlightRepository: Sendable {
         guard let relativePath, let url = fileStore.url(forRelativePath: relativePath) else { return }
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else { return }
         try FileManager.default.removeItem(at: url)
+    }
+
+    /// nil when there is no edit: nil, whitespace-only, or the original text. Otherwise the text unchanged.
+    private static func storedEditedText(_ editedText: String?, original: String) -> String? {
+        guard let editedText,
+              !editedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              editedText != original
+        else { return nil }
+        return editedText
     }
 
     /// The ids with repeats removed, first occurrence kept.

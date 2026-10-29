@@ -183,3 +183,32 @@ extension ReviewCardRepository {
         }
     }
 }
+
+/// The FSRS state after a frequency change (ReviewScheduler.rescheduledDue, T105).
+struct RescheduledCard: Sendable, Equatable {
+    var fsrsCard: String     // StoredFSRSCard JSON with the new due
+    var dueAt: Date          // == its due
+}
+
+/// Card action writes (T103, SPEC F-18 "Change frequency").
+extension ReviewCardRepository {
+    /// One transaction: set frequencyOverride (nil clears it), and when `rescheduled` is non-nil also fsrsCard and dueAt,
+    /// with update(db, columns:); then ReviewSuspension.recompute(highlightIds: [card.highlightId]). Missing card →
+    /// RepositoryError.notFound.
+    func updateFrequencyOverride(cardId: String, override: ReviewFrequency?, rescheduled: RescheduledCard?) async throws {
+        try await writer.write { db in
+            guard var card = try ReviewCard.fetchOne(db, key: cardId) else {
+                throw RepositoryError.notFound
+            }
+            card.frequencyOverride = override
+            var columns = ["frequencyOverride"]
+            if let rescheduled {
+                card.fsrsCard = rescheduled.fsrsCard
+                card.dueAt = rescheduled.dueAt
+                columns += ["fsrsCard", "dueAt"]
+            }
+            try card.update(db, columns: columns)
+            try ReviewSuspension.recompute(highlightIds: [card.highlightId], db)
+        }
+    }
+}
