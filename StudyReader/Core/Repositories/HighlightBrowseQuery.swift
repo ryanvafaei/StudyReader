@@ -12,6 +12,8 @@ struct HighlightBrowserFilter: Sendable, Equatable {
     /// true: the note has text after trimming; false: the note is blank; nil: either.
     var hasNote: Bool? = nil
     var views: Set<ReaderViewKind> = []
+    /// true: the highlight has at least one cloze or qa card; false: none; nil: either.
+    var hasMastery: Bool? = nil
     var createdFrom: Date? = nil
     var createdBefore: Date? = nil
 }
@@ -35,6 +37,10 @@ struct HighlightListItem: Sendable, Equatable, Identifiable {
     var tagIds: [String]
     /// Tag names, sorted case-insensitively.
     var tagNames: [String]
+    /// Cloze and qa cards of this highlight (the Mastery badge).
+    var masteryCardCount: Int = 0
+    /// All review cards of this highlight, passive included.
+    var reviewCardCount: Int = 0
     var id: String { highlight.id }
 }
 
@@ -61,7 +67,10 @@ enum HighlightBrowseSQL {
         let rows = try Row.fetchAll(
             db,
             sql: """
-                SELECT h.*, d.title AS documentTitle, d.categoryId AS categoryId
+                SELECT h.*, d.title AS documentTitle, d.categoryId AS categoryId,
+                    (SELECT COUNT(*) FROM reviewCard r WHERE r.highlightId = h.id AND r.cardType IN ('cloze','qa'))
+                        AS masteryCardCount,
+                    (SELECT COUNT(*) FROM reviewCard r WHERE r.highlightId = h.id) AS reviewCardCount
                 FROM highlight h
                 JOIN document d ON d.id = h.documentId
                 WHERE \(conditions.sql)
@@ -94,12 +103,16 @@ enum HighlightBrowseSQL {
         return try rows.map { row in
             let highlight = try Highlight(row: row)
             let tags = tagsByHighlight[highlight.id] ?? []
+            let masteryCardCount: Int = row["masteryCardCount"]
+            let reviewCardCount: Int = row["reviewCardCount"]
             return HighlightListItem(
                 highlight: highlight,
                 documentTitle: row["documentTitle"],
                 categoryId: row["categoryId"],
                 tagIds: tags.map { $0.id }.sorted(),
-                tagNames: tags.map { $0.name }.sorted { ($0.lowercased(), $0) < ($1.lowercased(), $1) }
+                tagNames: tags.map { $0.name }.sorted { ($0.lowercased(), $0) < ($1.lowercased(), $1) },
+                masteryCardCount: masteryCardCount,
+                reviewCardCount: reviewCardCount
             )
         }
     }
@@ -151,6 +164,11 @@ enum HighlightBrowseSQL {
             let views = filter.views.map { $0.rawValue }.sorted()
             clauses.append("h.view IN (\(placeholders(views.count)))")
             arguments += views.map { $0 as (any DatabaseValueConvertible)? }
+        }
+        if let hasMastery = filter.hasMastery {
+            clauses.append(hasMastery
+                ? "EXISTS (SELECT 1 FROM reviewCard r WHERE r.highlightId = h.id AND r.cardType IN ('cloze','qa'))"
+                : "NOT EXISTS (SELECT 1 FROM reviewCard r WHERE r.highlightId = h.id AND r.cardType IN ('cloze','qa'))")
         }
         if let createdFrom = filter.createdFrom {
             clauses.append("h.createdAt >= ?")

@@ -304,4 +304,107 @@ struct HighlightBrowseQueryTests {
         let pastItems = try await repo.browse(filter: past, sort: .createdNewest)
         #expect(pastItems.count == 6)
     }
+
+    private static let m1 = "20000000-0000-0000-0000-0000000000F1"
+    private static let m2 = "20000000-0000-0000-0000-0000000000F2"
+    private static let m3 = "20000000-0000-0000-0000-0000000000F3"
+
+    /// Three highlights in one document: m1 yellow with no card, m2 green with a passive card,
+    /// m3 yellow with a passive card and a qa card.
+    private static func seedCards(_ db: AppDatabase) async throws -> HighlightRepository {
+        let t0 = TestData.referenceDate
+        try await DocumentRepository(database: db).insert(
+            TestData.document(id: docA, title: "alpha lectures", categoryId: BuiltinCategory.lectureSlides.id)
+        )
+        let repo = HighlightRepository(database: db)
+        try await repo.insert(TestData.highlight(documentId: docA, id: m1, color: .yellow, positionKey: 1, createdAt: t0))
+        try await repo.insert(TestData.highlight(
+            documentId: docA, id: m2, color: .green, positionKey: 2, createdAt: t0.addingTimeInterval(day)
+        ))
+        try await repo.insert(TestData.highlight(
+            documentId: docA, id: m3, color: .yellow, positionKey: 3, createdAt: t0.addingTimeInterval(2 * day)
+        ))
+        let cards = ReviewCardRepository(database: db)
+        try await cards.insertPassiveCards([
+            try ReviewCardFactory.passive(highlightId: m2, now: t0),
+            try ReviewCardFactory.passive(highlightId: m3, now: t0),
+        ])
+        let qa = try ReviewCardFactory.mastery(
+            highlightId: m3, cardType: .qa, clozeRanges: nil, question: "What?", answer: "This.", now: t0
+        )
+        try await cards.insertMasteryCards([qa], highlightId: m3)
+        return repo
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func masteryFilter() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = try await Self.seedCards(db)
+
+        let withMastery = try await repo.browse(
+            filter: HighlightBrowserFilter(hasMastery: true), sort: .createdNewest
+        )
+        #expect(Self.ids(withMastery) == [Self.m3])
+
+        let withoutMastery = try await repo.browse(
+            filter: HighlightBrowserFilter(hasMastery: false), sort: .createdNewest
+        )
+        #expect(Self.ids(withoutMastery) == [Self.m2, Self.m1])
+
+        let either = try await repo.browse(filter: HighlightBrowserFilter(), sort: .createdNewest)
+        #expect(Self.ids(either) == [Self.m3, Self.m2, Self.m1])
+
+        let combined = try await repo.browse(
+            filter: HighlightBrowserFilter(colors: [.yellow], hasMastery: false), sort: .createdNewest
+        )
+        #expect(Self.ids(combined) == [Self.m1])
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func cardCounts() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = try await Self.seedCards(db)
+        let items = try await repo.browse(filter: HighlightBrowserFilter(), sort: .documentPosition)
+        let byId = Dictionary(uniqueKeysWithValues: items.map { ($0.highlight.id, $0) })
+
+        #expect(byId[Self.m1]?.masteryCardCount == 0)
+        #expect(byId[Self.m1]?.reviewCardCount == 0)
+        #expect(byId[Self.m2]?.masteryCardCount == 0)
+        #expect(byId[Self.m2]?.reviewCardCount == 1)
+        #expect(byId[Self.m3]?.masteryCardCount == 1)
+        #expect(byId[Self.m3]?.reviewCardCount == 2)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
+
+    /// Holds the latest reviewCardCount of m1 seen by a background observation.
+    private actor CountBox {
+        private var value: Int?
+        func set(_ newValue: Int?) { value = newValue }
+        func get() -> Int? { value }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func observeBrowseSeesNewCards() async throws {
+        let db = try AppDatabase.makeInMemory()
+        let repo = try await Self.seedCards(db)
+        let box = CountBox()
+        let observation = repo.observeBrowse(filter: HighlightBrowserFilter(), sort: .createdNewest)
+        let task = Task {
+            for try await items in observation {
+                await box.set(items.first { $0.highlight.id == Self.m1 }?.reviewCardCount)
+            }
+        }
+        defer { task.cancel() }
+
+        let initialSeen = await TestWait.until { (await box.get()) == 0 }
+        #expect(initialSeen)
+
+        let card = try ReviewCardFactory.passive(highlightId: Self.m1, now: TestData.referenceDate)
+        try await ReviewCardRepository(database: db).insertPassiveCards([card])
+
+        let updatedSeen = await TestWait.until { (await box.get()) == 1 }
+        #expect(updatedSeen)
+        try await db.writer.write { db in try FTSIntegrity.check(db) }
+    }
 }
