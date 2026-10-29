@@ -51,3 +51,4 @@ init(request: HighlightPopoverRequest, session: AppSession, onClose: @escaping (
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer ui-builder sonnet medium (reworks: none), reviewer code-reviewer sonnet medium: APPROVED, spec met (code-verifiable criteria); CI build and full unit tests green, 898 tests (runs 40936246463, 40936611840). Visual check pending (Mac row in VISUAL_CHECKS.md)

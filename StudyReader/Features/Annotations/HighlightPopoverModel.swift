@@ -15,6 +15,8 @@ final class HighlightPopoverModel {
     /// True once the live row has been read; a nil `highlight` after that means it was deleted elsewhere.
     private(set) var hasLoaded = false
     private(set) var errorMessage: String?
+    /// Cloze and Q&A cards of this highlight, live.
+    private(set) var masteryCardCount = 0
 
     /// The snapshot of an image highlight, loaded once by `observe()`.
     private(set) var image: NSImage?
@@ -37,7 +39,20 @@ final class HighlightPopoverModel {
         await noteModel.load()
         async let tags: Void = tagModel.observe()
         async let live: Void = observeHighlight()
-        _ = await (tags, live)
+        async let mastery: Void = observeMasteryCards()
+        _ = await (tags, live, mastery)
+    }
+
+    /// Counts the highlight's cloze and Q&A cards; the passive card isn't a Mastery card.
+    private func observeMasteryCards() async {
+        do {
+            for try await cards in session.environment.reviewCardRepository.observeCards(forHighlight: highlightId) {
+                masteryCardCount = cards.filter { $0.cardType == .cloze || $0.cardType == .qa }.count
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            masteryCardCount = 0
+        }
     }
 
     private func observeHighlight() async {

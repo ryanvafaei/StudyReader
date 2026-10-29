@@ -132,9 +132,18 @@ private struct ReaderTabContent: View {
                     attachmentAnchor: .rect(.rect(model.popoverRequest?.anchorRect ?? .zero)),
                     arrowEdge: .bottom
                 ) { request in
-                    HighlightPopoverView(request: request, session: session) {
-                        model.popoverRequest = nil
-                    }
+                    HighlightPopoverView(
+                        request: request,
+                        session: session,
+                        onClose: { model.popoverRequest = nil },
+                        onMastery: { model.showMastery(highlightId: $0) }
+                    )
+                }
+                .sheet(item: Binding(
+                    get: { model.masteryHighlightId.map(MasteryTarget.init) },
+                    set: { model.masteryHighlightId = $0?.id }
+                )) { target in
+                    MasteryEditorSheet(highlightId: target.id, session: session)
                 }
                 .overlay { selectionToolbarOverlay }
         }
@@ -288,4 +297,8 @@ private struct ReaderSidePanel: View {
         }
         .padding()
     }
+}
+
+private struct MasteryTarget: Identifiable {
+    let id: String
 }

@@ -28,6 +28,8 @@ final class ReaderModel: PendingWriteFlushing {
     var isRightPanelVisible = false
     var rightPanelTab: ReaderPanelTab = .highlights
     var popoverRequest: HighlightPopoverRequest?
+    /// Non-nil: the reader window shows the Mastery editor for this highlight.
+    var masteryHighlightId: String?
     var selectionToolbar: SelectionToolbarRequest?
     /// Engines apply it when non-nil and then call consumeLocation().
     private(set) var pendingLocation: ReaderLocation?
@@ -332,6 +334,12 @@ final class ReaderModel: PendingWriteFlushing {
             autoHighlightMark = nil
         }
         popoverRequest = HighlightPopoverRequest(highlightId: highlightId, anchorRect: anchorRect, focus: focus)
+    }
+
+    /// Closes the popover and asks the reader window to show the Mastery editor for the highlight.
+    func showMastery(highlightId: String) {
+        popoverRequest = nil
+        masteryHighlightId = highlightId
     }
 
     /// Auto-highlight on creates at once in the current color; off shows the selection toolbar. Returns the created

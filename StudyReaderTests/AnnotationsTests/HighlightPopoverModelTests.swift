@@ -33,6 +33,26 @@ struct HighlightPopoverModelTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func masteryBadgeFollowsCards() async throws {
+        let session = try await Self.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        let highlight = TestData.highlight(documentId: Self.documentId)
+        try await session.environment.highlightRepository.insert(highlight)
+        let model = HighlightPopoverModel(highlightId: highlight.id, session: session)
+        let observer = Task { await model.observe() }
+        defer { observer.cancel() }
+
+        let loaded = await TestWait.until { await model.hasLoaded }
+        #expect(loaded)
+        #expect(model.masteryCardCount == 0)
+
+        let draft = MasteryDraft(id: UUID().uuidString, isSaved: false, kind: .qa(question: "Q?", answer: "A"))
+        try await session.environment.masteryService.save([draft], highlightId: highlight.id)
+        let counted = await TestWait.until { await model.masteryCardCount == 1 }
+        #expect(counted)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func copyTextPrefersEditedText() async throws {
         let session = try await Self.makeSession()
         defer { ReaderTestSupport.cleanUp(session) }

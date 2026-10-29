@@ -6,21 +6,34 @@ struct HighlightPopoverView: View {
     let request: HighlightPopoverRequest
     let session: AppSession
     let onClose: () -> Void
+    let onMastery: (String) -> Void
 
     @State private var model: HighlightPopoverModel
     @FocusState private var focus: PopoverFocus?
 
-    init(request: HighlightPopoverRequest, session: AppSession, onClose: @escaping () -> Void) {
+    init(
+        request: HighlightPopoverRequest,
+        session: AppSession,
+        onClose: @escaping () -> Void,
+        onMastery: @escaping (String) -> Void = { _ in }
+    ) {
         self.request = request
         self.session = session
         self.onClose = onClose
+        self.onMastery = onMastery
         _model = State(initialValue: HighlightPopoverModel(highlightId: request.highlightId, session: session))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ColorDotsView(settings: session.settings, selected: model.highlight?.color) { color in
-                Task { await model.setColor(color) }
+            HStack {
+                ColorDotsView(settings: session.settings, selected: model.highlight?.color) { color in
+                    Task { await model.setColor(color) }
+                }
+                if model.masteryCardCount > 0 {
+                    Spacer()
+                    MasteryBadge(identifier: "popover-mastery-badge")
+                }
             }
 
             preview
@@ -44,6 +57,18 @@ struct HighlightPopoverView: View {
                 .accessibilityLabel("Copy highlight")
 
                 Spacer()
+
+                if !model.isGone {
+                    Button {
+                        onMastery(model.highlightId)
+                    } label: {
+                        Label("Mastery…", systemImage: "brain")
+                    }
+                    .accessibilityLabel("Mastery")
+                    .accessibilityIdentifier("popover-action-mastery")
+
+                    Spacer()
+                }
 
                 Button(role: .destructive) {
                     Task { await model.delete() }

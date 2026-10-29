@@ -3,6 +3,8 @@ import SwiftUI
 
 /// Small "Mastery" capsule shown on rows and in the detail pane of highlights that have Mastery cards (SPEC F-16).
 struct MasteryBadge: View {
+    var identifier = "highlights-mastery-badge"
+
     var body: some View {
         Text("Mastery")
             .font(.caption2.weight(.semibold))
@@ -12,7 +14,7 @@ struct MasteryBadge: View {
             .foregroundStyle(Color.accentColor)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Has Mastery cards")
-            .accessibilityIdentifier("highlights-mastery-badge")
+            .accessibilityIdentifier(identifier)
     }
 }
 

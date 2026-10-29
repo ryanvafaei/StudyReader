@@ -375,6 +375,20 @@ struct ReaderModelTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
+    func showMasteryClosesThePopover() async throws {
+        let session = try ReaderTestSupport.makeSession()
+        defer { ReaderTestSupport.cleanUp(session) }
+        let (model, observer, highlight) = try await Self.modelWithAutoHighlight(session)
+        defer { observer.cancel() }
+
+        model.showPopover(highlightId: highlight.id, anchorRect: .zero)
+        model.showMastery(highlightId: highlight.id)
+
+        #expect(model.popoverRequest == nil)
+        #expect(model.masteryHighlightId == highlight.id)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func undoIsClearedWhenAnotherHighlightFailsToSave() async throws {
         let session = try ReaderTestSupport.makeSession()
         defer { ReaderTestSupport.cleanUp(session) }
