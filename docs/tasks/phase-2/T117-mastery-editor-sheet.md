@@ -73,3 +73,4 @@ When opened from the Highlights browser the sheet belongs to the main window. `L
 
 ## Review log
 <!-- Main session appends one line per review: date, implementer <agent> <model> <effort> (reworks: effort), reviewer <agent> <model> <effort>: VERDICT, reason -->
+- 2026-10-29, implementer ui-builder sonnet medium (reworks: none), reviewer code-reviewer sonnet medium: APPROVED, spec met (code-verifiable criteria); CI build and full unit tests green, 892 tests (runs 40931336349, 40931716173). Visual check pending (Mac row in VISUAL_CHECKS.md)
