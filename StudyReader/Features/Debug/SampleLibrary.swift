@@ -104,11 +104,16 @@ struct SampleLibrary: Sendable {
         let tagIds = try await tagIds(for: sample.tags, now: now)
         try await environment.tagRepository.setTags(tagIds, forDocument: sample.id)
 
+        var cards: [ReviewCard] = []
         for (offset, spec) in sample.highlights.enumerated() {
             let index = firstHighlightIndex + offset
             if let highlight = Self.highlight(for: spec, in: sample, now: now.addingTimeInterval(-Double(index))) {
                 try await environment.highlightRepository.insert(highlight)
+                cards.append(try Self.card(for: highlight, review: spec.review, now: now))
             }
+        }
+        if !cards.isEmpty {
+            try await environment.reviewCardRepository.insertPassiveCards(cards)
         }
 
         switch sample.extraction {
@@ -227,6 +232,33 @@ struct SampleLibrary: Sendable {
         )
     }
 
+    /// The passive card of a seeded highlight in the state its sample definition asks for.
+    private static func card(for highlight: Highlight, review: SampleReview, now: Date) throws -> ReviewCard {
+        var card = try ReviewCardFactory.passive(highlightId: highlight.id, now: highlight.createdAt)
+        let due: Date
+        switch review {
+        case .new:
+            return card
+        case let .due(hoursAgo):
+            due = now.addingTimeInterval(-hoursAgo * 3_600).storageRounded
+        case let .later(days):
+            due = now.addingTimeInterval(days * 86_400).storageRounded
+        }
+        let stored = StoredFSRSCard(
+            due: due,
+            stability: 5,
+            difficulty: 5,
+            scheduledDays: 5,
+            reps: 2,
+            state: .review,
+            lastReview: due.addingTimeInterval(-5 * 86_400)
+        )
+        card.fsrsCard = try stored.json()
+        card.dueAt = due
+        card.state = .review
+        return card
+    }
+
     private static func highlight(for spec: SampleHighlight, in sample: Sample, now: Date) -> Highlight? {
         switch spec.spot {
         case let .pdfLine(page, line):
@@ -295,10 +327,18 @@ struct SampleLibrary: Sendable {
         case phrase(String)
     }
 
+    /// The state of the passive review card seeded with a highlight, relative to the seeding time.
+    private enum SampleReview: Sendable {
+        case new
+        case due(hoursAgo: Double)
+        case later(days: Double)
+    }
+
     private struct SampleHighlight: Sendable {
         let color: HighlightColor
         let spot: Spot
         var note = ""
+        var review = SampleReview.new
     }
 
     private struct Sample: Sendable {
@@ -324,6 +364,17 @@ struct SampleLibrary: Sendable {
         /// Distance between PDF text lines in points.
         var lineStep: CGFloat = 26
     }
+
+    // Review cards: 10 highlights, 4 due, 4 new, 2 due later. The daily session with the default limits (15/5) is,
+    // in this order (T112's UI tests rely on it):
+    //   due, by due date: "lowers the loss" (72 h ago), Lecture 1 p. 1 "Proteins embedded in the membrane move
+    //   materials." (48 h), Lecture 1 p. 2 "Cristae increase the inner membrane surface area." with the note
+    //   "Check this for the quiz" (24 h), Probability "Probability assigns a number between zero and one to each
+    //   event." (1 h);
+    //   new, oldest highlight first: Membrane Transport "Channels let ions pass through the membrane.",
+    //   "small batch of examples", "too large a step can diverge", Lecture 1 p. 3 "The nucleus stores DNA and
+    //   controls gene expression.".
+    // Not in the session: "running average" (due in 5 days) and Pendulum (due in 10 days).
 
     /// Seven documents: PDF and Markdown, portrait and landscape, with and without covers, varied tags, highlights
     /// and progress. Covers the states: never opened, done, failed, pending, and missing original (no bookmark).
@@ -359,8 +410,13 @@ struct SampleLibrary: Sendable {
             progress: 0.4,
             openedDaysAgo: 2,
             highlights: [
-                SampleHighlight(color: .yellow, spot: .pdfLine(page: 0, line: 1)),
-                SampleHighlight(color: .green, spot: .pdfLine(page: 1, line: 2), note: "Check this for the quiz"),
+                SampleHighlight(color: .yellow, spot: .pdfLine(page: 0, line: 1), review: .due(hoursAgo: 48)),
+                SampleHighlight(
+                    color: .green,
+                    spot: .pdfLine(page: 1, line: 2),
+                    note: "Check this for the quiz",
+                    review: .due(hoursAgo: 24)
+                ),
                 SampleHighlight(color: .blue, spot: .pdfLine(page: 2, line: 0))
             ]
         ),
@@ -410,10 +466,10 @@ struct SampleLibrary: Sendable {
             progress: 0.75,
             openedDaysAgo: 1,
             highlights: [
-                SampleHighlight(color: .yellow, spot: .phrase("lowers the loss")),
+                SampleHighlight(color: .yellow, spot: .phrase("lowers the loss"), review: .due(hoursAgo: 72)),
                 SampleHighlight(color: .green, spot: .phrase("too large a step can diverge"), note: "Diverges"),
                 SampleHighlight(color: .blue, spot: .phrase("small batch of examples")),
-                SampleHighlight(color: .pink, spot: .phrase("running average"))
+                SampleHighlight(color: .pink, spot: .phrase("running average"), review: .later(days: 5))
             ]
         ),
         Sample(
@@ -459,7 +515,7 @@ struct SampleLibrary: Sendable {
             progress: 0.1,
             openedDaysAgo: 10,
             highlights: [
-                SampleHighlight(color: .pink, spot: .pdfLine(page: 0, line: 0))
+                SampleHighlight(color: .pink, spot: .pdfLine(page: 0, line: 0), review: .due(hoursAgo: 1))
             ]
         ),
         Sample(
@@ -482,7 +538,7 @@ struct SampleLibrary: Sendable {
             progress: 0.5,
             openedDaysAgo: 3,
             highlights: [
-                SampleHighlight(color: .purple, spot: .pdfLine(page: 0, line: 1))
+                SampleHighlight(color: .purple, spot: .pdfLine(page: 0, line: 1), review: .later(days: 10))
             ]
         ),
         Sample(

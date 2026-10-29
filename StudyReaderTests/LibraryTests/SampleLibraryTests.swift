@@ -119,6 +119,52 @@ struct SampleLibraryTests {
         ])
     }
 
+    @Test("seeded review cards give a known daily plan")
+    func seededReviewCardsGiveAKnownDailyPlan() async throws {
+        let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
+        defer { TestFileStore.remove(env.fileStore) }
+        let sample = SampleLibrary(environment: env)
+        _ = try await sample.seed()
+
+        let highlights = try await env.highlightRepository.browse(filter: HighlightBrowserFilter(), sort: .createdNewest)
+            .map(\.highlight)
+        var cardCount = 0
+        for highlight in highlights {
+            cardCount += try await env.reviewCardRepository.cards(forHighlight: highlight.id).count
+        }
+        #expect(highlights.count == 10)
+        #expect(cardCount == 10)
+
+        let service = ReviewService(
+            cards: env.reviewCardRepository,
+            highlights: env.highlightRepository,
+            now: FixedNow(TestData.referenceDate),
+            calendar: ReviewTestFixture.calendar
+        )
+        let plan = try await service.dailyPlan(limits: .defaults)
+        let items = try await service.items(cardIds: plan.cardIds)
+        let byId = Dictionary(uniqueKeysWithValues: items.map { ($0.card.id, $0.highlight.text) })
+        #expect(plan.cardIds.compactMap { byId[$0] } == [
+            "lowers the loss",
+            "Proteins embedded in the membrane move materials.",
+            "Cristae increase the inner membrane surface area.",
+            "Probability assigns a number between zero and one to each event.",
+            "Channels let ions pass through the membrane.",
+            "small batch of examples",
+            "too large a step can diverge",
+            "The nucleus stores DNA and controls gene expression."
+        ])
+        #expect(plan.dueCount == 4)
+        #expect(plan.newCount == 4)
+
+        _ = try await sample.seed()
+        var afterSecondSeed = 0
+        for highlight in highlights {
+            afterSecondSeed += try await env.reviewCardRepository.cards(forHighlight: highlight.id).count
+        }
+        #expect(afterSecondSeed == 10)
+    }
+
     @Test("the 16:9 slide-deck sample has a landscape cover no larger than the 600 px cap")
     func landscapeSampleHasLandscapeCover() async throws {
         let env = try AppEnvironment.inMemory(now: FixedNow(TestData.referenceDate))
